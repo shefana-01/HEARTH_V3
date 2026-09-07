@@ -1,0 +1,46 @@
+version: '3.8'
+
+services:
+  # Primary Database Engine (hosts logical DBs: hearth_family, hearth_task, hearth_decision, hearth_care, hearth_notification)
+  postgres:
+    image: postgres:16-alpine
+    container_name: hearth-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: hearth_password
+      POSTGRES_DB: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./infrastructure/init-db:/docker-entrypoint-initdb.d
+    networks:
+      - hearth-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis Cache (for fast availability and Decision Engine state caching)
+  redis:
+    image: redis:7-alpine
+    container_name: hearth-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redisdata:/data
+    networks:
+      - hearth-network
+
+networks:
+  hearth-network:
+    driver: bridge
+
+volumes:
+  pgdata:
+    driver: local
+  redisdata:
+    driver: local
