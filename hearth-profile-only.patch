@@ -1,0 +1,573 @@
+diff --git a/frontend/src/pages/Profile/ProfilePage.tsx b/frontend/src/pages/Profile/ProfilePage.tsx
+new file mode 100644
+index 0000000..6bc76ad
+--- /dev/null
++++ b/frontend/src/pages/Profile/ProfilePage.tsx
+@@ -0,0 +1,58 @@
++import React from 'react';
++import { ProfileHeader } from './components/ProfileHeader';
++import { ProfileNavTabs } from './components/ProfileNavTabs';
++import { CaregiverCard } from './components/CaregiverCard';
++import { StatusMessageCard } from './components/StatusMessageCard';
++import { PersonalInfoSection } from './components/PersonalInfoSection';
++import { PreferencesSection } from './components/PreferencesSection';
++import { ProfileFooter } from './components/ProfileFooter';
++
++export const ProfilePage: React.FC = () => {
++  return (
++    <div className="w-full min-h-screen bg-[#fff8f4] text-[#201b15] antialiased flex flex-col justify-between selection:bg-[#c5ecd1] selection:text-[#002112]">
++      {/* Fixed App Header */}
++      <div>
++        <ProfileHeader currentFamilyName="The Miller Family" />
++        <div className="pt-16">
++          <ProfileNavTabs />
++        </div>
++      </div>
++
++      {/* Main Settings Body */}
++      <main className="w-full flex-1 bg-[#fff8f4] py-8 sm:py-10">
++        <div className="max-w-4xl mx-auto w-full px-4 md:px-8 lg:px-12">
++          {/* Top Heading Block */}
++          <div className="mb-8">
++            <span className="font-sans text-xs font-bold uppercase tracking-wider text-[#56423c]/70 mb-1.5 block">
++              Personal Workspace
++            </span>
++            <h1 className="font-serif text-3xl sm:text-4xl md:text-5xl text-[#201b15] font-normal tracking-tight">
++              Profile &amp; Personal Details
++            </h1>
++            <p className="font-sans text-sm sm:text-base text-[#56423c] mt-2 max-w-2xl leading-relaxed">
++              Manage your personal identity, visibility, and secure contact preferences within the Hearth care network.
++            </p>
++          </div>
++
++          {/* 2-Column Responsive Layout */}
++          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
++            {/* Left Column: Avatar & Quick Status */}
++            <div className="md:col-span-1 flex flex-col gap-6">
++              <CaregiverCard />
++              <StatusMessageCard />
++            </div>
++
++            {/* Right Column: Information & Preferences Lists */}
++            <div className="md:col-span-2 flex flex-col gap-6">
++              <PersonalInfoSection />
++              <PreferencesSection />
++            </div>
++          </div>
++        </div>
++      </main>
++
++      {/* HIPAA Compliance Footer */}
++      <ProfileFooter />
++    </div>
++  );
++};
+diff --git a/frontend/src/pages/Profile/components/CaregiverCard.tsx b/frontend/src/pages/Profile/components/CaregiverCard.tsx
+new file mode 100644
+index 0000000..e5c33a6
+--- /dev/null
++++ b/frontend/src/pages/Profile/components/CaregiverCard.tsx
+@@ -0,0 +1,58 @@
++import React from 'react';
++
++interface CaregiverCardProps {
++  name?: string;
++  role?: string;
++  circlesCount?: number;
++  syncsCount?: number;
++  avatarUrl?: string;
++}
++
++export const CaregiverCard: React.FC<CaregiverCardProps> = ({
++  name = 'Eleanor Miller',
++  role = 'Primary Caregiver',
++  circlesCount = 3,
++  syncsCount = 12,
++  avatarUrl = 'https://lh3.googleusercontent.com/aida-public/AB6AXuDj42QITBh6w1FWtSTEgvmZM2b9vTDv3Exw08VfvzbQrfOhV9lGVoPmScnyAjZT3Ep2MyfyP3e7bvsspuwv_XGQFhbANmV6BMegzAYuhZcU504hNKEgOhJXOEiUbOSRedrEKW4RMaN5ndyu_KaesvSvQb7mIUNfYh5nygYjK-pPRS1v3FrrhT-EJI_JCfzm-DonyIj7Ul0VWa8_EV163J4NOLJlvwCfd3gq1mPY_80j7iywOSocCV0',
++}) => {
++  return (
++    <div className="bg-[#fdf2e8] rounded-2xl p-6 shadow-xs flex flex-col items-center text-center relative border border-[#ece1d7]/60">
++      {/* Profile Picture with Change Badge */}
++      <div className="relative w-32 h-32 mb-4">
++        <img
++          alt={name}
++          className="w-full h-full rounded-full object-cover shadow-md border-2 border-white"
++          src={avatarUrl}
++        />
++        <button
++          type="button"
++          aria-label="Change profile photo"
++          className="absolute bottom-0 right-0 w-10 h-10 rounded-full bg-[#983d1d] text-white flex items-center justify-center shadow-lg hover:scale-105 active:scale-95 transition-transform cursor-pointer"
++        >
++          <span className="material-symbols-outlined text-[20px]">photo_camera</span>
++        </button>
++      </div>
++
++      {/* Name & Role */}
++      <h2 className="font-serif text-xl sm:text-2xl text-[#201b15] font-semibold">{name}</h2>
++      <p className="font-sans text-xs sm:text-sm text-[#56423c] mt-1">{role}</p>
++
++      {/* Stats Divider & Row */}
++      <div className="w-full mt-6 pt-5 border-t border-[#ece1d7] flex justify-around text-center">
++        <div>
++          <span className="font-serif text-xl sm:text-2xl text-[#983d1d] font-bold block">
++            {circlesCount}
++          </span>
++          <span className="font-sans text-xs text-[#56423c]">Circles</span>
++        </div>
++        <div className="w-px bg-[#ece1d7]" />
++        <div>
++          <span className="font-serif text-xl sm:text-2xl text-[#3b5d77] font-bold block">
++            {syncsCount}
++          </span>
++          <span className="font-sans text-xs text-[#56423c]">Syncs</span>
++        </div>
++      </div>
++    </div>
++  );
++};
+diff --git a/frontend/src/pages/Profile/components/PersonalInfoSection.tsx b/frontend/src/pages/Profile/components/PersonalInfoSection.tsx
+new file mode 100644
+index 0000000..54828b4
+--- /dev/null
++++ b/frontend/src/pages/Profile/components/PersonalInfoSection.tsx
+@@ -0,0 +1,79 @@
++import React from 'react';
++
++interface PersonalInfoSectionProps {
++  fullName?: string;
++  phone?: string;
++  email?: string;
++}
++
++export const PersonalInfoSection: React.FC<PersonalInfoSectionProps> = ({
++  fullName = 'Eleanor Vance Miller',
++  phone = '+1 (555) 382-9012',
++  email = 'eleanor.miller@hearth.care',
++}) => {
++  return (
++    <div className="bg-[#fdf2e8] rounded-2xl shadow-xs overflow-hidden border border-[#ece1d7]/60">
++      <div className="px-6 py-4 bg-[#f1e6dc]/40 border-b border-[#ece1d7]/40">
++        <h3 className="font-sans text-base sm:text-lg font-bold text-[#201b15]">
++          Personal Information
++        </h3>
++      </div>
++
++      <div className="divide-y divide-[#ece1d7]/40">
++        {/* Full Name Row */}
++        <div className="p-5 flex items-center justify-between hover:bg-[#f7ece2]/60 transition-colors cursor-pointer group">
++          <div className="flex items-center gap-4">
++            <div className="w-10 h-10 rounded-full bg-[#ffdbd0] flex items-center justify-center text-[#983d1d] shrink-0">
++              <span className="material-symbols-outlined text-[20px]">person</span>
++            </div>
++            <div>
++              <span className="font-sans text-xs font-semibold text-[#201b15] block">
++                Full Name
++              </span>
++              <span className="font-sans text-sm text-[#56423c]">{fullName}</span>
++            </div>
++          </div>
++          <span className="material-symbols-outlined text-[#56423c] group-hover:translate-x-0.5 transition-transform">
++            chevron_right
++          </span>
++        </div>
++
++        {/* Phone Number Row */}
++        <div className="p-5 flex items-center justify-between hover:bg-[#f7ece2]/60 transition-colors cursor-pointer group">
++          <div className="flex items-center gap-4">
++            <div className="w-10 h-10 rounded-full bg-[#c5ecd1] flex items-center justify-center text-[#436651] shrink-0">
++              <span className="material-symbols-outlined text-[20px]">phone</span>
++            </div>
++            <div>
++              <span className="font-sans text-xs font-semibold text-[#201b15] block">
++                Phone Number
++              </span>
++              <span className="font-sans text-sm text-[#56423c]">{phone}</span>
++            </div>
++          </div>
++          <span className="material-symbols-outlined text-[#56423c] group-hover:translate-x-0.5 transition-transform">
++            chevron_right
++          </span>
++        </div>
++
++        {/* Email Address Row */}
++        <div className="p-5 flex items-center justify-between hover:bg-[#f7ece2]/60 transition-colors cursor-pointer group">
++          <div className="flex items-center gap-4">
++            <div className="w-10 h-10 rounded-full bg-[#cae6ff] flex items-center justify-center text-[#3b5d77] shrink-0">
++              <span className="material-symbols-outlined text-[20px]">mail</span>
++            </div>
++            <div>
++              <span className="font-sans text-xs font-semibold text-[#201b15] block">
++                Email Address
++              </span>
++              <span className="font-sans text-sm text-[#56423c]">{email}</span>
++            </div>
++          </div>
++          <span className="material-symbols-outlined text-[#56423c] group-hover:translate-x-0.5 transition-transform">
++            chevron_right
++          </span>
++        </div>
++      </div>
++    </div>
++  );
++};
+diff --git a/frontend/src/pages/Profile/components/PreferencesSection.tsx b/frontend/src/pages/Profile/components/PreferencesSection.tsx
+new file mode 100644
+index 0000000..a701300
+--- /dev/null
++++ b/frontend/src/pages/Profile/components/PreferencesSection.tsx
+@@ -0,0 +1,75 @@
++import React from 'react';
++
++export const PreferencesSection: React.FC = () => {
++  return (
++    <div className="bg-[#fdf2e8] rounded-2xl shadow-xs overflow-hidden border border-[#ece1d7]/60">
++      <div className="px-6 py-4 bg-[#f1e6dc]/40 border-b border-[#ece1d7]/40">
++        <h3 className="font-sans text-base sm:text-lg font-bold text-[#201b15]">
++          Preferences &amp; Security
++        </h3>
++      </div>
++
++      <div className="divide-y divide-[#ece1d7]/40">
++        {/* Care Circle Privacy Row */}
++        <div className="p-5 flex items-center justify-between hover:bg-[#f7ece2]/60 transition-colors cursor-pointer group">
++          <div className="flex items-center gap-4">
++            <div className="w-10 h-10 rounded-full bg-[#f1e6dc] flex items-center justify-center text-[#201b15] shrink-0">
++              <span className="material-symbols-outlined text-[20px]">lock</span>
++            </div>
++            <div>
++              <span className="font-sans text-xs font-semibold text-[#201b15] block">
++                Care Circle Privacy
++              </span>
++              <span className="font-sans text-sm text-[#56423c]">
++                Control who sees your active status and notes
++              </span>
++            </div>
++          </div>
++          <span className="material-symbols-outlined text-[#56423c] group-hover:translate-x-0.5 transition-transform">
++            chevron_right
++          </span>
++        </div>
++
++        {/* Alerts & Notifications Row */}
++        <div className="p-5 flex items-center justify-between hover:bg-[#f7ece2]/60 transition-colors cursor-pointer group">
++          <div className="flex items-center gap-4">
++            <div className="w-10 h-10 rounded-full bg-[#f1e6dc] flex items-center justify-center text-[#201b15] shrink-0">
++              <span className="material-symbols-outlined text-[20px]">notifications_active</span>
++            </div>
++            <div>
++              <span className="font-sans text-xs font-semibold text-[#201b15] block">
++                Alerts &amp; Notifications
++              </span>
++              <span className="font-sans text-sm text-[#56423c]">
++                Medication reminders and family check-in chimes
++              </span>
++            </div>
++          </div>
++          <span className="material-symbols-outlined text-[#56423c] group-hover:translate-x-0.5 transition-transform">
++            chevron_right
++          </span>
++        </div>
++
++        {/* Account & Data Export Row */}
++        <div className="p-5 flex items-center justify-between hover:bg-[#f7ece2]/60 transition-colors cursor-pointer group">
++          <div className="flex items-center gap-4">
++            <div className="w-10 h-10 rounded-full bg-[#ffdad6]/60 flex items-center justify-center text-[#ba1a1a] shrink-0">
++              <span className="material-symbols-outlined text-[20px]">shield_person</span>
++            </div>
++            <div>
++              <span className="font-sans text-xs font-semibold text-[#201b15] block">
++                Account &amp; Data Export
++              </span>
++              <span className="font-sans text-sm text-[#56423c]">
++                Download encrypted records or deactivate profile
++              </span>
++            </div>
++          </div>
++          <span className="material-symbols-outlined text-[#56423c] group-hover:translate-x-0.5 transition-transform">
++            chevron_right
++          </span>
++        </div>
++      </div>
++    </div>
++  );
++};
+diff --git a/frontend/src/pages/Profile/components/ProfileFooter.tsx b/frontend/src/pages/Profile/components/ProfileFooter.tsx
+new file mode 100644
+index 0000000..4b73d27
+--- /dev/null
++++ b/frontend/src/pages/Profile/components/ProfileFooter.tsx
+@@ -0,0 +1,30 @@
++import React from 'react';
++
++export const ProfileFooter: React.FC = () => {
++  return (
++    <footer className="w-full bg-[#fdf2e8] mt-12 border-t border-[#ece1d7]/60">
++      <div className="max-w-7xl mx-auto px-4 md:px-8 lg:px-12 py-6 flex flex-col sm:flex-row items-center justify-between gap-4">
++        {/* Compliance guarantee */}
++        <div className="flex items-center gap-2 text-[#56423c] font-sans text-xs sm:text-sm">
++          <span className="material-symbols-outlined text-[#3b5d77] text-[18px]">
++            verified_user
++          </span>
++          <span>HIPAA-Compliant Encrypted Family Workspace</span>
++        </div>
++
++        {/* Footer Links */}
++        <div className="flex items-center gap-6 font-sans text-xs text-[#56423c]">
++          <a href="#privacy-notice" className="hover:text-[#201b15] transition-colors">
++            Care Privacy Notice
++          </a>
++          <a href="#consent-terms" className="hover:text-[#201b15] transition-colors">
++            Consent Terms
++          </a>
++          <a href="#audit-logs" className="hover:text-[#201b15] transition-colors">
++            Clinician Audit Logs
++          </a>
++        </div>
++      </div>
++    </footer>
++  );
++};
+diff --git a/frontend/src/pages/Profile/components/ProfileHeader.tsx b/frontend/src/pages/Profile/components/ProfileHeader.tsx
+new file mode 100644
+index 0000000..1702af6
+--- /dev/null
++++ b/frontend/src/pages/Profile/components/ProfileHeader.tsx
+@@ -0,0 +1,109 @@
++import React, { useState } from 'react';
++import { Link } from 'react-router-dom';
++
++interface ProfileHeaderProps {
++  currentFamilyName?: string;
++}
++
++export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
++  currentFamilyName = 'The Miller Family',
++}) => {
++  const [searchQuery, setSearchQuery] = useState('');
++
++  return (
++    <header className="fixed top-0 w-full z-50 bg-[#fff8f4]/85 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)] border-b border-[#ece1d7]/60">
++      <div className="h-16 max-w-7xl mx-auto px-4 md:px-8 lg:px-12 flex items-center justify-between gap-4">
++        {/* Brand & Care Circle Selector */}
++        <div className="flex items-center gap-4 shrink-0">
++          <Link to="/" className="flex items-center gap-2 group focus:outline-none">
++            <img
++              alt="Hearth logo"
++              className="h-8 w-auto object-contain transition-transform group-hover:scale-105"
++              src="https://lh3.googleusercontent.com/aida/AEtjO1XrPZkbPZB8EcPSUh6Ny2pFadJr6wO1ohwPpeGgZolPDpJWSlu_KtQLauva4IxHnR0cA4KIDO-Q6POQ6sC9SDTR0NgxJUJ_8lZ1dHENxlqhvFw83Bd6KeSKnJ_pKtYm8Fpedk2sdrV1TKEEcxZuAC7kdLzQ5Qbu5yXI4B9131GoWk9IVlT7oUC5Q5P1K15U6rhByMLF8v7N1PhdUsqpSBSrsB3IhhWoiyLKJm9-UH02YcxXzF6hf3Jo"
++              onError={(e) => {
++                (e.target as HTMLElement).style.display = 'none';
++              }}
++            />
++            <span className="font-serif text-xl sm:text-2xl text-[#201b15] font-semibold tracking-tight">
++              Hearth
++            </span>
++          </Link>
++
++          <div className="h-5 w-px bg-[#ece1d7] hidden sm:block" />
++
++          {/* Care Circle Dropdown Button */}
++          <button
++            type="button"
++            className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#f7ece2] hover:bg-[#f1e6dc] text-[#201b15] transition-colors"
++          >
++            <span className="font-sans text-[11px] font-bold text-[#56423c] uppercase tracking-wider">
++              Care Circle
++            </span>
++            <span className="font-sans text-sm font-semibold text-[#201b15]">
++              {currentFamilyName}
++            </span>
++            <span className="material-symbols-outlined text-[#56423c] text-[18px]">
++              unfold_more
++            </span>
++          </button>
++        </div>
++
++        {/* Global Search Bar */}
++        <div className="hidden md:flex flex-1 max-w-md mx-4">
++          <div className="relative w-full">
++            <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[#56423c] text-[20px]">
++              search
++            </span>
++            <input
++              type="text"
++              value={searchQuery}
++              onChange={(e) => setSearchQuery(e.target.value)}
++              placeholder="Search medications, members, notes..."
++              className="w-full pl-9 pr-4 py-1.5 bg-[#fdf2e8] rounded-lg font-sans text-xs sm:text-sm text-[#201b15] placeholder:text-[#56423c]/70 focus:outline-none focus:bg-white focus:ring-1 focus:ring-[#983d1d] transition-all border border-transparent focus:border-[#983d1d]"
++            />
++          </div>
++        </div>
++
++        {/* Action Controls & User Profile Pill */}
++        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
++          {/* Active Care Synced Pill */}
++          <div className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#c5ecd1] text-[#496c57]">
++            <span className="w-1.5 h-1.5 rounded-full bg-[#436651]" />
++            <span className="font-sans text-[11px] font-bold">Active Care Synced</span>
++          </div>
++
++          {/* Notifications Button */}
++          <button
++            type="button"
++            aria-label="Notifications"
++            className="p-2 rounded-lg text-[#56423c] hover:bg-[#f7ece2] hover:text-[#201b15] transition-colors relative"
++          >
++            <span className="material-symbols-outlined text-[22px]">notifications</span>
++            <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-[#983d1d]" />
++          </button>
++
++          {/* Care Circle Settings */}
++          <button
++            type="button"
++            aria-label="Care Circle Settings"
++            className="p-2 rounded-lg text-[#56423c] hover:bg-[#f7ece2] hover:text-[#201b15] transition-colors hidden sm:block"
++          >
++            <span className="material-symbols-outlined text-[22px]">tune</span>
++          </button>
++
++          {/* User Profile Thumbnail */}
++          <div className="flex items-center gap-1 pl-1 cursor-pointer">
++            <img
++              alt="Profile"
++              className="w-8 h-8 rounded-full object-cover shadow-xs border border-white"
++              src="https://lh3.googleusercontent.com/aida/AEtjO1Uo24zAN1tDffK3lHQkD4yK2NepL2jXo8WsEQOaGJ9jWfxAQ3RRDvQkQBO4JJ74ICYxUG_OTbQ0IN1MVCRp1o7bnIVeUaefzFo_hizjwZgZp5ysrFnf-qGmZ4l-T6XYzpSFO5OlPRKmiPHO23wX_7nPO4DmoGM-PwrDby_6Nqq6weo7EcD1LpohajSq5xLQDDPet3O_mVzSF8H5KXS1xUZpYf0WFjmeFRrAaoTmaTvDlcsIYGoHnoLyAw"
++            />
++            <span className="material-symbols-outlined text-[#56423c] text-[16px] hidden sm:block">
++              expand_more
++            </span>
++          </div>
++        </div>
++      </div>
++    </header>
++  );
++};
+diff --git a/frontend/src/pages/Profile/components/ProfileNavTabs.tsx b/frontend/src/pages/Profile/components/ProfileNavTabs.tsx
+new file mode 100644
+index 0000000..3be935f
+--- /dev/null
++++ b/frontend/src/pages/Profile/components/ProfileNavTabs.tsx
+@@ -0,0 +1,37 @@
++import React, { useState } from 'react';
++
++const TABS = [
++  { id: 'profile', label: 'Profile & Personal Details' },
++  { id: 'permissions', label: 'Care Circle Permissions' },
++  { id: 'security', label: 'Security & Trust' },
++  { id: 'notifications', label: 'Care Alerts & Reminders' },
++  { id: 'clinical', label: 'Clinical Records & Export' },
++];
++
++export const ProfileNavTabs: React.FC = () => {
++  const [activeTab, setActiveTab] = useState('profile');
++
++  return (
++    <nav className="border-t border-[#ece1d7] bg-white/70 backdrop-blur-md">
++      <div className="max-w-7xl mx-auto px-4 md:px-8 lg:px-12 flex items-center gap-6 overflow-x-auto scrollbar-none">
++        {TABS.map((tab) => {
++          const isActive = tab.id === activeTab;
++          return (
++            <button
++              key={tab.id}
++              type="button"
++              onClick={() => setActiveTab(tab.id)}
++              className={`py-2.5 font-sans text-xs sm:text-sm whitespace-nowrap transition-all border-b-2 font-medium cursor-pointer ${
++                isActive
++                  ? 'text-[#983d1d] font-semibold border-[#983d1d]'
++                  : 'text-[#56423c] border-transparent hover:text-[#201b15]'
++              }`}
++            >
++              {tab.label}
++            </button>
++          );
++        })}
++      </div>
++    </nav>
++  );
++};
+diff --git a/frontend/src/pages/Profile/components/StatusMessageCard.tsx b/frontend/src/pages/Profile/components/StatusMessageCard.tsx
+new file mode 100644
+index 0000000..b669141
+--- /dev/null
++++ b/frontend/src/pages/Profile/components/StatusMessageCard.tsx
+@@ -0,0 +1,79 @@
++import React, { useState } from 'react';
++
++interface StatusMessageCardProps {
++  initialStatus?: string;
++}
++
++export const StatusMessageCard: React.FC<StatusMessageCardProps> = ({
++  initialStatus = 'Available for afternoon care updates & medication checks.',
++}) => {
++  const [isEditing, setIsEditing] = useState(false);
++  const [status, setStatus] = useState(initialStatus);
++  const [draftStatus, setDraftStatus] = useState(initialStatus);
++
++  const handleEditClick = () => {
++    setDraftStatus(status);
++    setIsEditing(true);
++  };
++
++  const handleCancelClick = () => {
++    setDraftStatus(status);
++    setIsEditing(false);
++  };
++
++  const handleSaveClick = () => {
++    setStatus(draftStatus);
++    setIsEditing(false);
++  };
++
++  return (
++    <div className="bg-[#fdf2e8] rounded-2xl p-6 shadow-xs border border-[#ece1d7]/60">
++      <div className="flex items-center justify-between mb-2">
++        <span className="font-sans text-sm font-semibold text-[#201b15]">
++          About / Status
++        </span>
++        {!isEditing && (
++          <button
++            type="button"
++            onClick={handleEditClick}
++            className="text-[#983d1d] hover:underline font-sans text-xs font-semibold cursor-pointer"
++          >
++            Edit
++          </button>
++        )}
++      </div>
++
++      {!isEditing ? (
++        <p className="font-sans text-sm text-[#56423c] italic leading-relaxed">
++          "{status}"
++        </p>
++      ) : (
++        <div className="mt-3">
++          <input
++            type="text"
++            value={draftStatus}
++            onChange={(e) => setDraftStatus(e.target.value)}
++            className="w-full p-2.5 bg-white rounded-lg border border-[#ece1d7] font-sans text-xs sm:text-sm text-[#201b15] focus:outline-none focus:ring-2 focus:ring-[#983d1d]/40"
++            autoFocus
++          />
++          <div className="flex justify-end gap-2 mt-3">
++            <button
++              type="button"
++              onClick={handleCancelClick}
++              className="px-3 py-1 rounded-lg text-[#56423c] font-sans text-xs hover:bg-[#ece1d7] transition-colors"
++            >
++              Cancel
++            </button>
++            <button
++              type="button"
++              onClick={handleSaveClick}
++              className="px-3 py-1 rounded-lg bg-[#983d1d] text-white font-sans text-xs font-medium hover:opacity-90 transition-opacity"
++            >
++              Save
++            </button>
++          </div>
++        </div>
++      )}
++    </div>
++  );
++};
