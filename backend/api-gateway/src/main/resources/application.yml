@@ -1,0 +1,55 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: api-gateway
+  cloud:
+    gateway:
+      globalcors:
+        cors-configurations:
+          '[/**]':
+            allowedOrigins:
+              - "http://localhost:5173"
+              - "http://localhost:3000"
+              - "http://127.0.0.1:5173"
+            allowedMethods:
+              - GET
+              - POST
+              - PUT
+              - DELETE
+              - PATCH
+              - OPTIONS
+            allowedHeaders: "*"
+            allowCredentials: true
+      routes:
+        - id: family-service-route
+          uri: http://localhost:8081
+          predicates:
+            - Path=/api/families/**, /api/members/**, /api/auth/**, /api/availability/**
+
+        - id: task-service-route
+          uri: http://localhost:8082
+          predicates:
+            - Path=/api/tasks/**, /api/assignments/**, /api/conflicts/**
+
+        - id: decision-service-route
+          uri: http://localhost:8083
+          predicates:
+            - Path=/api/decisions/**, /api/recommendations/**
+
+        - id: care-service-route
+          uri: http://localhost:8084
+          predicates:
+            - Path=/api/care/**, /api/patients/**, /api/appointments/**, /api/nutrition/**
+
+        - id: notification-service-route
+          uri: http://localhost:8085
+          predicates:
+            - Path=/api/notifications/**, /api/audit/**
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
