@@ -30,3 +30,7 @@ logs/
 # Test coverage
 coverage/
 .nyc_output/
+
+# Archives & Patches
+*.patch
+*.zip
