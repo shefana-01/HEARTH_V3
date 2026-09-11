@@ -30,3 +30,14 @@ logs/
 # Test coverage
 coverage/
 .nyc_output/
+
+# Archives & Patches
+*.patch
+*.zip
+
+# Local backups & scratch
+frontend_backup/
+build_frontend.ps1
+phase3_backup/
+*.cjs
+design-reference/

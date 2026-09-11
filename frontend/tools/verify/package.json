@@ -1,0 +1,15 @@
+{
+  "name": "hearth-verify",
+  "private": true,
+  "type": "module",
+  "description": "Browser verification for the Hearth frontend (route crawl, new-account crawl, end-to-end flows).",
+  "scripts": {
+    "crawl": "node crawl.mjs",
+    "new-account": "node new-account.mjs",
+    "flows": "node flows.mjs",
+    "all": "node crawl.mjs && node new-account.mjs && node flows.mjs"
+  },
+  "devDependencies": {
+    "playwright": "1.56.0"
+  }
+}
