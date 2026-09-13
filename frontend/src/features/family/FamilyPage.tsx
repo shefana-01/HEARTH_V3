@@ -196,7 +196,7 @@ export default function FamilyPage() {
       <InviteMemberDialog
         open={inviteOpen}
         onClose={() => setInviteOpen(false)}
-        onInvited={(m) => {
+        onInvited={(m: FamilyMember) => {
           toast({ title: 'Invitation recorded', description: `${m.name} is now listed as invited.` });
           void refresh();
         }}
