@@ -9,8 +9,8 @@ interface InviteMemberDialogProps {
 
 export function InviteMemberDialog({ open, onClose, onInvited }: InviteMemberDialogProps) {
   return (
-    <Dialog open={open} onClose={onClose}>
-      {/* Dialog content */}
+    <Dialog open={open} onClose={onClose} title="Invite Family Member">
+      {/* Dialog content - use onInvited callback when member is invited */}
     </Dialog>
   );
 }
