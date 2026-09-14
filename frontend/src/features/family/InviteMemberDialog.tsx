@@ -15,7 +15,18 @@ export function InviteMemberDialog({ open, onClose, onInvited }: InviteMemberDia
 
   return (
     <Dialog open={open} onClose={onClose} title="Invite Family Member">
-      {/* Dialog content - call handleInvite when member is invited */}
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          const formData = new FormData(e.currentTarget);
+          const name = String(formData.get('name') ?? '');
+          if (!name.trim()) return;
+          handleInvite({ id: crypto.randomUUID(), name } as FamilyMember);
+        }}
+      >
+        <input name="name" placeholder="Member name" required />
+        <button type="submit">Send Invite</button>
+      </form>
     </Dialog>
   );
 }
