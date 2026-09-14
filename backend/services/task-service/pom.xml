@@ -14,7 +14,7 @@
     <artifactId>task-service</artifactId>
     <version>1.0.0-SNAPSHOT</version>
     <name>task-service</name>
-    <description>Hearth Task Management & Conflict Detection Service</description>
+    <description>Hearth Task Management &amp; Conflict Detection Service</description>
 
     <dependencies>
         <dependency>
