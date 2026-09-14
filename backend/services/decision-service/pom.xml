@@ -14,7 +14,7 @@
     <artifactId>decision-service</artifactId>
     <version>1.0.0-SNAPSHOT</version>
     <name>decision-service</name>
-    <description>Hearth Decision & Priority Engine Service</description>
+    <description>Hearth Decision &amp; Priority Engine Service</description>
 
     <dependencies>
         <dependency>
