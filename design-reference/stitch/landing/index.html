@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>ChronoTask - Think, plan, and track all in one place</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com" rel="preconnect">
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect">
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script data-purpose="tailwind-config">
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+            handwritten: ['"Caveat"', 'cursive']
+          },
+          colors: {
+            brand: {
+              peach: '#E89271',
+              tan: '#F0D4BE',
+              dark: '#16191E',
+              blue: '#3875E8',
+              slate: '#5A7285'
+            }
+          }
+        }
+      }
+    };
+  </script>
+<style data-purpose="custom-layout-and-shadows">
+    .bg-dot-pattern {
+      background-image: radial-gradient(#95BDB3 1.2px, transparent 1.2px);
+      background-size: 16px 16px;
+    }
+    .card-shadow {
+      box-shadow: 0 24px 48px -12px rgba(108, 139, 130, 0.18), 0 8px 16px -6px rgba(0, 0, 0, 0.05);
+    }
+    .card-shadow-heavy {
+      box-shadow: 0 30px 60px -15px rgba(88, 120, 110, 0.22), 0 12px 24px -8px rgba(0, 0, 0, 0.08);
+    }
+    .icon-shadow {
+      box-shadow: 0 16px 32px -8px rgba(96, 125, 116, 0.25), 0 4px 10px -2px rgba(0, 0, 0, 0.05);
+    }
+    .folder-tab {
+      position: relative;
+      background: #FFFFFF;
+      border-radius: 20px 20px 20px 20px;
+    }
+    .folder-tab::before {
+      content: '';
+      position: absolute;
+      top: -10px;
+      left: 18px;
+      width: 72px;
+      height: 16px;
+      background: #FFFFFF;
+      border-radius: 10px 10px 0 0;
+    }
+  </style>
+</head>
+<body class="min-h-screen bg-[#E6F3EE] text-[#1E242B] font-sans antialiased overflow-x-hidden selection:bg-blue-100 selection:text-blue-700">
+<div class="relative min-h-screen w-full flex flex-col justify-between overflow-hidden bg-gradient-to-b from-[#E7F4EF] via-[#E8F3EE] to-[#E2EFE9]">
+<div class="absolute top-0 right-0 w-96 h-80 bg-dot-pattern opacity-40 pointer-events-none"></div>
+<div class="absolute top-12 right-28 w-80 h-80 rounded-full bg-[#CCE9DC] opacity-75 blur-2xl pointer-events-none"></div>
+<div class="absolute top-44 left-16 w-4 h-4 rounded-full bg-[#E08A69] opacity-80 pointer-events-none"></div>
+<div class="absolute bottom-36 left-24 w-3 h-3 rounded-full bg-[#E79F84] opacity-85 pointer-events-none"></div>
+<div class="absolute bottom-52 right-24 w-3.5 h-3.5 rounded-full bg-[#A2CEBC] pointer-events-none"></div>
+<header class="relative z-30 w-full max-w-7xl mx-auto px-8 pt-7 pb-4 flex items-center justify-between">
+<a class="flex items-center gap-2.5 group" href="#">
+<div class="grid grid-cols-2 gap-1 w-6 h-6 p-0.5">
+<span class="w-2.5 h-2.5 rounded-full bg-[#E88B69]"></span>
+<span class="w-2.5 h-2.5 rounded-full bg-[#D48F6C]"></span>
+<span class="w-2.5 h-2.5 rounded-full bg-[#647987]"></span>
+<span class="w-2.5 h-2.5 rounded-full bg-[#7595A8]"></span>
+</div>
+<span class="font-bold text-[22px] tracking-tight text-[#1A2027]">ChronoTask</span>
+</a>
+<nav class="hidden md:flex items-center space-x-10 text-[15px] font-medium text-[#2C343E]">
+<a class="hover:text-black transition-colors duration-150" href="#features">Features</a>
+<a class="hover:text-black transition-colors duration-150" href="#solutions">Solutions</a>
+<a class="hover:text-black transition-colors duration-150" href="#resources">Resources</a>
+<a class="hover:text-black transition-colors duration-150" href="#pricing">Pricing</a>
+</nav>
+<div class="flex items-center gap-5"><a class="text-[15px] font-medium text-[#1E252D] hover:text-black transition-colors duration-150" href="#login">Log in</a><a class="px-5 py-2 text-[14px] font-semibold text-white bg-[#3B82F6] hover:bg-[#2563EB] rounded-full shadow-sm transition-all duration-200" href="#signup">Sign up</a></div>
+</header>
+<main class="relative z-10 flex-1 flex items-center justify-center px-4 py-8 max-w-7xl mx-auto w-full">
+<div class="relative flex items-center justify-center w-full max-w-[620px] aspect-square">
+<div class="absolute inset-0 rounded-full bg-[#F3E7D7] opacity-90 shadow-[0_20px_50px_rgba(180,165,145,0.15)] pointer-events-none scale-105 md:scale-100"></div>
+<div class="absolute top-10 md:top-14 z-20 bg-white rounded-3xl p-4 icon-shadow border border-white/80">
+<div class="grid grid-cols-2 gap-2.5 w-10 h-10">
+<span class="w-4 h-4 rounded-full bg-[#E58163]"></span>
+<span class="w-4 h-4 rounded-full bg-[#CB7A57]"></span>
+<span class="w-4 h-4 rounded-full bg-[#6C787A]"></span>
+<span class="w-4 h-4 rounded-full bg-[#62849F]"></span>
+</div>
+</div>
+<div class="relative z-20 text-center px-6 max-w-lg mt-14">
+<h1 class="text-4xl sm:text-5xl md:text-[56px] font-extrabold tracking-tight text-[#0F141A] leading-[1.12]">
+            Think, plan, and track <br>
+<span class="block mt-1">all in one place</span>
+</h1>
+<p class="mt-6 text-[16px] md:text-[17px] text-[#3D4752] font-normal tracking-normal max-w-md mx-auto leading-relaxed">
+            Efficiently manage your tasks and boost productivity.
+          </p>
+<div class="mt-8 flex justify-center"><div class="inline-flex items-center gap-3"><a class="inline-flex items-center justify-center px-6 py-3 rounded-full bg-[#3B82F6] hover:bg-[#2563EB] text-white text-[15px] font-medium shadow-md shadow-blue-500/25 transition-all transform hover:-translate-y-0.5 active:translate-y-0 duration-150" href="#signup">Sign up</a><a class="inline-flex items-center justify-center px-6 py-3 rounded-full bg-white/70 hover:bg-white text-[#1E242B] text-[15px] font-medium border border-white/90 shadow-sm transition-all transform hover:-translate-y-0.5 active:translate-y-0 duration-150" href="#login">Log in</a></div></div>
+</div>
+</div>
+<div class="absolute top-8 left-4 md:top-12 md:left-14 lg:left-24 z-20 pointer-events-auto">
+<div class="relative">
+<div class="relative w-56 sm:w-60 bg-[#E8C5AC] p-5 rounded-2xl transform -rotate-3 card-shadow border border-[#DFBBA0]/60">
+<div class="absolute -top-3 left-1/2 -translate-x-1/2 w-4 h-4">
+<div class="w-3.5 h-3.5 rounded-full bg-slate-500 shadow-md border border-slate-400 mx-auto"></div>
+<div class="w-1.5 h-1.5 rounded-full bg-slate-200 absolute top-0.5 left-1 opacity-70"></div>
+</div>
+<p class="font-handwritten text-[#3D281F] text-[19px] sm:text-[21px] leading-[1.35] tracking-wide pt-1">
+              Take notes to keep track of crucial details, and accomplish more tasks with ease.
+            </p>
+</div>
+<div class="absolute -bottom-10 -left-6 transform -rotate-12 bg-white/70 backdrop-blur-md p-4 rounded-3xl card-shadow border border-white/90 w-24 h-24 flex items-center justify-center">
+<div class="w-13 h-13 bg-[#3B82F6] rounded-2xl p-2.5 flex items-center justify-center shadow-sm">
+<svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" stroke-width="3.5" viewBox="0 0 24 24">
+<path d="M4.5 12.75l6 6 9-13.5" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+</div>
+</div>
+</div>
+</div>
+<div class="absolute top-10 right-4 md:top-14 md:right-12 lg:right-24 z-20">
+<div class="relative">
+<div class="relative bg-white w-64 p-5 rounded-3xl transform rotate-6 card-shadow border border-white/90">
+<div class="flex items-center justify-between pb-3">
+<span class="text-[17px] font-bold text-[#141A21]">Reminders</span>
+<span class="text-[11px] font-semibold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md">Meetings</span>
+</div>
+<div class="bg-[#F8FAFC] rounded-2xl p-3 border border-slate-100/80">
+<p class="text-[13px] font-bold text-[#1F2937]">Today's Meeting</p>
+<p class="text-[11px] text-slate-500 mt-0.5">Call with marketing team</p>
+<div class="mt-3 flex items-center justify-between">
+<span class="text-[10px] uppercase tracking-wider font-semibold text-slate-400">Time</span>
+<div class="inline-flex items-center gap-1 bg-[#E8F0FE] text-[#2563EB] text-[11px] font-semibold px-2.5 py-1 rounded-full">
+<svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+<circle cx="12" cy="12" r="10"></circle>
+<polyline points="12 6 12 12 16 14"></polyline>
+</svg>
+<span class="">13:00 - 13:45</span>
+</div>
+</div>
+</div>
+</div>
+<div class="absolute -left-10 top-4 transform -rotate-6 bg-white p-3.5 rounded-2xl icon-shadow border border-white/90 flex items-center justify-center">
+<svg class="w-8 h-8 text-[#1E293B]" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" viewBox="0 0 24 24">
+<circle cx="12" cy="13" r="8"></circle>
+<line x1="12" x2="12" y1="9" y2="13"></line>
+<line x1="12" x2="14.5" y1="13" y2="14.5"></line>
+<path d="M12 2v3"></path>
+<path d="M10 2h4"></path>
+</svg>
+</div>
+</div>
+</div>
+<div class="absolute bottom-6 left-2 md:bottom-10 md:left-14 lg:left-24 z-20">
+<div class="relative bg-white w-72 sm:w-80 p-5 rounded-3xl transform -rotate-3 card-shadow-heavy border border-white">
+<div class="flex items-center justify-between mb-4">
+<h3 class="text-[17px] font-bold text-[#141A21]">Today's tasks</h3>
+</div>
+<div class="bg-[#FFF8F3] rounded-2xl p-3.5 mb-3 border border-[#FBEADA]">
+<div class="flex items-center gap-2 mb-2">
+<span class="w-3.5 h-3.5 rounded bg-[#E48766] inline-block shrink-0"></span>
+<span class="text-[13px] font-semibold text-[#1F2937] truncate">New ideas for campaign</span>
+</div>
+<div class="flex items-center justify-between gap-3 text-[11px] font-medium text-slate-500">
+<span class="">Sep 10</span>
+<div class="flex-1 bg-white h-2 rounded-full overflow-hidden border border-orange-100">
+<div class="bg-[#E48766] h-full rounded-full" style="width: 60%;"></div>
+</div>
+<span class="text-[11px] font-bold text-slate-700">60%</span>
+</div>
+</div>
+<div class="bg-[#F4F7FA] rounded-2xl p-3.5 border border-[#E3EBF3]">
+<div class="flex items-center gap-2 mb-2">
+<span class="w-3.5 h-3.5 rounded bg-[#5A7489] inline-block shrink-0"></span>
+<span class="text-[13px] font-semibold text-[#1F2937] truncate">Design PPT</span>
+</div>
+<div class="flex items-center justify-between gap-3 text-[11px] font-medium text-slate-500">
+<span class="">Sep 19</span>
+<div class="flex-1 bg-white h-2 rounded-full overflow-hidden border border-slate-200">
+<div class="bg-[#5A7489] h-full rounded-full" style="width: 100%;"></div>
+</div>
+<span class="text-[11px] font-bold text-slate-700">112%</span>
+</div>
+</div>
+</div>
+</div>
+<div class="absolute bottom-6 right-2 md:bottom-10 md:right-12 lg:right-24 z-20">
+<div class="relative bg-white w-64 sm:w-72 p-5 rounded-3xl transform rotate-3 card-shadow-heavy border border-white">
+<h3 class="text-[16px] font-bold text-[#141A21] mb-4">100+ Integrations</h3>
+<div class="relative flex items-center justify-center h-20 pt-1">
+<div class="absolute left-1 z-10 w-14 h-14 bg-white rounded-2xl icon-shadow border border-slate-100 flex items-center justify-center transform -rotate-6 hover:scale-105 transition-transform">
+<svg class="w-8 h-8" viewBox="0 0 24 24">
+<path d="M3 6.5V18a2 2 0 002 2h2V9.8L3 6.5z" fill="#4285F4"></path>
+<path d="M17 20h2a2 2 0 002-2V6.5l-4 3.3V20z" fill="#34A853"></path>
+<path d="M17 6.5l-5 4-5-4V5a2 2 0 013.2-1.6L12 4.6l1.8-1.2A2 2 0 0117 5v1.5z" fill="#EA4335"></path>
+<path d="M7 9.8V20h10V9.8l-5 4-5-4z" fill="#FBBC04" opacity="0.1"></path>
+</svg>
+</div>
+<div class="relative z-20 w-16 h-16 bg-white rounded-2xl icon-shadow border border-slate-100 flex items-center justify-center transform rotate-2 hover:scale-105 transition-transform">
+<svg class="w-9 h-9" viewBox="0 0 24 24">
+<path d="M5.5 10.5a2 2 0 100-4 2 2 0 000 4zm2.5-2a2 2 0 00-2-2H2v2a2 2 0 002 2h4z" fill="#E01E5A"></path>
+<path d="M10.5 5.5a2 2 0 10-4 0 2 2 0 004 0zm-2 2.5a2 2 0 00-2-2V2h2a2 2 0 002 2v4z" fill="#36C5F0"></path>
+<path d="M18.5 13.5a2 2 0 100 4 2 2 0 000-4zm-2.5 2a2 2 0 002 2H22v-2a2 2 0 00-2-2h-4z" fill="#2EB67D"></path>
+<path d="M13.5 18.5a2 2 0 104 0 2 2 0 00-4 0zm2-2.5a2 2 0 002 2V22h-2a2 2 0 00-2-2v-4z" fill="#ECB22E"></path>
+</svg>
+</div>
+<div class="absolute right-1 z-10 w-14 h-14 bg-white rounded-2xl icon-shadow border border-slate-100 flex items-center justify-center transform rotate-8 hover:scale-105 transition-transform">
+<div class="relative w-8 h-8 rounded-lg overflow-hidden border border-slate-200 flex flex-col items-center justify-center bg-white">
+<div class="w-full h-2.5 bg-[#4285F4]"></div>
+<span class="text-[12px] font-bold text-[#1E293B] leading-none mt-1">31</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+<footer class="w-full py-4 text-center text-xs text-slate-400 select-none">
+      ┬⌐ ChronoTask Inc. All rights reserved.
+    </footer>
+</div>
+</body>
+</html>

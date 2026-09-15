@@ -1,48 +1,73 @@
-import React from 'react';
+import { cn } from '@/lib/cn';
 
-interface AvatarProps {
-  name: string;
-  size?: 'sm' | 'md' | 'lg';
-  role?: string;
-  className?: string;
+const palettes = [
+  'bg-primary-100 text-primary-800',
+  'bg-rose-100 text-rose-700',
+  'bg-mint-100 text-mint-800',
+  'bg-amber-100 text-amber-700',
+  'bg-primary-200 text-primary-900',
+  'bg-rose-200 text-rose-700',
+];
+
+export function initials(name: string): string {
+  const parts = name
+    .replace(/^(dr|mr|mrs|ms)\.?\s+/i, '')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+  if (!parts.length) return '?';
+  return ((parts[0][0] ?? '') + (parts.length > 1 ? parts[parts.length - 1][0] : '')).toUpperCase();
 }
 
-export const Avatar: React.FC<AvatarProps> = ({
-  name,
-  size = 'md',
-  role,
-  className = '',
-}) => {
-  const initials = name
-    .split(' ')
-    .map((n) => n[0])
-    .slice(0, 2)
-    .join('')
-    .toUpperCase();
+/** Stable colour per person, derived from their id or name. */
+function paletteFor(seed: string): string {
+  let hash = 0;
+  for (let i = 0; i < seed.length; i++) hash = (hash * 31 + seed.charCodeAt(i)) | 0;
+  return palettes[Math.abs(hash) % palettes.length];
+}
 
-  const sizeClasses = {
-    sm: 'w-8 h-8 text-xs',
-    md: 'w-10 h-10 text-sm font-semibold',
-    lg: 'w-14 h-14 text-lg font-bold',
-  };
+const sizes = { xs: 'h-6 w-6 text-[10px]', sm: 'h-8 w-8 text-xs', md: 'h-10 w-10 text-sm', lg: 'h-14 w-14 text-lg', xl: 'h-20 w-20 text-2xl' };
 
-  // Generate deterministic pastel background from name
-  const colors = [
-    'bg-emerald-100 text-emerald-800 border-emerald-200',
-    'bg-teal-100 text-teal-800 border-teal-200',
-    'bg-amber-100 text-amber-800 border-amber-200',
-    'bg-sky-100 text-sky-800 border-sky-200',
-    'bg-rose-100 text-rose-800 border-rose-200',
-  ];
-  const colorIndex = (name.charCodeAt(0) + (name.charCodeAt(1) || 0)) % colors.length;
-  const colorClass = colors[colorIndex];
+export interface AvatarProps {
+  name: string;
+  seed?: string;
+  size?: keyof typeof sizes;
+  className?: string;
+  /** Decorative when the name is already shown next to it. */
+  decorative?: boolean;
+}
 
+export function Avatar({ name, seed, size = 'md', className, decorative = true }: AvatarProps) {
   return (
-    <div
-      title={`${name} ${role ? `(${role})` : ''}`}
-      className={`relative inline-flex items-center justify-center rounded-2xl border ${sizeClasses[size]} ${colorClass} ${className}`}
+    <span
+      role={decorative ? undefined : 'img'}
+      aria-label={decorative ? undefined : name}
+      aria-hidden={decorative || undefined}
+      className={cn(
+        'inline-flex shrink-0 select-none items-center justify-center rounded-full font-semibold',
+        sizes[size],
+        paletteFor(seed ?? name),
+        className,
+      )}
     >
-      <span>{initials}</span>
-    </div>
+      {initials(name)}
+    </span>
   );
-};
+}
+
+export function AvatarGroup({ people, max = 4, size = 'sm' }: { people: { id: string; name: string }[]; max?: number; size?: AvatarProps['size'] }) {
+  const shown = people.slice(0, max);
+  const extra = people.length - shown.length;
+  return (
+    <span className="flex -space-x-2" role="img" aria-label={people.map((p) => p.name).join(', ')}>
+      {shown.map((p) => (
+        <Avatar key={p.id} name={p.name} seed={p.id} size={size} className="ring-2 ring-surface" />
+      ))}
+      {extra > 0 && (
+        <span aria-hidden="true" className={cn('inline-flex items-center justify-center rounded-full bg-surface-sunken font-semibold text-ink-muted ring-2 ring-surface', sizes[size ?? 'sm'])}>
+          +{extra}
+        </span>
+      )}
+    </span>
+  );
+}

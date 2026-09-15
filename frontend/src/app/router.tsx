@@ -1,0 +1,88 @@
+import { lazy, Suspense, type ComponentType, type LazyExoticComponent } from 'react';
+import { createBrowserRouter, Navigate } from 'react-router-dom';
+import { AppShell } from '@/components/layout/AppShell';
+import { PageSkeleton } from '@/components/ui';
+import { RedirectIfAuthed, RequireAuth, RequireFamily } from './guards';
+import { RouteError } from './RouteError';
+
+/** Code-split each page and show a skeleton while its chunk loads. */
+function page(factory: () => Promise<{ default: ComponentType }>) {
+  const Page: LazyExoticComponent<ComponentType> = lazy(factory);
+  return (
+    <Suspense fallback={<PageSkeleton />}>
+      <Page />
+    </Suspense>
+  );
+}
+
+export const router = createBrowserRouter([
+  {
+    errorElement: <RouteError />,
+    children: [
+      // Public
+      { path: '/', element: page(() => import('@/features/marketing/PromoPage')) },
+      { path: '/welcome', element: page(() => import('@/features/marketing/LandingPage')) },
+      { path: '/sign-in', element: <RedirectIfAuthed>{page(() => import('@/features/auth/SignInPage'))}</RedirectIfAuthed> },
+      { path: '/sign-up', element: <RedirectIfAuthed>{page(() => import('@/features/auth/SignUpPage'))}</RedirectIfAuthed> },
+      { path: '/join/:code?', element: page(() => import('@/features/onboarding/JoinFamilyPage')) },
+      { path: '/onboarding', element: <RequireAuth>{page(() => import('@/features/onboarding/OnboardingPage'))}</RequireAuth> },
+
+      // Signed-in app
+      {
+        element: (
+          <RequireAuth>
+            <RequireFamily>
+              <AppShell />
+            </RequireFamily>
+          </RequireAuth>
+        ),
+        children: [
+          { path: '/dashboard', element: page(() => import('@/features/dashboard/DashboardPage')) },
+
+          { path: '/tasks', element: page(() => import('@/features/tasks/TasksPage')) },
+          { path: '/tasks/new', element: page(() => import('@/features/tasks/TaskFormPage')) },
+          { path: '/tasks/:taskId', element: page(() => import('@/features/tasks/TaskDetailPage')) },
+          { path: '/tasks/:taskId/edit', element: page(() => import('@/features/tasks/TaskFormPage')) },
+          { path: '/tasks/:taskId/resolve', element: page(() => import('@/features/tasks/ConflictPage')) },
+
+          { path: '/schedule', element: page(() => import('@/features/schedule/SchedulePage')) },
+          { path: '/schedule/availability', element: page(() => import('@/features/schedule/AvailabilityPage')) },
+          { path: '/schedule/unavailable', element: page(() => import('@/features/schedule/ReportUnavailabilityPage')) },
+
+          { path: '/priority', element: page(() => import('@/features/priority/PriorityCenterPage')) },
+          { path: '/priority/requests/:requestId', element: page(() => import('@/features/priority/RecommendationsPage')) },
+          { path: '/priority/requests/:requestId/candidates/:memberId', element: page(() => import('@/features/priority/CandidatePage')) },
+          { path: '/priority/requests/:requestId/approve/:memberId', element: page(() => import('@/features/priority/ApprovalPage')) },
+          { path: '/priority/requests/:requestId/done', element: page(() => import('@/features/priority/SuccessPage')) },
+
+          { path: '/what-if', element: page(() => import('@/features/whatif/SimulatorPage')) },
+          { path: '/what-if/impact', element: page(() => import('@/features/whatif/ImpactPage')) },
+
+          { path: '/caregraph', element: page(() => import('@/features/caregraph/CareGraphPage')) },
+          { path: '/caregraph/:nodeId', element: page(() => import('@/features/caregraph/EntityPage')) },
+
+          { path: '/appointments', element: page(() => import('@/features/appointments/AppointmentsPage')) },
+          { path: '/appointments/new', element: page(() => import('@/features/appointments/AppointmentFormPage')) },
+          { path: '/appointments/:appointmentId', element: page(() => import('@/features/appointments/AppointmentDetailPage')) },
+          { path: '/appointments/:appointmentId/edit', element: page(() => import('@/features/appointments/AppointmentFormPage')) },
+
+          { path: '/nutrition', element: page(() => import('@/features/nutrition/NutritionGoalsPage')) },
+          { path: '/nutrition/recommendations', element: page(() => import('@/features/nutrition/FoodRecommendationsPage')) },
+          { path: '/nutrition/groceries', element: page(() => import('@/features/nutrition/GroceryPlanPage')) },
+
+          { path: '/documents', element: page(() => import('@/features/documents/DocumentsPage')) },
+
+          { path: '/family', element: page(() => import('@/features/family/FamilyPage')) },
+          { path: '/family/:memberId', element: page(() => import('@/features/family/MemberPage')) },
+
+          { path: '/notifications', element: page(() => import('@/features/notifications/NotificationsPage')) },
+          { path: '/activity', element: page(() => import('@/features/activity/ActivityPage')) },
+          { path: '/settings', element: page(() => import('@/features/settings/SettingsPage')) },
+          { path: '/settings/*', element: <Navigate to="/settings" replace /> },
+        ],
+      },
+
+      { path: '*', element: page(() => import('./NotFoundPage')) },
+    ],
+  },
+]);
