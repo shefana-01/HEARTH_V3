@@ -9,6 +9,7 @@ import { email as emailRule, required, validate } from '@/lib/validation';
 import { Badge, Button, Card, Checkbox, Dialog, FormError, FormField, Input, PasswordInput } from '@/components/ui';
 import { AuthLayout } from './AuthLayout';
 import { SampleButton } from './SampleButton';
+import { isDemoMode } from '@/services/config';
 
 function ForgotPasswordDialog({ open, onClose, initialEmail }: { open: boolean; onClose: () => void; initialEmail: string }) {
   const [value, setValue] = useState(initialEmail);
@@ -82,10 +83,12 @@ export default function SignInPage() {
   return (
     <AuthLayout
       footer={
-        <Card tone="mint" padding="sm" className="flex flex-col items-center justify-between gap-3 text-center sm:flex-row sm:text-left">
-          <p className="text-sm text-mint-800">Just looking around? Try Hearth with a sample family.</p>
-          <SampleButton size="sm" />
-        </Card>
+        isDemoMode ? (
+          <Card tone="mint" padding="sm" className="flex flex-col items-center justify-between gap-3 text-center sm:flex-row sm:text-left">
+            <p className="text-sm text-mint-800">Just looking around? Try Hearth with a sample family.</p>
+            <SampleButton size="sm" />
+          </Card>
+        ) : undefined
       }
     >
       <Card padding="lg" className="shadow-raised">
