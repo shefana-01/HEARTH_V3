@@ -5,11 +5,12 @@ import { scheduleService } from '@/services/schedule/scheduleService';
 import { taskService } from '@/services/tasks/taskService';
 import { useAsync, useMutation } from '@/hooks/useAsync';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
+import { useMinWidth } from '@/hooks/useMediaQuery';
 import { formatClock, formatDayTime } from '@/lib/dates';
 import { cn } from '@/lib/cn';
 import { WEEKDAY_LABELS } from '@/constants/labels';
 import { availabilityFit } from '@/services/decision/engine';
-import { Avatar, Badge, Button, ButtonLink, Card, CardHeader, ErrorState, FormError, IconButton, Input, PageHeader, PageSkeleton, useToast } from '@/components/ui';
+import { ActionBar, Avatar, Badge, Button, ButtonLink, Card, CardHeader, ErrorState, FormError, IconButton, Input, PageHeader, PageSkeleton, useToast } from '@/components/ui';
 import type { TimeWindow, WeeklyAvailability } from '@/types/domain';
 
 const toMin = (t: string) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5));
@@ -27,7 +28,7 @@ function validateWindows(windows: TimeWindow[]): Record<string, string> {
   });
   const sorted = [...windows].sort((a, b) => toMin(a.start) - toMin(b.start));
   for (let i = 1; i < sorted.length; i++) {
-    if (toMin(sorted[i].start) < toMin(sorted[i - 1].end)) errors[sorted[i].id] ??= `Overlaps ΓÇ£${sorted[i - 1].label}ΓÇ¥.`;
+    if (toMin(sorted[i].start) < toMin(sorted[i - 1].end)) errors[sorted[i].id] ??= `Overlaps “${sorted[i - 1].label}”.`;
   }
   return errors;
 }
@@ -40,6 +41,7 @@ export default function AvailabilityPage() {
   const [draft, setDraft] = useState<WeeklyAvailability | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const save = useMutation((a: WeeklyAvailability) => scheduleService.saveAvailability(me!.id, a));
+  const desktop = useMinWidth('lg');
   const removeAbsence = useMutation(scheduleService.removeUnavailability);
 
   useEffect(() => {
@@ -81,18 +83,29 @@ export default function AvailabilityPage() {
       <PageHeader
         breadcrumbs={[{ label: 'Schedule', to: '/schedule' }, { label: 'My availability' }]}
         title="My care availability"
-        description="Set when youΓÇÖre usually free to help. Hearth uses this to suggest fair plans and spot clashes."
+        description="Set when you’re usually free to help. Hearth uses this to suggest fair plans and spot clashes."
         actions={
           <>
             <ButtonLink to="/schedule/unavailable" variant="secondary" leftIcon={<CalendarX2 aria-hidden="true" className="h-4 w-4" />}>
               Mark unavailable
             </ButtonLink>
-            <Button onClick={onSave} loading={save.pending} disabled={!dirty} leftIcon={<CircleCheck aria-hidden="true" className="h-4 w-4" />}>
+            <Button className="hidden lg:inline-flex" onClick={onSave} loading={save.pending} disabled={!dirty} leftIcon={<CircleCheck aria-hidden="true" className="h-4 w-4" />}>
               Save availability
             </Button>
           </>
         }
       />
+      {/* Phones & tablets: a save bar appears once there are unsaved changes. */}
+      {dirty && !desktop && (
+        <ActionBar className="flex-row">
+          <Button variant="secondary" onClick={() => setDraft(structuredClone(me.availability))}>
+            Discard
+          </Button>
+          <Button className="flex-1" onClick={onSave} loading={save.pending} leftIcon={<CircleCheck aria-hidden="true" className="h-4 w-4" />}>
+            Save availability
+          </Button>
+        </ActionBar>
+      )}
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_21rem]">
         <div className="space-y-6">
@@ -108,7 +121,10 @@ export default function AvailabilityPage() {
                     type="button"
                     aria-pressed={draft.days[i]}
                     onClick={() => setDraft({ ...draft, days: draft.days.map((v, j) => (j === i ? !v : v)) })}
-                    className={cn('h-10 w-12 rounded-xl border text-sm font-semibold transition-colors', draft.days[i] ? 'border-primary-500 bg-primary-600 text-white' : 'border-line bg-surface text-ink-muted hover:border-primary-300')}
+                    className={cn(
+                      'h-10 w-12 rounded-xl border text-sm font-semibold transition-colors',
+                      draft.days[i] ? 'border-primary-500 bg-primary-600 text-white' : 'border-line bg-surface text-ink-muted hover:border-primary-300',
+                    )}
                   >
                     {d}
                   </button>
@@ -120,7 +136,7 @@ export default function AvailabilityPage() {
               <h3 className="text-sm font-semibold text-ink">Time windows</h3>
               <span className="text-xs text-ink-subtle">{draft.windows.length} configured</span>
             </div>
-            {draft.windows.length === 0 && <p className="mb-3 rounded-xl bg-surface-muted px-4 py-3 text-sm text-ink-muted">No times yet ΓÇö Hearth will treat your availability as unknown.</p>}
+            {draft.windows.length === 0 && <p className="mb-3 rounded-xl bg-surface-muted px-4 py-3 text-sm text-ink-muted">No times yet — Hearth will treat your availability as unknown.</p>}
             <ul className="space-y-3">
               {draft.windows.map((w) => {
                 const Icon = windowIcon(w.start);
@@ -172,7 +188,7 @@ export default function AvailabilityPage() {
               <ul className="space-y-1 text-sm text-ink-muted">
                 {outside.map((t) => (
                   <li key={t.id}>
-                    <span className="font-semibold text-ink">{t.title}</span> ΓÇö {formatDayTime(t.start)} is outside these times.
+                    <span className="font-semibold text-ink">{t.title}</span> — {formatDayTime(t.start)} is outside these times.
                   </li>
                 ))}
               </ul>
@@ -188,8 +204,8 @@ export default function AvailabilityPage() {
                 {futureAbsences.map((u) => (
                   <li key={u.id} className="flex items-center justify-between gap-3 rounded-xl bg-surface-muted px-4 py-3 text-sm">
                     <span>
-                      <span className="font-semibold text-ink">{formatDayTime(u.start)}</span> ΓåÆ {formatDayTime(u.end)}
-                      {u.reason && <span className="text-ink-muted"> ┬╖ {u.reason}</span>}
+                      <span className="font-semibold text-ink">{formatDayTime(u.start)}</span> → {formatDayTime(u.end)}
+                      {u.reason && <span className="text-ink-muted"> · {u.reason}</span>}
                     </span>
                     <Button
                       variant="danger-ghost"
@@ -224,7 +240,9 @@ export default function AvailabilityPage() {
                         <span className="block truncate text-sm font-semibold text-ink">{firstNameOf(m.id)}</span>
                         <span className="block truncate text-xs text-ink-subtle">{m.relation || m.focus}</span>
                       </span>
-                      <Badge tone={free.length ? 'mint' : 'neutral'}>{free.length ? free.map((w) => `${formatClock(w.start)}ΓÇô${formatClock(w.end)}`).join(', ') : m.availability.windows.length ? 'Not today' : 'Not shared'}</Badge>
+                      <Badge tone={free.length ? 'mint' : 'neutral'}>
+                        {free.length ? free.map((w) => `${formatClock(w.start)}–${formatClock(w.end)}`).join(', ') : m.availability.windows.length ? 'Not today' : 'Not shared'}
+                      </Badge>
                     </li>
                   );
                 })}
@@ -235,13 +253,13 @@ export default function AvailabilityPage() {
           </Card>
           <Card>
             <p className="font-display text-lg">Feeling overwhelmed?</p>
-            <p className="mt-1 text-sm text-ink-muted">Caregiving needs balance. Flag time away and Hearth will find someone to cover ΓÇö without guilt.</p>
+            <p className="mt-1 text-sm text-ink-muted">Caregiving needs balance. Flag time away and Hearth will find someone to cover — without guilt.</p>
             <ButtonLink to="/schedule/unavailable" variant="soft" block className="mt-4" leftIcon={<Flag aria-hidden="true" className="h-4 w-4" />}>
               Report unavailability
             </ButtonLink>
           </Card>
           <Card tone="mint" className="text-sm text-mint-800">
-            Availability changes are shared quietly with your circle ΓÇö no noisy alarms.
+            Availability changes are shared quietly with your circle — no noisy alarms.
           </Card>
         </aside>
       </div>

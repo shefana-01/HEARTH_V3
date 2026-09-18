@@ -18,7 +18,8 @@ function OverlapTimeline({ task, others }: { task: { title: string; start: strin
   const to = Math.max(...all.map((e) => new Date(e.end).getTime())) + 30 * 60_000;
   const pct = (iso: string) => ((new Date(iso).getTime() - from) / (to - from)) * 100;
   const ticks = Array.from({ length: 5 }, (_, i) => new Date(from + ((to - from) * i) / 4).toISOString());
-  const overlapMin = others.reduce((m, o) => Math.max(m, Math.min(new Date(o.end).getTime(), new Date(task.end).getTime()) - Math.max(new Date(o.start).getTime(), new Date(task.start).getTime())), 0) / 60_000;
+  const overlapMin =
+    others.reduce((m, o) => Math.max(m, Math.min(new Date(o.end).getTime(), new Date(task.end).getTime()) - Math.max(new Date(o.start).getTime(), new Date(task.start).getTime())), 0) / 60_000;
 
   return (
     <div className="rounded-2xl bg-rose-50/70 p-4">
@@ -34,13 +35,19 @@ function OverlapTimeline({ task, others }: { task: { title: string; start: strin
       <div className="space-y-2">
         {others.map((o) => (
           <div key={o.id} className="relative h-8 rounded-lg bg-surface/70">
-            <span className="absolute inset-y-1 flex items-center overflow-hidden rounded-md bg-primary-200 px-2 text-[11px] font-semibold text-primary-900" style={{ left: `${pct(o.start)}%`, width: `${pct(o.end) - pct(o.start)}%` }}>
+            <span
+              className="absolute inset-y-1 flex items-center overflow-hidden rounded-md bg-primary-200 px-2 text-[11px] font-semibold text-primary-900"
+              style={{ left: `${pct(o.start)}%`, width: `${pct(o.end) - pct(o.start)}%` }}
+            >
               <span className="truncate">{o.title}</span>
             </span>
           </div>
         ))}
         <div className="relative h-8 rounded-lg bg-surface/70">
-          <span className="absolute inset-y-1 flex items-center overflow-hidden rounded-md bg-rose-400 px-2 text-[11px] font-semibold text-white" style={{ left: `${pct(task.start)}%`, width: `${pct(task.end) - pct(task.start)}%` }}>
+          <span
+            className="absolute inset-y-1 flex items-center overflow-hidden rounded-md bg-rose-400 px-2 text-[11px] font-semibold text-white"
+            style={{ left: `${pct(task.start)}%`, width: `${pct(task.end) - pct(task.start)}%` }}
+          >
             <span className="truncate">{task.title}</span>
           </span>
         </div>
@@ -95,9 +102,7 @@ export default function ConflictPage() {
     );
   }
 
-  const overlapping = week.filter(
-    (e) => e.id !== task.id && e.memberId === task.assigneeId && new Date(e.start) < new Date(end) && new Date(e.end) > new Date(task.start),
-  );
+  const overlapping = week.filter((e) => e.id !== task.id && e.memberId === task.assigneeId && new Date(e.start) < new Date(end) && new Date(e.end) > new Date(task.start));
   const [best, ...rest] = insight.candidates;
   const alternatives = rest.filter((c) => c.score >= 40).slice(0, 3);
 

@@ -11,7 +11,25 @@ import { combineDateTime, formatClock, formatTime, isSameDay, toDateInputValue }
 import { maxLength, required, validate } from '@/lib/validation';
 import { cn } from '@/lib/cn';
 import { PRIORITIES, TASK_CATEGORIES } from '@/constants/labels';
-import { Avatar, Button, Card, CardHeader, Checkbox, Disclosure, ErrorState, FormError, FormField, Input, PageHeader, PageSkeleton, SegmentedControl, Select, Textarea, useToast } from '@/components/ui';
+import {
+  ActionBar,
+  Avatar,
+  Button,
+  Card,
+  CardHeader,
+  Checkbox,
+  Disclosure,
+  ErrorState,
+  FormError,
+  FormField,
+  Input,
+  PageHeader,
+  PageSkeleton,
+  SegmentedControl,
+  Select,
+  Textarea,
+  useToast,
+} from '@/components/ui';
 import { ScorePill } from '@/components/domain/Scores';
 import type { CareTask, TaskCategory, TaskPriority } from '@/types/domain';
 
@@ -124,7 +142,10 @@ function TaskForm({ existing }: { existing?: CareTask }) {
       reminder: form.reminder,
     });
     if (task) {
-      toast({ title: existing ? 'Task updated' : 'Task created', description: !form.assigneeId ? 'It’s waiting for someone to take it.' : form.assigneeId === me?.id ? 'It’s on your list.' : `${firstNameOf(form.assigneeId)} has been notified.` });
+      toast({
+        title: existing ? 'Task updated' : 'Task created',
+        description: !form.assigneeId ? 'It’s waiting for someone to take it.' : form.assigneeId === me?.id ? 'It’s on your list.' : `${firstNameOf(form.assigneeId)} has been notified.`,
+      });
       navigate(`/tasks/${task.id}`);
     }
   };
@@ -158,7 +179,10 @@ function TaskForm({ existing }: { existing?: CareTask }) {
                       type="button"
                       aria-pressed={active}
                       onClick={() => set('category', c)}
-                      className={cn('flex items-center gap-2 rounded-xl border px-3 py-2.5 text-left text-[13px] font-semibold transition-colors', active ? 'border-primary-500 bg-primary-50 text-primary-800' : 'border-line text-ink-muted hover:border-primary-300 hover:text-ink')}
+                      className={cn(
+                        'flex items-center gap-2 rounded-xl border px-3 py-2.5 text-left text-[13px] font-semibold transition-colors',
+                        active ? 'border-primary-500 bg-primary-50 text-primary-800' : 'border-line text-ink-muted hover:border-primary-300 hover:text-ink',
+                      )}
                     >
                       <Icon aria-hidden="true" className="h-4 w-4 shrink-0" />
                       <span className="truncate">{meta.label}</span>
@@ -204,7 +228,10 @@ function TaskForm({ existing }: { existing?: CareTask }) {
                       role="radio"
                       aria-checked={active}
                       onClick={() => set('assigneeId', m.id)}
-                      className={cn('relative flex flex-col items-center gap-1.5 rounded-2xl border p-3 text-center transition-colors', active ? 'border-mint-400 bg-mint-50' : 'border-line hover:border-primary-300')}
+                      className={cn(
+                        'relative flex flex-col items-center gap-1.5 rounded-2xl border p-3 text-center transition-colors',
+                        active ? 'border-mint-400 bg-mint-50' : 'border-line hover:border-primary-300',
+                      )}
                     >
                       {active && <Check aria-hidden="true" className="absolute right-2 top-2 h-4 w-4 text-mint-600" strokeWidth={3} />}
                       <Avatar name={m.name} seed={m.id} />
@@ -222,7 +249,10 @@ function TaskForm({ existing }: { existing?: CareTask }) {
                   role="radio"
                   aria-checked={form.assigneeId === null}
                   onClick={() => set('assigneeId', null)}
-                  className={cn('flex flex-col items-center justify-center gap-1 rounded-2xl border border-dashed p-3 text-center text-sm font-semibold', form.assigneeId === null ? 'border-primary-500 bg-primary-50 text-primary-800' : 'border-line-strong text-ink-muted hover:border-primary-300')}
+                  className={cn(
+                    'flex flex-col items-center justify-center gap-1 rounded-2xl border border-dashed p-3 text-center text-sm font-semibold',
+                    form.assigneeId === null ? 'border-primary-500 bg-primary-50 text-primary-800' : 'border-line-strong text-ink-muted hover:border-primary-300',
+                  )}
                 >
                   Leave unassigned
                   <span className="text-xs font-normal text-ink-subtle">Anyone can pick it up</span>
@@ -287,20 +317,23 @@ function TaskForm({ existing }: { existing?: CareTask }) {
               </div>
             </Disclosure>
 
-            <div className="flex flex-col-reverse gap-2 border-t border-line pt-5 sm:flex-row sm:justify-end">
+            <ActionBar className="flex-row lg:justify-end lg:border-t lg:border-line lg:pt-5">
               <Button variant="secondary" onClick={() => navigate(-1)}>
                 Cancel
               </Button>
-              <Button type="submit" loading={save.pending} leftIcon={<CircleCheck aria-hidden="true" className="h-4 w-4" />}>
+              <Button type="submit" className="flex-1 sm:flex-none" loading={save.pending} leftIcon={<CircleCheck aria-hidden="true" className="h-4 w-4" />}>
                 {existing ? 'Save changes' : 'Create task'}
               </Button>
-            </div>
+            </ActionBar>
           </form>
         </Card>
 
         <aside className="space-y-4">
           <Card>
-            <CardHeader title="That day’s rhythm" description={form.date ? new Date(`${form.date}T12:00:00`).toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' }) : undefined} />
+            <CardHeader
+              title="That day’s rhythm"
+              description={form.date ? new Date(`${form.date}T12:00:00`).toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' }) : undefined}
+            />
             {dayTasks.length ? (
               <ul className="space-y-2">
                 {dayTasks.map((t) => (

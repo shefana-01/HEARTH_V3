@@ -17,7 +17,8 @@ export default function EntityPage() {
   if (graph.status === 'error') return <ErrorState headingLevel="h1" message={graph.error?.message} onRetry={graph.reload} />;
   if (!node) {
     return (
-      <EmptyState headingLevel="h1"
+      <EmptyState
+        headingLevel="h1"
         icon={<Network aria-hidden="true" />}
         title="This item is no longer in the CareGraph"
         description="It may have been completed, cancelled or removed."
@@ -76,7 +77,19 @@ export default function EntityPage() {
               </div>
             </div>
             {node.flagged && (
-              <Callout tone="red" className="mt-5" icon={<TriangleAlert aria-hidden="true" />} title="This task needs attention" action={node.href && <ButtonLink to={`${node.href}/resolve`} size="sm">Resolve</ButtonLink>}>
+              <Callout
+                tone="red"
+                className="mt-5"
+                icon={<TriangleAlert aria-hidden="true" />}
+                title="This task needs attention"
+                action={
+                  node.href && (
+                    <ButtonLink to={`${node.href}/resolve`} size="sm">
+                      Resolve
+                    </ButtonLink>
+                  )
+                }
+              >
                 A conflict or missing owner was detected.
               </Callout>
             )}

@@ -5,7 +5,7 @@ import { decisionService } from '@/services/decision/decisionService';
 import { useMutation } from '@/hooks/useAsync';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { formatDayTime, formatTime } from '@/lib/dates';
-import { Avatar, Badge, Button, ButtonLink, Callout, Card, EmptyState, ErrorState, FormError, PageHeader, PageSkeleton, useToast } from '@/components/ui';
+import { ActionBar, Avatar, Badge, Button, ButtonLink, Callout, Card, EmptyState, ErrorState, FormError, PageHeader, PageSkeleton, useToast } from '@/components/ui';
 import { ScorePill } from '@/components/domain/Scores';
 import { riskOf, useRequest } from './shared';
 
@@ -31,7 +31,13 @@ export default function ApprovalPage() {
     return <EmptyState icon={<CircleCheck aria-hidden="true" />} tone="mint" title="This request is already resolved" action={<ButtonLink to={`/tasks/${task.id}`}>Open task</ButtonLink>} />;
   }
   if (!candidate || !to) {
-    return <EmptyState icon={<CircleAlert aria-hidden="true" />} title="That person can’t be selected for this task" action={<ButtonLink to={`/priority/requests/${request.id}`}>Choose someone else</ButtonLink>} />;
+    return (
+      <EmptyState
+        icon={<CircleAlert aria-hidden="true" />}
+        title="That person can’t be selected for this task"
+        action={<ButtonLink to={`/priority/requests/${request.id}`}>Choose someone else</ButtonLink>}
+      />
+    );
   }
 
   const risk = riskOf(candidate);
@@ -49,7 +55,11 @@ export default function ApprovalPage() {
         breadcrumbs={[{ label: 'Priority center', to: '/priority' }, { label: 'Recommendations', to: `/priority/requests/${request.id}` }, { label: 'Final approval' }]}
         title="Confirm care reassignment"
         description={`Review the hand-off so ${family?.recipient.name}’s routine stays uninterrupted.`}
-        meta={<Badge tone="rose" dot size="md">Due {formatDayTime(task.start)}</Badge>}
+        meta={
+          <Badge tone="rose" dot size="md">
+            Due {formatDayTime(task.start)}
+          </Badge>
+        }
       />
 
       <div className="grid items-stretch gap-4 lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
@@ -91,7 +101,9 @@ export default function ApprovalPage() {
 
         <Card tone="mint" className="ring-1 ring-mint-200">
           <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-            <Badge tone="mint" size="md">Proposed assignment</Badge>
+            <Badge tone="mint" size="md">
+              Proposed assignment
+            </Badge>
             <ScorePill score={candidate.score} label="Suitability" />
           </div>
           <div className="flex items-center gap-3 rounded-2xl bg-surface p-3">
@@ -129,8 +141,16 @@ export default function ApprovalPage() {
         </div>
         <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           {[
-            { icon: HelpCircle, title: 'Why the change', text: `${from ? `${firstNameOf(from.id)} can’t do it` : 'No one was assigned'}; ${firstNameOf(to.id)} is the ${candidate === candidates[0] ? 'best' : 'selected'} match.` },
-            { icon: CalendarCheck2, title: 'Schedule impact', text: `${firstNameOf(to.id)} will have ${candidate.tasksThatDay + 1} commitment${candidate.tasksThatDay ? 's' : ''} that day. ${risk.note}.` },
+            {
+              icon: HelpCircle,
+              title: 'Why the change',
+              text: `${from ? `${firstNameOf(from.id)} can’t do it` : 'No one was assigned'}; ${firstNameOf(to.id)} is the ${candidate === candidates[0] ? 'best' : 'selected'} match.`,
+            },
+            {
+              icon: CalendarCheck2,
+              title: 'Schedule impact',
+              text: `${firstNameOf(to.id)} will have ${candidate.tasksThatDay + 1} commitment${candidate.tasksThatDay ? 's' : ''} that day. ${risk.note}.`,
+            },
             { icon: Users, title: 'People affected', text: [from?.name && `${from.name} (released)`, `${to.name} (new)`, `${family?.recipient.name} (recipient)`].filter(Boolean).join(' · ') },
             { icon: BellRing, title: 'Notifications', text: 'Both caregivers get a quiet update; the circle feed shows the change.' },
           ].map(({ icon: Icon, title, text }) => (
@@ -161,14 +181,14 @@ export default function ApprovalPage() {
               <p className="text-[13px] text-ink-muted">You’ll be recorded in the activity history as the approver.</p>
             </div>
           </div>
-          <div className="flex flex-col-reverse gap-2 sm:flex-row">
+          <ActionBar className="flex-row">
             <Button variant="ghost" leftIcon={<X aria-hidden="true" className="h-4 w-4" />} onClick={() => navigate(`/priority/requests/${request.id}`)}>
               Go back
             </Button>
-            <Button size="lg" loading={approve.pending} disabled={!isLead} onClick={onApprove} leftIcon={<CircleCheck aria-hidden="true" className="h-5 w-5" />}>
+            <Button size="lg" className="flex-1 sm:flex-none" loading={approve.pending} disabled={!isLead} onClick={onApprove} leftIcon={<CircleCheck aria-hidden="true" className="h-5 w-5" />}>
               Approve reassignment
             </Button>
-          </div>
+          </ActionBar>
         </div>
       </Card>
     </>

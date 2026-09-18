@@ -40,6 +40,66 @@ function EventCard({ event, compact }: { event: ScheduleEvent; compact?: boolean
   );
 }
 
+const DOT: Record<ScheduleEvent['kind'], string> = {
+  task: 'bg-primary-500',
+  completed: 'bg-mint-500',
+  conflict: 'bg-red-500',
+  appointment: 'bg-rose-500',
+  unavailable: 'bg-ink-subtle',
+};
+
+/** Phone & tablet view: pick a day, see it as a timeline. */
+function DayTimeline({ days, events, selected, onSelect }: { days: Date[]; events: ScheduleEvent[]; selected: Date; onSelect: (d: Date) => void }) {
+  const dayEvents = events.filter((e) => isSameDay(e.start, selected)).sort((a, b) => a.start.localeCompare(b.start));
+  return (
+    <div className="lg:hidden">
+      <div className="mb-5 grid grid-cols-7 gap-1.5" role="group" aria-label="Choose a day">
+        {days.map((d) => {
+          const active = isSameDay(d, selected);
+          const today = isSameDay(d, new Date());
+          const count = events.filter((e) => isSameDay(e.start, d)).length;
+          const hasConflict = events.some((e) => e.kind === 'conflict' && isSameDay(e.start, d));
+          return (
+            <button
+              key={d.toISOString()}
+              type="button"
+              aria-pressed={active}
+              aria-label={`${formatWeekdayShort(d)} ${d.getDate()}${today ? ', today' : ''}: ${count ? `${count} item${count > 1 ? 's' : ''}` : 'free'}${hasConflict ? ', has a conflict' : ''}`}
+              onClick={() => onSelect(d)}
+              className={cn(
+                'flex flex-col items-center rounded-2xl border py-2 transition-colors',
+                active ? 'border-primary-600 bg-primary-600 text-white' : today ? 'border-primary-200 bg-primary-50 text-ink' : 'border-line bg-surface text-ink hover:border-primary-200',
+              )}
+            >
+              <span className={cn('text-[11px] font-semibold uppercase', active ? 'text-primary-100' : 'text-ink-subtle')}>{formatWeekdayShort(d).slice(0, 2)}</span>
+              <span className="font-display text-lg leading-tight">{d.getDate()}</span>
+              <span aria-hidden="true" className={cn('mt-0.5 h-1.5 w-1.5 rounded-full', !count ? 'bg-transparent' : hasConflict ? 'bg-red-500' : active ? 'bg-white' : 'bg-primary-400')} />
+            </button>
+          );
+        })}
+      </div>
+
+      <h2 className="mb-3 font-display text-lg">
+        {isSameDay(selected, new Date()) ? 'Today' : formatWeekdayShort(selected)}, {formatShortDate(selected.toISOString())}
+      </h2>
+      {dayEvents.length === 0 ? (
+        <p className="rounded-2xl border border-dashed border-line-strong bg-surface/60 px-4 py-8 text-center text-sm text-ink-muted">Nothing planned — a free day.</p>
+      ) : (
+        <ol className="relative space-y-3">
+          <span aria-hidden="true" className="absolute bottom-3 left-[4.35rem] top-3 w-px bg-line-strong" />
+          {dayEvents.map((e) => (
+            <li key={e.id} className="relative grid grid-cols-[3.75rem_minmax(0,1fr)] gap-4">
+              <span className="pt-2.5 text-right text-xs font-semibold text-ink-muted">{formatTime(e.start)}</span>
+              <span aria-hidden="true" className={cn('absolute left-[4.1rem] top-3.5 h-2.5 w-2.5 rounded-full ring-4 ring-canvas', DOT[e.kind])} />
+              <EventCard event={e} />
+            </li>
+          ))}
+        </ol>
+      )}
+    </div>
+  );
+}
+
 export default function SchedulePage() {
   useDocumentTitle('Schedule');
   const { members, family } = useFamily();
@@ -47,6 +107,7 @@ export default function SchedulePage() {
   const [view, setView] = useState<'week' | 'agenda'>('week');
   const [memberFilter, setMemberFilter] = useState<string | 'all'>('all');
   const days = useMemo(() => weekDays(reference), [reference]);
+  const [selectedDay, setSelectedDay] = useState(() => new Date());
   const week = useAsync(() => scheduleService.getWeek(reference), [reference.toDateString()]);
 
   const events = (week.data ?? []).filter((e) => memberFilter === 'all' || e.memberId === memberFilter);
@@ -61,6 +122,13 @@ export default function SchedulePage() {
     const d = new Date(reference);
     d.setDate(d.getDate() + delta * 7);
     setReference(d);
+    const sel = new Date(selectedDay);
+    sel.setDate(sel.getDate() + delta * 7);
+    setSelectedDay(sel);
+  };
+  const goToday = () => {
+    setReference(new Date());
+    setSelectedDay(new Date());
   };
 
   const hoursByMember = members
@@ -97,44 +165,51 @@ export default function SchedulePage() {
         <ErrorState message={week.error?.message} onRetry={week.reload} />
       ) : (
         <div className="space-y-6">
-          <div className="grid gap-4 lg:grid-cols-[18rem_minmax(0,1fr)]">
-            <Card className="flex items-center gap-4">
-              <div className="relative h-16 w-16 shrink-0" role="img" aria-label={`${coverage}% of care tasks covered`}>
-                <svg viewBox="0 0 36 36" className="h-16 w-16 -rotate-90">
-                  <circle cx="18" cy="18" r="15.5" fill="none" className="stroke-surface-sunken" strokeWidth="4" />
-                  <circle cx="18" cy="18" r="15.5" fill="none" className="stroke-mint-500" strokeWidth="4" strokeLinecap="round" strokeDasharray={`${(coverage / 100) * 97.4} 97.4`} />
-                </svg>
-                <span className="absolute inset-0 flex items-center justify-center text-sm font-bold text-ink">{coverage}%</span>
-              </div>
-              <div>
-                <p className="eyebrow text-mint-700">Care coverage</p>
-                <p className="text-sm text-ink-muted">
-                  {covered} of {careItems.length} tasks have a free owner
-                </p>
-              </div>
-            </Card>
-            {conflicts.length > 0 ? (
-              <Callout
-                tone="red"
-                icon={<TriangleAlert aria-hidden="true" />}
-                title={`${conflicts.length} scheduling conflict${conflicts.length === 1 ? '' : 's'} this week`}
-                action={
-                  <ButtonLink to={conflicts[0].href?.replace(/^\/tasks\/([^/]+)$/, '/tasks/$1/resolve') ?? '/priority'} size="sm">
-                    Resolve
-                  </ButtonLink>
-                }
-              >
-                {conflicts[0].title} ({formatWeekdayShort(conflicts[0].start)}, {formatTime(conflicts[0].start)}) needs a new plan.
-              </Callout>
-            ) : (
-              <Callout tone="mint" icon={<CalendarRange aria-hidden="true" />} title="No conflicts this week">
-                Everyone’s commitments fit together.
-              </Callout>
-            )}
-          </div>
+          {!week.data ? (
+            <div className="grid gap-4 lg:grid-cols-[18rem_minmax(0,1fr)]" aria-hidden="true">
+              <Skeleton className="h-24" />
+              <Skeleton className="h-24" />
+            </div>
+          ) : (
+            <div className="grid gap-4 lg:grid-cols-[18rem_minmax(0,1fr)]">
+              <Card className="flex items-center gap-4">
+                <div className="relative h-16 w-16 shrink-0" role="img" aria-label={`${coverage}% of care tasks covered`}>
+                  <svg viewBox="0 0 36 36" className="h-16 w-16 -rotate-90">
+                    <circle cx="18" cy="18" r="15.5" fill="none" className="stroke-surface-sunken" strokeWidth="4" />
+                    <circle cx="18" cy="18" r="15.5" fill="none" className="stroke-mint-500" strokeWidth="4" strokeLinecap="round" strokeDasharray={`${(coverage / 100) * 97.4} 97.4`} />
+                  </svg>
+                  <span className="absolute inset-0 flex items-center justify-center text-sm font-bold text-ink">{coverage}%</span>
+                </div>
+                <div>
+                  <p className="eyebrow text-mint-700">Care coverage</p>
+                  <p className="text-sm text-ink-muted">
+                    {covered} of {careItems.length} tasks have a free owner
+                  </p>
+                </div>
+              </Card>
+              {conflicts.length > 0 ? (
+                <Callout
+                  tone="red"
+                  icon={<TriangleAlert aria-hidden="true" />}
+                  title={`${conflicts.length} scheduling conflict${conflicts.length === 1 ? '' : 's'} this week`}
+                  action={
+                    <ButtonLink to={conflicts[0].href?.replace(/^\/tasks\/([^/]+)$/, '/tasks/$1/resolve') ?? '/priority'} size="sm">
+                      Resolve
+                    </ButtonLink>
+                  }
+                >
+                  {conflicts[0].title} ({formatWeekdayShort(conflicts[0].start)}, {formatTime(conflicts[0].start)}) needs a new plan.
+                </Callout>
+              ) : (
+                <Callout tone="mint" icon={<CalendarRange aria-hidden="true" />} title="No conflicts this week">
+                  Everyone’s commitments fit together.
+                </Callout>
+              )}
+            </div>
+          )}
 
           <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-            <div className="flex flex-wrap gap-2" role="group" aria-label="Filter by person">
+            <div className="scrollbar-thin -mx-4 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:px-0 sm:pb-0 [&>*]:shrink-0" role="group" aria-label="Filter by person">
               <ToggleChip pressed={memberFilter === 'all'} onClick={() => setMemberFilter('all')}>
                 <Users aria-hidden="true" className="h-3.5 w-3.5" /> Everyone
               </ToggleChip>
@@ -147,21 +222,23 @@ export default function SchedulePage() {
                 ))}
             </div>
             <div className="flex flex-wrap items-center gap-2">
-              <SegmentedControl
-                label="Calendar view"
-                size="sm"
-                value={view}
-                onChange={setView}
-                options={[
-                  { value: 'week', label: 'Week' },
-                  { value: 'agenda', label: 'Agenda' },
-                ]}
-              />
+              <div className="hidden lg:block">
+                <SegmentedControl
+                  label="Calendar view"
+                  size="sm"
+                  value={view}
+                  onChange={setView}
+                  options={[
+                    { value: 'week', label: 'Week' },
+                    { value: 'agenda', label: 'Agenda' },
+                  ]}
+                />
+              </div>
               <div className="flex items-center gap-1">
                 <IconButton label="Previous week" variant="secondary" size="sm" onClick={() => shiftWeek(-1)}>
                   <ChevronLeft aria-hidden="true" className="h-4 w-4" />
                 </IconButton>
-                <Button size="sm" variant="secondary" disabled={isThisWeek} onClick={() => setReference(new Date())}>
+                <Button size="sm" variant="secondary" disabled={isThisWeek && isSameDay(selectedDay, new Date())} onClick={goToday}>
                   Today
                 </Button>
                 <IconButton label="Next week" variant="secondary" size="sm" onClick={() => shiftWeek(1)}>
@@ -171,7 +248,7 @@ export default function SchedulePage() {
             </div>
           </div>
 
-          <ul className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-ink-subtle" aria-label="Legend">
+          <ul className="hidden flex-wrap gap-x-4 gap-y-1 text-xs text-ink-subtle lg:flex" aria-label="Legend">
             {Object.entries(KIND_STYLES).map(([k, v]) => (
               <li key={k} className="flex items-center gap-1.5">
                 <span className={cn('h-3 w-3 rounded border', v.card)} /> {v.label}
@@ -210,7 +287,8 @@ export default function SchedulePage() {
                   );
                 })}
               </div>
-              <div className={cn('space-y-6', view === 'week' && 'lg:hidden')}>
+              <DayTimeline days={days} events={events} selected={selectedDay} onSelect={setSelectedDay} />
+              <div className={cn('hidden space-y-6', view === 'agenda' && 'lg:block')}>
                 {days.map((d) => {
                   const dayEvents = events.filter((e) => isSameDay(e.start, d));
                   if (!dayEvents.length) return null;
@@ -244,7 +322,7 @@ export default function SchedulePage() {
                       <Link to={`/family/${member.id}`} className="truncate font-semibold text-ink hover:underline">
                         {member.name}
                       </Link>
-                      <p className="text-[13px] text-ink-muted">{hours.toFixed(1)} h of care planned</p>
+                      <p className="text-[13px] text-ink-muted">{week.data ? `${hours.toFixed(1)} h of care planned` : 'Loading…'}</p>
                     </div>
                   </Card>
                 </li>
