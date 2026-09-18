@@ -18,7 +18,9 @@ p.on('pageerror', (e) => errs.push('PAGEERROR ' + e.message));
 const settle = async () => {
   await p.waitForLoadState('networkidle');
   await p
-    .waitForFunction(() => ![...document.querySelectorAll('[role=status]')].some((el) => /Loading/.test(el.textContent ?? '')) && !document.querySelector('button .animate-spin'), null, { timeout: 8000 })
+    .waitForFunction(() => ![...document.querySelectorAll('[role=status]')].some((el) => /Loading/.test(el.textContent ?? '')) && !document.querySelector('button .animate-spin'), null, {
+      timeout: 8000,
+    })
     .catch(() => {});
   await p.waitForTimeout(200);
 };
@@ -126,7 +128,10 @@ await flow('food options → add to list', async () => {
 await flow('document upload (metadata) → listed → delete', async () => {
   await go('/documents');
   await click(btn('Upload document'));
-  await p.getByRole('dialog').locator('input[type=file]').setInputFiles({ name: 'discharge-summary.pdf', mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.4 test') });
+  await p
+    .getByRole('dialog')
+    .locator('input[type=file]')
+    .setInputFiles({ name: 'discharge-summary.pdf', mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.4 test') });
   await settle();
   const name = p.getByLabel(/^Name/);
   await name.fill('Discharge summary (test)');
@@ -136,7 +141,10 @@ await flow('document upload (metadata) → listed → delete', async () => {
   await shot('f4-b-listed');
   // Invalid type is rejected
   await click(btn('Upload document'));
-  await p.getByRole('dialog').locator('input[type=file]').setInputFiles({ name: 'virus.exe', mimeType: 'application/octet-stream', buffer: Buffer.from('MZ') });
+  await p
+    .getByRole('dialog')
+    .locator('input[type=file]')
+    .setInputFiles({ name: 'virus.exe', mimeType: 'application/octet-stream', buffer: Buffer.from('MZ') });
   await settle();
   await expectText(/type|format|PDF/i, 'file-type validation message');
   await p.keyboard.press('Escape');
@@ -164,7 +172,10 @@ await flow('task create → complete', async () => {
   await go('/tasks/new');
   await click(btn(/create|save|add task/i));
   await expectText(/required|enter|add a/i, 'validation errors');
-  await p.getByLabel(/^(Task|Title|What needs doing)/).first().fill('Water the plants (test)');
+  await p
+    .getByLabel(/^(Task|Title|What needs doing)/)
+    .first()
+    .fill('Water the plants (test)');
   await click(btn(/create|save|add task/i));
   await p.waitForURL(/\/tasks\/[^/]+$/);
   await expectText(/Water the plants \(test\)/);
@@ -188,15 +199,24 @@ await flow('family: invite (validation) → member edit → access toggle → re
   await click(btn('Invite member'));
   await click(p.getByRole('dialog').getByRole('button', { name: 'Send invitation' }));
   await expectText(/Name is required/);
-  await p.getByRole('dialog').getByLabel(/^Full name/).fill('Casey Test');
-  await p.getByRole('dialog').getByLabel(/^Email/).fill('casey@example.com');
+  await p
+    .getByRole('dialog')
+    .getByLabel(/^Full name/)
+    .fill('Casey Test');
+  await p
+    .getByRole('dialog')
+    .getByLabel(/^Email/)
+    .fill('casey@example.com');
   await click(p.getByRole('dialog').getByRole('button', { name: 'Send invitation' }));
   await expectText(/Casey Test/);
   await click(link(/Casey Test/));
   await p.waitForURL(/\/family\/[^/]+$/);
   await shot('f8-b-member');
   await click(btn('Edit profile'));
-  await p.getByRole('dialog').getByLabel(/^Household focus/).fill('Weekend drives');
+  await p
+    .getByRole('dialog')
+    .getByLabel(/^Household focus/)
+    .fill('Weekend drives');
   await click(p.getByRole('dialog').getByRole('button', { name: /Driving/ }));
   await click(p.getByRole('dialog').getByRole('button', { name: 'Save' }));
   await expectText(/Weekend drives/);
@@ -228,7 +248,10 @@ await flow('notifications: mark one + all read, dismiss', async () => {
   if (after !== before - 1) throw new Error(`dismiss ${before} → ${after}`);
   if (await btn('Mark all as read').isEnabled()) await click(btn('Mark all as read'));
   if (await p.getByRole('button', { name: 'Mark as read' }).count()) throw new Error('unread items remain');
-  const badge = await p.getByRole('link', { name: /Notifications/ }).first().textContent();
+  const badge = await p
+    .getByRole('link', { name: /Notifications/ })
+    .first()
+    .textContent();
   await shot('f9-b-read');
   if (/\d/.test(badge ?? '')) throw new Error('topbar still shows unread count: ' + badge);
 });
@@ -259,7 +282,10 @@ await flow('settings: profile validation + save updates the shell', async () => 
   await go('/settings');
   await click(p.getByRole('tab', { name: 'Family' }));
   await click(btn('Edit'));
-  await p.getByRole('dialog').getByLabel(/^Family name/).fill('');
+  await p
+    .getByRole('dialog')
+    .getByLabel(/^Family name/)
+    .fill('');
   await click(p.getByRole('dialog').getByRole('button', { name: 'Save changes' }));
   await expectText(/Family name is required/);
   await p.keyboard.press('Escape');
