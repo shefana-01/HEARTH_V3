@@ -1,12 +1,4 @@
-import {
-  forwardRef,
-  useId,
-  useState,
-  type InputHTMLAttributes,
-  type ReactNode,
-  type SelectHTMLAttributes,
-  type TextareaHTMLAttributes,
-} from 'react';
+import { forwardRef, useId, useState, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from 'react';
 import { AlertCircle, Check, ChevronDown, Eye, EyeOff, Minus, Plus } from 'lucide-react';
 import { cn } from '@/lib/cn';
 
@@ -229,19 +221,7 @@ export function RadioCards<T extends string>({
 
 /* ───────────────────────── Switch ───────────────────────── */
 
-export function Switch({
-  checked,
-  onChange,
-  label,
-  description,
-  disabled,
-}: {
-  checked: boolean;
-  onChange: (next: boolean) => void;
-  label: ReactNode;
-  description?: ReactNode;
-  disabled?: boolean;
-}) {
+export function Switch({ checked, onChange, label, description, disabled }: { checked: boolean; onChange: (next: boolean) => void; label: ReactNode; description?: ReactNode; disabled?: boolean }) {
   const id = useId();
   return (
     <div className="flex items-start justify-between gap-4">
@@ -258,10 +238,7 @@ export function Switch({
         aria-labelledby={`${id}-label`}
         disabled={disabled}
         onClick={() => onChange(!checked)}
-        className={cn(
-          'relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors disabled:opacity-50',
-          checked ? 'bg-primary-600' : 'bg-line-strong',
-        )}
+        className={cn('relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors disabled:opacity-50', checked ? 'bg-primary-600' : 'bg-line-strong')}
       >
         <span className={cn('inline-block h-5 w-5 rounded-full bg-white shadow transition-transform', checked ? 'translate-x-[22px]' : 'translate-x-0.5')} />
       </button>
@@ -330,13 +307,25 @@ export function ToggleChip({ pressed, onClick, children }: { pressed: boolean; o
 export function QuantityStepper({ value, onChange, min = 1, max = 99, label }: { value: number; onChange: (v: number) => void; min?: number; max?: number; label: string }) {
   return (
     <div className="inline-flex items-center rounded-xl border border-line bg-surface" role="group" aria-label={label}>
-      <button type="button" aria-label={`Decrease ${label}`} disabled={value <= min} onClick={() => onChange(value - 1)} className="flex h-8 w-8 items-center justify-center text-ink-muted hover:text-ink disabled:opacity-40">
+      <button
+        type="button"
+        aria-label={`Decrease ${label}`}
+        disabled={value <= min}
+        onClick={() => onChange(value - 1)}
+        className="flex h-8 w-8 items-center justify-center text-ink-muted hover:text-ink disabled:opacity-40"
+      >
         <Minus aria-hidden="true" className="h-3.5 w-3.5" />
       </button>
       <span className="min-w-[1.75rem] text-center text-sm font-semibold tabular-nums" aria-live="polite">
         {value}
       </span>
-      <button type="button" aria-label={`Increase ${label}`} disabled={value >= max} onClick={() => onChange(value + 1)} className="flex h-8 w-8 items-center justify-center text-ink-muted hover:text-ink disabled:opacity-40">
+      <button
+        type="button"
+        aria-label={`Increase ${label}`}
+        disabled={value >= max}
+        onClick={() => onChange(value + 1)}
+        className="flex h-8 w-8 items-center justify-center text-ink-muted hover:text-ink disabled:opacity-40"
+      >
         <Plus aria-hidden="true" className="h-3.5 w-3.5" />
       </button>
     </div>

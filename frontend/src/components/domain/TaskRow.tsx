@@ -29,25 +29,19 @@ export function CategoryIcon({ category, className }: { category: CareTask['cate
  * One task in a list: completion toggle, title link, meta line and assignee.
  * `onToggle` is optional so read-only lists can reuse it.
  */
-export function TaskRow({
-  task,
-  conflict,
-  onToggle,
-  pending,
-  showDay = false,
-}: {
-  task: CareTask;
-  conflict?: Conflict;
-  onToggle?: (task: CareTask) => void;
-  pending?: boolean;
-  showDay?: boolean;
-}) {
+export function TaskRow({ task, conflict, onToggle, pending, showDay = false }: { task: CareTask; conflict?: Conflict; onToggle?: (task: CareTask) => void; pending?: boolean; showDay?: boolean }) {
   const { nameOf, firstNameOf } = useFamily();
   const done = task.status === 'completed';
   const priority = PRIORITIES[task.priority];
 
   return (
-    <li className={cn('group flex items-center gap-3 rounded-2xl border bg-surface p-3 shadow-card transition-colors sm:gap-4 sm:p-4', conflict ? 'border-red-200' : 'border-line', done && 'bg-surface-muted/60')}>
+    <li
+      className={cn(
+        'group flex items-center gap-3 rounded-2xl border bg-surface p-3 shadow-card transition-colors sm:gap-4 sm:p-4',
+        conflict ? 'border-red-200' : 'border-line',
+        done && 'bg-surface-muted/60',
+      )}
+    >
       {onToggle ? (
         <button
           type="button"

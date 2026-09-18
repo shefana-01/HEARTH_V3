@@ -1,8 +1,16 @@
 import { downloadFile, slugify } from './download';
 /** Build and download an iCalendar (.ics) file so a visit can be added to any calendar app. */
 export function downloadIcs({ title, start, durationMin, location, description }: { title: string; start: string; durationMin: number; location?: string; description?: string }) {
-  const fmt = (d: Date) => d.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
-  const escape = (s = '') => s.replace(/\\/g, '\\\\').replace(/[,;]/g, (m) => `\\${m}`).replace(/\n/g, '\\n');
+  const fmt = (d: Date) =>
+    d
+      .toISOString()
+      .replace(/[-:]/g, '')
+      .replace(/\.\d{3}/, '');
+  const escape = (s = '') =>
+    s
+      .replace(/\\/g, '\\\\')
+      .replace(/[,;]/g, (m) => `\\${m}`)
+      .replace(/\n/g, '\\n');
   const begin = new Date(start);
   const end = new Date(begin.getTime() + durationMin * 60_000);
   const body = [
