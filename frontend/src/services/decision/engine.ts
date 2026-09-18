@@ -8,19 +8,7 @@
  *
  * All functions are pure: same input → same output.
  */
-import type {
-  Appointment,
-  CandidateScore,
-  CareTask,
-  Conflict,
-  FamilyMember,
-  PriorityBreakdown,
-  SimulationChange,
-  SimulationResult,
-  Skill,
-  TaskCategory,
-  Unavailability,
-} from '@/types/domain';
+import type { Appointment, CandidateScore, CareTask, Conflict, FamilyMember, PriorityBreakdown, SimulationChange, SimulationResult, Skill, TaskCategory, Unavailability } from '@/types/domain';
 
 export interface EngineData {
   tasks: CareTask[];
@@ -103,9 +91,7 @@ export function availabilityFit(member: FamilyMember, start: number, end: number
 }
 
 function reportedUnavailable(memberId: string, start: number, end: number, data: EngineData) {
-  return data.unavailability.find(
-    (u) => u.memberId === memberId && overlap(start, end, new Date(u.start).getTime(), new Date(u.end).getTime()) > 0,
-  );
+  return data.unavailability.find((u) => u.memberId === memberId && overlap(start, end, new Date(u.start).getTime(), new Date(u.end).getTime()) > 0);
 }
 
 /**
@@ -225,8 +211,7 @@ export function scoreCandidates(task: CareTask, data: EngineData): CandidateScor
       if (hasSkill && needed.length) reasons.push(`Can help with ${needed.filter((s) => m.skills.includes(s)).join(' & ')}.`);
       else if (!hasSkill) cautions.push(`Hasn’t listed ${needed.join(' or ')} as something they help with.`);
 
-      const raw =
-        w.availability * availability + w.workloadCapacity * workloadCapacity + w.skillEligibility * skillEligibility - w.conflictCost * conflictCost;
+      const raw = w.availability * availability + w.workloadCapacity * workloadCapacity + w.skillEligibility * skillEligibility - w.conflictCost * conflictCost;
       const score = Math.round(Math.max(0, Math.min(1, raw / maxRaw)) * 100);
 
       return {
@@ -267,10 +252,7 @@ export function priorityScore(task: CareTask, data: EngineData, conflict?: Confl
 
   const factors = { deadline, criticality, dependency, reassignment: Number(reassignment.toFixed(2)), conflict: Number(conflictSeverity.toFixed(2)) };
   const w = PRIORITY_WEIGHTS;
-  const score = Math.round(
-    100 *
-      (w.deadline * deadline + w.criticality * criticality + w.dependency * dependency + w.reassignment * reassignment + w.conflict * conflictSeverity),
-  );
+  const score = Math.round(100 * (w.deadline * deadline + w.criticality * criticality + w.dependency * dependency + w.reassignment * reassignment + w.conflict * conflictSeverity));
 
   const parts: string[] = [];
   if (hours < 0) parts.push('it is already due');
@@ -295,11 +277,7 @@ export function priorityScore(task: CareTask, data: EngineData, conflict?: Confl
 /** Apply a hypothetical change and compare conflicts & workload. Nothing is saved. */
 export function simulate(change: SimulationChange, data: EngineData, now: number = Date.now()): SimulationResult {
   const target = data.tasks.find((t) => t.id === change.taskId);
-  const changedTasks = data.tasks.map((t) =>
-    t.id === change.taskId
-      ? { ...t, assigneeId: change.assigneeId !== undefined ? change.assigneeId : t.assigneeId, start: change.start ?? t.start }
-      : t,
-  );
+  const changedTasks = data.tasks.map((t) => (t.id === change.taskId ? { ...t, assigneeId: change.assigneeId !== undefined ? change.assigneeId : t.assigneeId, start: change.start ?? t.start } : t));
   const after: EngineData = { ...data, tasks: changedTasks };
   const conflictsBefore = detectConflicts(data, now);
   const conflictsAfter = detectConflicts(after, now);

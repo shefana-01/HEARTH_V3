@@ -9,20 +9,7 @@
 import { config } from './config';
 import { readJSON, removeKey, writeJSON } from '@/lib/storage';
 import { buildSampleWorkspace } from '@/mocks/sampleWorkspace';
-import type {
-  Account,
-  Appointment,
-  AuditEvent,
-  CareDocument,
-  CareTask,
-  Family,
-  FamilyMember,
-  GroceryItem,
-  NotificationItem,
-  NutritionPlan,
-  ReassignmentRequest,
-  Unavailability,
-} from '@/types/domain';
+import type { Account, Appointment, AuditEvent, CareDocument, CareTask, Family, FamilyMember, GroceryItem, NotificationItem, NutritionPlan, ReassignmentRequest, Unavailability } from '@/types/domain';
 
 export interface Workspace {
   version: 2;
@@ -126,8 +113,7 @@ export function requireFamily(): Family {
 
 export const actorId = () => db.account?.memberId ?? 'unknown';
 
-export const memberName = (id: string | null | undefined) =>
-  (id && db.members.find((m) => m.id === id)?.name) || 'Unassigned';
+export const memberName = (id: string | null | undefined) => (id && db.members.find((m) => m.id === id)?.name) || 'Unassigned';
 
 export const firstName = (id: string | null | undefined) => memberName(id).split(' ')[0];
 

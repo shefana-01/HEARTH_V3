@@ -4,3 +4,6 @@ export const config = {
   useMocks: (import.meta.env.VITE_USE_MOCKS ?? 'true') !== 'false',
   mockLatencyMs: Number(import.meta.env.VITE_MOCK_LATENCY_MS ?? 350),
 };
+
+/** True while the app runs on local mock data instead of the API. Pages use it only to adjust wording. */
+export const isDemoMode = config.useMocks;

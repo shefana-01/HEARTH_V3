@@ -1,22 +1,14 @@
 /**
- * Decision engine API — decision-service. REST contract: not defined yet.
+ * Decision engine API — decision-service.
  *
  * While mocks are enabled, results are computed by the reference
  * implementation in `./engine.ts`.
  */
-import { backendNotConnected } from '../api/client';
+import { apiRequest } from '../api/client';
 import { config } from '../config';
 import { audit, db, fail, firstName, memberName, newId, notFound, notify, nowIso, persist, respond } from '../mockStore';
 import { detectConflicts, priorityScore, scoreCandidates, simulate, type EngineData } from './engine';
-import type {
-  CandidateScore,
-  CareTask,
-  Conflict,
-  PriorityBreakdown,
-  ReassignmentRequest,
-  SimulationChange,
-  SimulationResult,
-} from '@/types/domain';
+import type { CandidateScore, CareTask, Conflict, PriorityBreakdown, ReassignmentRequest, SimulationChange, SimulationResult } from '@/types/domain';
 
 export { PRIORITY_WEIGHTS, SUITABILITY_WEIGHTS } from './engine';
 
@@ -72,7 +64,7 @@ function ensureRequest(taskId: string, reason: string, note = ''): ReassignmentR
 export const decisionService = {
   /** Everything that needs a decision, highest Task Priority Score first. */
   async listAttention(): Promise<AttentionItem[]> {
-    if (!config.useMocks) return backendNotConnected('decision-service', 'listAttention');
+    if (!config.useMocks) return apiRequest<AttentionItem[]>('/decisions/attention');
     const d = data();
     const items = detectConflicts(d).map((conflict) => {
       const task = d.tasks.find((t) => t.id === conflict.taskId)!;
@@ -88,7 +80,7 @@ export const decisionService = {
   },
 
   async getTaskInsight(taskId: string): Promise<TaskInsight> {
-    if (!config.useMocks) return backendNotConnected('decision-service', 'getTaskInsight');
+    if (!config.useMocks) return apiRequest<TaskInsight>(`/decisions/tasks/${taskId}/insight`);
     const d = data();
     const task = d.tasks.find((t) => t.id === taskId);
     if (!task) return notFound('That task');
@@ -106,7 +98,7 @@ export const decisionService = {
    * warn about clashes before the task is saved.
    */
   async previewCandidates(draft: { taskId?: string; category: CareTask['category']; start: string; durationMin: number }): Promise<CandidateScore[]> {
-    if (!config.useMocks) return backendNotConnected('decision-service', 'previewCandidates');
+    if (!config.useMocks) return apiRequest<CandidateScore[]>('/decisions/candidates/preview', { method: 'POST', body: draft });
     const temp: CareTask = {
       id: draft.taskId ?? '__draft__',
       title: 'Draft',
@@ -126,7 +118,7 @@ export const decisionService = {
 
   /** Open a reassignment request for a task (idempotent). */
   async requestReassignment(taskId: string, reason: string, note = ''): Promise<ReassignmentRequest> {
-    if (!config.useMocks) return backendNotConnected('decision-service', 'requestReassignment');
+    if (!config.useMocks) return apiRequest<ReassignmentRequest>('/reassignment-requests', { method: 'POST', body: { taskId, reason, note } });
     const task = db.tasks.find((t) => t.id === taskId);
     if (!task) return notFound('That task');
     const request = ensureRequest(taskId, reason, note);
@@ -136,7 +128,7 @@ export const decisionService = {
   },
 
   async listRequests(): Promise<(ReassignmentRequest & { taskTitle: string; taskStart: string })[]> {
-    if (!config.useMocks) return backendNotConnected('decision-service', 'listRequests');
+    if (!config.useMocks) return apiRequest<(ReassignmentRequest & { taskTitle: string; taskStart: string })[]>('/reassignment-requests');
     const list = db.reassignments
       .map((r) => {
         const task = db.tasks.find((t) => t.id === r.taskId);
@@ -147,7 +139,7 @@ export const decisionService = {
   },
 
   async getRequest(id: string): Promise<RequestView> {
-    if (!config.useMocks) return backendNotConnected('decision-service', 'getRequest');
+    if (!config.useMocks) return apiRequest<RequestView>(`/reassignment-requests/${id}`);
     const request = db.reassignments.find((r) => r.id === id);
     const task = request && db.tasks.find((t) => t.id === request.taskId);
     if (!request || !task) return notFound('That reassignment request');
@@ -158,7 +150,7 @@ export const decisionService = {
   },
 
   async approveRequest(id: string, memberId: string): Promise<ReassignmentRequest> {
-    if (!config.useMocks) return backendNotConnected('decision-service', 'approveRequest');
+    if (!config.useMocks) return apiRequest<ReassignmentRequest>(`/reassignment-requests/${id}/approve`, { method: 'POST', body: { memberId } });
     const request = db.reassignments.find((r) => r.id === id);
     const task = request && db.tasks.find((t) => t.id === request.taskId);
     if (!request || !task) return notFound('That reassignment request');
@@ -182,7 +174,7 @@ export const decisionService = {
   },
 
   async cancelRequest(id: string): Promise<void> {
-    if (!config.useMocks) return backendNotConnected('decision-service', 'cancelRequest');
+    if (!config.useMocks) return apiRequest<void>(`/reassignment-requests/${id}/cancel`, { method: 'POST' });
     const request = db.reassignments.find((r) => r.id === id);
     if (!request) return notFound('That reassignment request');
     request.status = 'cancelled';
@@ -193,7 +185,7 @@ export const decisionService = {
 
   /** Keep the current plan even though a conflict was detected. */
   async acknowledgeConflict(taskId: string): Promise<void> {
-    if (!config.useMocks) return backendNotConnected('decision-service', 'acknowledgeConflict');
+    if (!config.useMocks) return apiRequest<void>(`/decisions/tasks/${taskId}/acknowledge`, { method: 'POST' });
     const task = db.tasks.find((t) => t.id === taskId);
     if (!task) return notFound('That task');
     const conflict = detectConflicts(data()).find((c) => c.taskId === taskId);
@@ -207,14 +199,14 @@ export const decisionService = {
 
   /** What-if: evaluate a change without saving it. */
   async simulate(change: SimulationChange): Promise<SimulationResult> {
-    if (!config.useMocks) return backendNotConnected('decision-service', 'simulate');
+    if (!config.useMocks) return apiRequest<SimulationResult>('/decisions/simulations', { method: 'POST', body: change });
     if (!db.tasks.some((t) => t.id === change.taskId)) return notFound('That task');
     return respond(simulate(change, data()));
   },
 
   /** Apply a simulated change to the live schedule. */
   async applySimulation(change: SimulationChange): Promise<CareTask> {
-    if (!config.useMocks) return backendNotConnected('decision-service', 'applySimulation');
+    if (!config.useMocks) return apiRequest<CareTask>('/decisions/simulations/apply', { method: 'POST', body: change });
     const task = db.tasks.find((t) => t.id === change.taskId);
     if (!task) return notFound('That task');
     const before = `${memberName(task.assigneeId)} · ${task.start}`;

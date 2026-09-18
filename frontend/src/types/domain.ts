@@ -43,6 +43,8 @@ export interface FamilyMember {
   focus: string;
   email: string;
   phone?: string;
+  /** Small profile picture as a data URL (mock) — becomes an uploaded file URL with the backend. */
+  photo?: string;
   status: MemberStatus;
   skills: Skill[];
   availability: WeeklyAvailability;
@@ -65,6 +67,8 @@ export interface Family {
   name: string;
   location: string;
   careFocus: string;
+  /** IANA time zone of the family, e.g. "Asia/Dhaka". Set by the API; absent in mock data. */
+  timezone?: string;
   createdAt: ISODateTime;
   recipient: CareRecipient;
   inviteCode: string;
@@ -77,6 +81,11 @@ export interface Account {
   email: string;
   phone?: string;
   about: string;
+  photo?: string;
+  /** `false` until the person opens the confirmation link we emailed. Absent in the offline demo (no email there). */
+  emailVerified?: boolean;
+  /** Preference only. Sending WhatsApp messages needs the notification service. */
+  whatsappAlerts?: boolean;
 }
 
 /* ───────────────────────────── Tasks ───────────────────────────── */
