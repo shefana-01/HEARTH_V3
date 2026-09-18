@@ -1,3 +1,4 @@
+import { isDemoMode } from '@/services/config';
 import { useRef, useState, type DragEvent, type FormEvent } from 'react';
 import { Ellipsis, FileText, FolderLock, Lock, Search, ShieldCheck, Trash2, Upload, UploadCloud, Users } from 'lucide-react';
 import { useFamily } from '@/app/FamilyProvider';
@@ -81,7 +82,13 @@ function UploadDialog({ open, onClose, initialFile, onUploaded }: { open: boolea
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
     const next = {
-      file: !file ? 'Choose a file to upload.' : file.size > MAX_UPLOAD_MB * 1024 * 1024 ? `Files must be ${MAX_UPLOAD_MB} MB or smaller.` : file.type && !ACCEPTED_TYPES.includes(file.type) ? 'Use a PDF, image or Word document.' : undefined,
+      file: !file
+        ? 'Choose a file to upload.'
+        : file.size > MAX_UPLOAD_MB * 1024 * 1024
+          ? `Files must be ${MAX_UPLOAD_MB} MB or smaller.`
+          : file.type && !ACCEPTED_TYPES.includes(file.type)
+            ? 'Use a PDF, image or Word document.'
+            : undefined,
       title: title.trim() ? undefined : 'Give the document a name.',
     };
     setErrors(next);
@@ -114,7 +121,7 @@ function UploadDialog({ open, onClose, initialFile, onUploaded }: { open: boolea
     >
       <form id="upload-form" onSubmit={onSubmit} noValidate className="space-y-4">
         <FormError message={upload.error} />
-        <FormField label="File" required error={errors.file} hint={`PDF, image or Word ┬╖ up to ${MAX_UPLOAD_MB} MB`}>
+        <FormField label="File" required error={errors.file} hint={`PDF, image or Word · up to ${MAX_UPLOAD_MB} MB`}>
           {(p) => (
             <input
               {...p}
@@ -129,7 +136,11 @@ function UploadDialog({ open, onClose, initialFile, onUploaded }: { open: boolea
             />
           )}
         </FormField>
-        {file && <p className="-mt-2 text-[13px] text-ink-subtle">Selected: {file.name} ({formatSize(Math.max(1, Math.round(file.size / 1024)))})</p>}
+        {file && (
+          <p className="-mt-2 text-[13px] text-ink-subtle">
+            Selected: {file.name} ({formatSize(Math.max(1, Math.round(file.size / 1024)))})
+          </p>
+        )}
         <FormField label="Name" required error={errors.title}>
           {(p) => <Input {...p} value={title} onChange={(e) => setTitle(e.target.value)} />}
         </FormField>
@@ -157,9 +168,11 @@ function UploadDialog({ open, onClose, initialFile, onUploaded }: { open: boolea
           </FormField>
         </div>
         <AccessPicker access={access} setAccess={setAccess} allowed={allowed} setAllowed={setAllowed} />
-        <Callout tone="amber" className="text-[13px]">
-          Preview limitation: only the fileΓÇÖs details are saved until HearthΓÇÖs secure document storage is connected.
-        </Callout>
+        {isDemoMode && (
+          <Callout tone="amber" className="text-[13px]">
+            Preview limitation: only the file’s details are saved until Hearth’s secure document storage is connected.
+          </Callout>
+        )}
       </form>
     </Dialog>
   );
@@ -227,7 +240,7 @@ export default function DocumentsPage() {
       ? [['', filtered]]
       : Object.entries(
           filtered.reduce<Record<string, CareDocument[]>>((acc, d) => {
-            const key = view === 'category' ? d.category : apptTitle(d.appointmentId) ?? 'Not linked to a visit';
+            const key = view === 'category' ? d.category : (apptTitle(d.appointmentId) ?? 'Not linked to a visit');
             (acc[key] ??= []).push(d);
             return acc;
           }, {}),
@@ -250,7 +263,7 @@ export default function DocumentsPage() {
           <p className="truncate font-semibold text-ink">{d.title}</p>
           <p className="truncate text-[13px] text-ink-subtle">
             {d.fileName}
-            {d.appointmentId && apptTitle(d.appointmentId) && ` ┬╖ ${apptTitle(d.appointmentId)}`}
+            {d.appointmentId && apptTitle(d.appointmentId) && ` · ${apptTitle(d.appointmentId)}`}
           </p>
         </div>
       </div>
@@ -309,7 +322,7 @@ export default function DocumentsPage() {
               <div>
                 <p className="font-display text-lg">{family?.recipient.name}</p>
                 <p className="text-sm text-ink-muted">
-                  {docs.length} document{docs.length === 1 ? '' : 's'} you can see ┬╖ {formatSize(totalKB)}
+                  {docs.length} document{docs.length === 1 ? '' : 's'} you can see · {formatSize(totalKB)}
                 </p>
               </div>
             </div>
@@ -335,7 +348,7 @@ export default function DocumentsPage() {
                 <label htmlFor="doc-search" className="sr-only">
                   Search documents
                 </label>
-                <Input id="doc-search" type="search" leftIcon={<Search />} placeholder="Search documentsΓÇª" value={query} onChange={(e) => setQuery(e.target.value)} />
+                <Input id="doc-search" type="search" leftIcon={<Search />} placeholder="Search documents…" value={query} onChange={(e) => setQuery(e.target.value)} />
               </div>
               <div className="sm:w-48">
                 <label htmlFor="doc-category" className="sr-only">
@@ -365,7 +378,10 @@ export default function DocumentsPage() {
                   <section key={label || 'all'} aria-label={label || 'All documents'}>
                     {label && <h2 className="mb-2 font-display text-lg">{label}</h2>}
                     <Card padding="none">
-                      <div className="hidden grid-cols-[minmax(0,2.2fr)_1fr_1fr_1.2fr_auto] gap-3 border-b border-line bg-surface-muted/60 px-5 py-2.5 text-2xs font-semibold uppercase tracking-wide text-ink-subtle md:grid" aria-hidden="true">
+                      <div
+                        className="hidden grid-cols-[minmax(0,2.2fr)_1fr_1fr_1.2fr_auto] gap-3 border-b border-line bg-surface-muted/60 px-5 py-2.5 text-2xs font-semibold uppercase tracking-wide text-ink-subtle md:grid"
+                        aria-hidden="true"
+                      >
                         <span>Document</span>
                         <span>Category</span>
                         <span>Added</span>
@@ -391,12 +407,15 @@ export default function DocumentsPage() {
             }}
             onDragLeave={() => setDragging(false)}
             onDrop={onDrop}
-            className={cn('flex flex-col items-center gap-3 rounded-2xl border-2 border-dashed p-6 text-center transition-colors sm:flex-row sm:text-left', dragging ? 'border-primary-400 bg-primary-50' : 'border-line-strong bg-surface-muted/60')}
+            className={cn(
+              'flex flex-col items-center gap-3 rounded-2xl border-2 border-dashed p-6 text-center transition-colors sm:flex-row sm:text-left',
+              dragging ? 'border-primary-400 bg-primary-50' : 'border-line-strong bg-surface-muted/60',
+            )}
           >
             <UploadCloud aria-hidden="true" className="h-8 w-8 text-primary-500" />
             <div className="flex-1">
               <p className="font-semibold text-ink">Drag & drop a file here</p>
-              <p className="text-[13px] text-ink-muted">YouΓÇÖll choose its category and who can see it.</p>
+              <p className="text-[13px] text-ink-muted">You’ll choose its category and who can see it.</p>
             </div>
             <input
               ref={fileInput}
@@ -428,14 +447,14 @@ export default function DocumentsPage() {
         open={Boolean(deleteDoc)}
         onClose={() => setDeleteDoc(null)}
         title="Delete this document?"
-        description={deleteDoc ? `ΓÇ£${deleteDoc.title}ΓÇ¥ will be removed for everyone. This is recorded in the activity history.` : undefined}
+        description={deleteDoc ? `“${deleteDoc.title}” will be removed for everyone. This is recorded in the activity history.` : undefined}
         confirmLabel="Delete"
         variant="danger"
         loading={remove.pending}
         onConfirm={async () => {
           if (!deleteDoc) return;
           const ok = await remove.attempt(deleteDoc.id);
-          toast(ok ? { title: 'Document deleted' } : { tone: 'error', title: 'CouldnΓÇÖt delete the document', description: 'Please try again.' });
+          toast(ok ? { title: 'Document deleted' } : { tone: 'error', title: 'Couldn’t delete the document', description: 'Please try again.' });
           setDeleteDoc(null);
           data.reload();
         }}

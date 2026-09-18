@@ -117,10 +117,18 @@ function CoverageTimeline({ tasks, absences, conflictIds }: { tasks: CareTask[];
         })}
       </ul>
       <ul className="mt-4 flex flex-wrap gap-x-4 gap-y-1 text-xs text-ink-subtle" aria-label="Legend">
-        <li className="flex items-center gap-1.5"><span className="h-2 w-4 rounded-full bg-primary-400" /> Planned</li>
-        <li className="flex items-center gap-1.5"><span className="h-2 w-4 rounded-full bg-mint-400" /> Done</li>
-        <li className="flex items-center gap-1.5"><span className="h-2 w-4 rounded-full bg-red-400" /> Conflict</li>
-        <li className="flex items-center gap-1.5"><span className="h-2 w-4 rounded-full bg-rose-200" /> Unavailable</li>
+        <li className="flex items-center gap-1.5">
+          <span className="h-2 w-4 rounded-full bg-primary-400" /> Planned
+        </li>
+        <li className="flex items-center gap-1.5">
+          <span className="h-2 w-4 rounded-full bg-mint-400" /> Done
+        </li>
+        <li className="flex items-center gap-1.5">
+          <span className="h-2 w-4 rounded-full bg-red-400" /> Conflict
+        </li>
+        <li className="flex items-center gap-1.5">
+          <span className="h-2 w-4 rounded-full bg-rose-200" /> Unavailable
+        </li>
       </ul>
     </div>
   );
@@ -131,10 +139,7 @@ export default function DashboardPage() {
   const { family, members, me, nameOf } = useFamily();
   const { toast } = useToast();
 
-  const data = useAsync(
-    () => Promise.all([taskService.listTasks(), decisionService.listAttention(), appointmentService.list(), auditService.list(), scheduleService.listUnavailability()]),
-    [],
-  );
+  const data = useAsync(() => Promise.all([taskService.listTasks(), decisionService.listAttention(), appointmentService.list(), auditService.list(), scheduleService.listUnavailability()]), []);
   const toggle = useMutation((t: CareTask) => (t.status === 'completed' ? taskService.reopenTask(t.id) : taskService.completeTask(t.id)));
 
   const [tasks = [], attention = [], appointments = [], audit = [], absences = []] = data.data ?? [];
@@ -167,7 +172,11 @@ export default function DashboardPage() {
         }
         title={`${greeting()}, ${me?.name.split(' ')[0] ?? 'there'}`}
         description={`${family?.name} · ${activeCount} active member${activeCount === 1 ? '' : 's'}`}
-        meta={<Badge tone="rose" size="md">Caring for {family?.recipient.name}</Badge>}
+        meta={
+          <Badge tone="rose" size="md">
+            Caring for {family?.recipient.name}
+          </Badge>
+        }
         actions={
           <>
             <ButtonLink to="/tasks/new" leftIcon={<Plus aria-hidden="true" className="h-4 w-4" />}>
@@ -189,7 +198,18 @@ export default function DashboardPage() {
         <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_22rem]">
           <div className="space-y-8">
             <section aria-labelledby="attention-heading">
-              <SectionHeader id="attention-heading" title="Needs your attention" count={data.data ? attention.length : undefined} aside={attention.length > 3 && <Link to="/priority" className="font-semibold text-primary-700 hover:underline">See all</Link>} />
+              <SectionHeader
+                id="attention-heading"
+                title="Needs your attention"
+                count={data.data ? attention.length : undefined}
+                aside={
+                  attention.length > 3 && (
+                    <Link to="/priority" className="font-semibold text-primary-700 hover:underline">
+                      See all
+                    </Link>
+                  )
+                }
+              />
               {!data.data ? (
                 <ListSkeleton rows={2} />
               ) : attention.length ? (
@@ -227,7 +247,11 @@ export default function DashboardPage() {
                   icon={<HeartHandshake aria-hidden="true" />}
                   title="Nothing planned for today"
                   description="Add the day’s medication, meals, walks or errands so the whole circle can see them."
-                  action={<ButtonLink to="/tasks/new" leftIcon={<Plus aria-hidden="true" className="h-4 w-4" />}>Create a task</ButtonLink>}
+                  action={
+                    <ButtonLink to="/tasks/new" leftIcon={<Plus aria-hidden="true" className="h-4 w-4" />}>
+                      Create a task
+                    </ButtonLink>
+                  }
                 />
               )}
             </section>
@@ -245,7 +269,15 @@ export default function DashboardPage() {
 
           <aside className="space-y-6">
             <Card>
-              <CardHeader title="Upcoming visit" icon={<Stethoscope aria-hidden="true" className="h-5 w-5" />} action={<Link to="/appointments" className="text-[13px] font-semibold text-primary-700 hover:underline">All</Link>} />
+              <CardHeader
+                title="Upcoming visit"
+                icon={<Stethoscope aria-hidden="true" className="h-5 w-5" />}
+                action={
+                  <Link to="/appointments" className="text-[13px] font-semibold text-primary-700 hover:underline">
+                    All
+                  </Link>
+                }
+              />
               {!data.data ? (
                 <Skeleton className="h-28" />
               ) : nextVisit ? (
@@ -263,7 +295,16 @@ export default function DashboardPage() {
                   )}
                 </Link>
               ) : (
-                <EmptyState compact icon={<Stethoscope aria-hidden="true" />} title="No upcoming visits" action={<ButtonLink to="/appointments/new" size="sm" variant="soft">Add appointment</ButtonLink>} />
+                <EmptyState
+                  compact
+                  icon={<Stethoscope aria-hidden="true" />}
+                  title="No upcoming visits"
+                  action={
+                    <ButtonLink to="/appointments/new" size="sm" variant="soft">
+                      Add appointment
+                    </ButtonLink>
+                  }
+                />
               )}
             </Card>
 
@@ -273,7 +314,14 @@ export default function DashboardPage() {
             </Card>
 
             <Card>
-              <CardHeader title="Recent activity" action={<Link to="/activity" className="text-[13px] font-semibold text-primary-700 hover:underline">View all</Link>} />
+              <CardHeader
+                title="Recent activity"
+                action={
+                  <Link to="/activity" className="text-[13px] font-semibold text-primary-700 hover:underline">
+                    View all
+                  </Link>
+                }
+              />
               {!data.data ? (
                 <ListSkeleton rows={3} />
               ) : audit.length ? (

@@ -51,7 +51,7 @@ function todaysAvailability(m: FamilyMember): string {
   const idx = (new Date().getDay() + 6) % 7;
   if (!m.availability.days[idx]) return 'Not usually available today';
   if (!m.availability.windows.length) return 'Available today (no set hours)';
-  return `Free today ${m.availability.windows.map((w) => `${formatClock(w.start)}ΓÇô${formatClock(w.end)}`).join(', ')}`;
+  return `Free today ${m.availability.windows.map((w) => `${formatClock(w.start)}–${formatClock(w.end)}`).join(', ')}`;
 }
 
 export default function MemberPage() {
@@ -74,7 +74,7 @@ export default function MemberPage() {
       <EmptyState
         icon={<UserX aria-hidden="true" />}
         headingLevel="h1"
-        title="We couldnΓÇÖt find that person"
+        title="We couldn’t find that person"
         description="They may have been removed from the circle."
         action={<ButtonLink to="/family">Back to the family circle</ButtonLink>}
       />
@@ -106,7 +106,7 @@ export default function MemberPage() {
       toast({ title: `${member.name} was removed`, description: 'Their open tasks are now unassigned.' });
       navigate('/family');
     } else {
-      toast({ tone: 'error', title: 'CouldnΓÇÖt remove this member', description: 'Please try again.' });
+      toast({ tone: 'error', title: 'Couldn’t remove this member', description: 'Please try again.' });
     }
   };
 
@@ -116,7 +116,7 @@ export default function MemberPage() {
 
       <Card as="section" aria-labelledby="member-name" className="mb-6">
         <div className="flex flex-col gap-5 md:flex-row md:items-start">
-          <Avatar name={member.name} size="xl" />
+          <Avatar name={member.name} src={member.photo} size="xl" />
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
               <h2 id="member-name" className="font-display text-3xl leading-tight">
@@ -179,7 +179,7 @@ export default function MemberPage() {
       </Card>
 
       <Tabs
-        label={`${member.name}ΓÇÖs details`}
+        label={`${member.name}’s details`}
         idPrefix="member"
         value={tab}
         onChange={setTab}
@@ -226,10 +226,7 @@ export default function MemberPage() {
                 <CardHeader title="Usual week" as="h3" icon={<CalendarClock aria-hidden="true" className="h-5 w-5" />} />
                 <ul className="grid grid-cols-7 gap-1.5" aria-label="Days usually available">
                   {WEEKDAY_LABELS.map((d, i) => (
-                    <li
-                      key={d}
-                      className={cn('rounded-xl py-2 text-center text-xs font-semibold', member.availability.days[i] ? 'bg-mint-100 text-mint-800' : 'bg-surface-sunken text-ink-subtle')}
-                    >
+                    <li key={d} className={cn('rounded-xl py-2 text-center text-xs font-semibold', member.availability.days[i] ? 'bg-mint-100 text-mint-800' : 'bg-surface-sunken text-ink-subtle')}>
                       {d}
                       <span className="sr-only">{member.availability.days[i] ? ': available' : ': not available'}</span>
                     </li>
@@ -242,13 +239,13 @@ export default function MemberPage() {
                       <li key={w.id} className="flex items-center justify-between rounded-xl bg-surface-muted px-3 py-2 text-sm">
                         <span className="font-medium text-ink">{w.label}</span>
                         <span className="text-ink-muted">
-                          {formatClock(w.start)} ΓÇô {formatClock(w.end)}
+                          {formatClock(w.start)} – {formatClock(w.end)}
                         </span>
                       </li>
                     ))}
                   </ul>
                 ) : (
-                  <p className="text-sm text-ink-subtle">No set hours ΓÇö any time on available days.</p>
+                  <p className="text-sm text-ink-subtle">No set hours — any time on available days.</p>
                 )}
               </Card>
               <Card>
@@ -259,7 +256,7 @@ export default function MemberPage() {
                       <li key={u.id} className="rounded-xl bg-amber-50 px-3 py-2 text-sm">
                         <p className="font-medium text-ink">{u.reason}</p>
                         <p className="text-ink-muted">
-                          {formatDayTime(u.start)} ΓÇô {formatDayTime(u.end)}
+                          {formatDayTime(u.start)} – {formatDayTime(u.end)}
                         </p>
                         {u.note && <p className="mt-1 text-ink-muted">{u.note}</p>}
                       </li>
@@ -312,7 +309,12 @@ export default function MemberPage() {
 
           <TabPanel idPrefix="member" id="access" className={tab === 'access' ? '' : 'hidden'}>
             <Card>
-              <CardHeader title="What they can see" as="h3" icon={<ShieldCheck aria-hidden="true" className="h-5 w-5" />} description={member.role === 'lead' ? 'The lead caregiver always has full access.' : isLead ? 'Changes save straight away.' : 'Only the lead caregiver can change access.'} />
+              <CardHeader
+                title="What they can see"
+                as="h3"
+                icon={<ShieldCheck aria-hidden="true" className="h-5 w-5" />}
+                description={member.role === 'lead' ? 'The lead caregiver always has full access.' : isLead ? 'Changes save straight away.' : 'Only the lead caregiver can change access.'}
+              />
               <FormError message={update.error} />
               <div className="divide-y divide-line">
                 {ACCESS_SCOPES.map((s) => (
@@ -322,7 +324,7 @@ export default function MemberPage() {
                 ))}
               </div>
               <Callout tone="neutral" className="mt-4">
-                Documents marked ΓÇ£restrictedΓÇ¥ are only visible to the people chosen on each document, whatever this setting says.{' '}
+                Documents marked “restricted” are only visible to the people chosen on each document, whatever this setting says.{' '}
                 <Link to="/documents" className="font-semibold text-primary-700 underline-offset-2 hover:underline">
                   Manage documents
                 </Link>
@@ -423,7 +425,7 @@ function MemberEditDialog({ member, allowRole, open, onClose, onSaved }: { membe
       open={open}
       onClose={onClose}
       size="lg"
-      title={`Edit ${member.name.split(' ')[0]}ΓÇÖs profile`}
+      title={`Edit ${member.name.split(' ')[0]}’s profile`}
       footer={
         <>
           <Button variant="ghost" onClick={onClose}>

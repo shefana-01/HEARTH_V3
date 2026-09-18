@@ -71,7 +71,16 @@ const toneBg: Record<string, string> = {
 
 function HeroPreview() {
   const rows = [
-    { time: '8:30 AM', title: 'Morning tablets & water', who: 'Done by Sam', badge: <Badge tone="mint" dot>Done</Badge> },
+    {
+      time: '8:30 AM',
+      title: 'Morning tablets & water',
+      who: 'Done by Sam',
+      badge: (
+        <Badge tone="mint" dot>
+          Done
+        </Badge>
+      ),
+    },
     { time: '4:00 PM', title: 'Walk & blood pressure check', who: 'Claimed by Maya', badge: <Badge tone="primary">On track</Badge> },
     { time: '6:30 PM', title: 'Pharmacy pickup', who: 'Suggested: Ravi (free, 0.5 mi away)', badge: <Badge tone="rose">Needs you</Badge> },
   ];
@@ -110,7 +119,10 @@ export default function PromoPage() {
       <main>
         {/* Hero */}
         <section className="relative">
-          <div aria-hidden="true" className="pointer-events-none absolute -top-24 left-1/2 h-[28rem] w-[48rem] -translate-x-1/2 rounded-full bg-gradient-to-tr from-rose-100 via-primary-100 to-mint-100 opacity-70 blur-3xl" />
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute -top-24 left-1/2 h-[28rem] w-[48rem] -translate-x-1/2 rounded-full bg-gradient-to-tr from-rose-100 via-primary-100 to-mint-100 opacity-70 blur-3xl"
+          />
           <div className="relative mx-auto grid max-w-6xl items-center gap-12 px-4 py-16 sm:px-6 lg:grid-cols-2 lg:py-24">
             <div>
               <Badge tone="mint" size="md" className="mb-5">
