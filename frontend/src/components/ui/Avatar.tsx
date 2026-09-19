@@ -1,4 +1,5 @@
 import { cn } from '@/lib/cn';
+import { initials } from '@/lib/initials';
 
 const palettes = [
   'bg-primary-100 text-primary-800',
@@ -8,16 +9,6 @@ const palettes = [
   'bg-primary-200 text-primary-900',
   'bg-rose-200 text-rose-700',
 ];
-
-export function initials(name: string): string {
-  const parts = name
-    .replace(/^(dr|mr|mrs|ms)\.?\s+/i, '')
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean);
-  if (!parts.length) return '?';
-  return ((parts[0][0] ?? '') + (parts.length > 1 ? parts[parts.length - 1][0] : '')).toUpperCase();
-}
 
 /** Stable colour per person, derived from their id or name. */
 function paletteFor(seed: string): string {
@@ -35,22 +26,19 @@ export interface AvatarProps {
   className?: string;
   /** Decorative when the name is already shown next to it. */
   decorative?: boolean;
+  /** Profile picture; falls back to initials when missing. */
+  src?: string;
 }
 
-export function Avatar({ name, seed, size = 'md', className, decorative = true }: AvatarProps) {
+export function Avatar({ name, seed, size = 'md', className, decorative = true, src }: AvatarProps) {
   return (
     <span
       role={decorative ? undefined : 'img'}
       aria-label={decorative ? undefined : name}
       aria-hidden={decorative || undefined}
-      className={cn(
-        'inline-flex shrink-0 select-none items-center justify-center rounded-full font-semibold',
-        sizes[size],
-        paletteFor(seed ?? name),
-        className,
-      )}
+      className={cn('inline-flex shrink-0 select-none items-center justify-center rounded-full font-semibold', sizes[size], paletteFor(seed ?? name), className)}
     >
-      {initials(name)}
+      {src ? <img src={src} alt="" className="h-full w-full rounded-full object-cover" /> : initials(name)}
     </span>
   );
 }

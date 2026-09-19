@@ -81,7 +81,27 @@ for (const vp of ['desktop', 'mobile']) {
   }
   await page.getByRole('button', { name: 'Create family & open dashboard' }).click();
   await page.waitForURL('**/dashboard');
-  const routes = ['/dashboard', '/tasks', '/tasks/new', '/schedule', '/schedule/availability', '/schedule/unavailable', '/priority', '/what-if', '/caregraph', '/appointments', '/appointments/new', '/nutrition', '/nutrition/recommendations', '/nutrition/groceries', '/documents', '/family', '/notifications', '/activity', '/settings'];
+  const routes = [
+    '/dashboard',
+    '/tasks',
+    '/tasks/new',
+    '/schedule',
+    '/schedule/availability',
+    '/schedule/unavailable',
+    '/priority',
+    '/what-if',
+    '/caregraph',
+    '/appointments',
+    '/appointments/new',
+    '/nutrition',
+    '/nutrition/recommendations',
+    '/nutrition/groceries',
+    '/documents',
+    '/family',
+    '/notifications',
+    '/activity',
+    '/settings',
+  ];
   for (const r of routes) await check(page, errs, r, vp, 'new-' + slug(r));
   await ctx.close();
 }

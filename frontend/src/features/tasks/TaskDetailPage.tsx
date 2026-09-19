@@ -10,7 +10,7 @@ import { useAsync, useMutation } from '@/hooks/useAsync';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { dayDiff, formatDayTime, formatDuration, formatTime, timeAgo } from '@/lib/dates';
 import { PRIORITIES, TASK_CATEGORIES } from '@/constants/labels';
-import { Avatar, Badge, Button, ButtonLink, Callout, Card, CardHeader, ConfirmDialog, Disclosure, ErrorState, PageHeader, PageSkeleton, useToast } from '@/components/ui';
+import { ActionBar, Avatar, Badge, Button, ButtonLink, Callout, Card, CollapsibleCard, ConfirmDialog, Disclosure, ErrorState, PageHeader, PageSkeleton, useToast } from '@/components/ui';
 import { CategoryIcon } from '@/components/domain/TaskRow';
 import { PriorityBreakdownView, ScorePill } from '@/components/domain/Scores';
 
@@ -71,16 +71,30 @@ export default function TaskDetailPage() {
         meta={
           <>
             {cancelled ? (
-              <Badge tone="neutral" size="md">Cancelled</Badge>
+              <Badge tone="neutral" size="md">
+                Cancelled
+              </Badge>
             ) : done ? (
-              <Badge tone="mint" size="md" dot>Completed {task.completedAt && timeAgo(task.completedAt)}</Badge>
+              <Badge tone="mint" size="md" dot>
+                Completed {task.completedAt && timeAgo(task.completedAt)}
+              </Badge>
             ) : conflict ? (
-              <Badge tone="red" size="md" dot>{conflict.kind === 'unassigned' ? 'Needs an owner' : 'Schedule conflict'}</Badge>
+              <Badge tone="red" size="md" dot>
+                {conflict.kind === 'unassigned' ? 'Needs an owner' : 'Schedule conflict'}
+              </Badge>
             ) : (
-              <Badge tone="mint" size="md" dot>Scheduled · on track</Badge>
+              <Badge tone="mint" size="md" dot>
+                Scheduled · on track
+              </Badge>
             )}
-            <Badge tone={PRIORITIES[task.priority].tone} size="md">{PRIORITIES[task.priority].label}</Badge>
-            {!done && !cancelled && days === 0 && <Badge tone="rose" size="md">Due today</Badge>}
+            <Badge tone={PRIORITIES[task.priority].tone} size="md">
+              {PRIORITIES[task.priority].label}
+            </Badge>
+            {!done && !cancelled && days === 0 && (
+              <Badge tone="rose" size="md">
+                Due today
+              </Badge>
+            )}
           </>
         }
         actions={
@@ -99,7 +113,11 @@ export default function TaskDetailPage() {
               tone="red"
               icon={<TriangleAlert aria-hidden="true" />}
               title="This task can’t go ahead as planned"
-              action={<ButtonLink to={`/tasks/${task.id}/resolve`} size="sm">Resolve conflict</ButtonLink>}
+              action={
+                <ButtonLink to={`/tasks/${task.id}/resolve`} size="sm">
+                  Resolve conflict
+                </ButtonLink>
+              }
             >
               {conflict.reason}
             </Callout>
@@ -122,7 +140,11 @@ export default function TaskDetailPage() {
 
             <div className="mt-5 grid gap-3 sm:grid-cols-2">
               <div className="flex items-center gap-3 rounded-2xl bg-surface-muted p-4">
-                {assignee ? <Avatar name={assignee.name} seed={assignee.id} /> : <span className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-dashed border-line-strong text-ink-subtle">?</span>}
+                {assignee ? (
+                  <Avatar name={assignee.name} seed={assignee.id} />
+                ) : (
+                  <span className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-dashed border-line-strong text-ink-subtle">?</span>
+                )}
                 <div className="min-w-0">
                   <p className="eyebrow">Assigned caregiver</p>
                   <p className="truncate font-semibold text-ink">
@@ -142,7 +164,7 @@ export default function TaskDetailPage() {
             </div>
 
             {!cancelled && (
-              <div className="mt-5 flex flex-col gap-2 sm:flex-row">
+              <ActionBar className="lg:mt-5 lg:justify-stretch">
                 <Button
                   size="lg"
                   className="sm:flex-1"
@@ -154,24 +176,35 @@ export default function TaskDetailPage() {
                   {done ? 'Mark as not done' : 'Mark complete'}
                 </Button>
                 {!done && (
-                  <Button size="lg" variant="soft" loading={reassign.pending} onClick={onReassign} leftIcon={<ArrowRightLeft aria-hidden="true" className="h-4 w-4" />}>
+                  <Button
+                    size="lg"
+                    variant="soft"
+                    className="sm:flex-1 lg:flex-none"
+                    loading={reassign.pending}
+                    onClick={onReassign}
+                    leftIcon={<ArrowRightLeft aria-hidden="true" className="h-4 w-4" />}
+                  >
                     {insight?.openRequestId ? 'View reassignment' : 'Request reassignment'}
                   </Button>
                 )}
-              </div>
+              </ActionBar>
             )}
           </Card>
 
           {appointment && (
-            <Card>
-              <CardHeader title="Linked appointment" icon={<CalendarClock aria-hidden="true" className="h-5 w-5" />} description="This visit depends on the task being done." />
+            <CollapsibleCard
+              title="Linked appointment"
+              icon={<CalendarClock aria-hidden="true" className="h-5 w-5" />}
+              description="This visit depends on the task being done."
+              meta={formatDayTime(appointment.start)}
+            >
               <Link to={`/appointments/${appointment.id}`} className="block rounded-2xl bg-primary-50 p-4 hover:bg-primary-100">
                 <p className="font-semibold text-ink">{appointment.title}</p>
                 <p className="text-sm text-ink-muted">
                   {appointment.provider} · {formatDayTime(appointment.start)}
                 </p>
               </Link>
-            </Card>
+            </CollapsibleCard>
           )}
 
           <Disclosure title="Activity history" icon={<History />} meta={`${history.length} event${history.length === 1 ? '' : 's'}`}>
@@ -181,7 +214,13 @@ export default function TaskDetailPage() {
                   <li key={e.id} className="text-sm">
                     <p className="text-ink">
                       <span className="font-semibold">{nameOf(e.actorId)}</span> — {e.action.toLowerCase()}
-                      {e.after && <span className="text-ink-muted"> ({e.before ? `${e.before} → ` : ''}{e.after})</span>}
+                      {e.after && (
+                        <span className="text-ink-muted">
+                          {' '}
+                          ({e.before ? `${e.before} → ` : ''}
+                          {e.after})
+                        </span>
+                      )}
                     </p>
                     <p className="text-xs text-ink-subtle">{timeAgo(e.at)}</p>
                   </li>
@@ -191,27 +230,14 @@ export default function TaskDetailPage() {
               <p>No changes recorded yet.</p>
             )}
           </Disclosure>
-
-          {!cancelled && (
-            <Card tone="muted" padding="sm" className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <p className="flex items-start gap-2 text-[13px] text-ink-muted">
-                <ShieldCheck aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-mint-600" />
-                Cancelled tasks stay in the activity history, and the circle is told.
-              </p>
-              <Button variant="danger-ghost" size="sm" leftIcon={<Trash2 aria-hidden="true" className="h-4 w-4" />} onClick={() => setConfirmCancel(true)}>
-                Cancel task
-              </Button>
-            </Card>
-          )}
         </div>
 
         {insight && (
           <aside className="space-y-4">
-            <Card>
-              <CardHeader title="Priority score" action={<ScorePill score={insight.priority.score} label="Priority score" />} />
+            <CollapsibleCard title="Priority score" expandFrom="xl" action={<ScorePill score={insight.priority.score} label="Priority score" />} meta={`${insight.priority.score}/100`}>
               <p className="mb-4 text-sm text-ink-muted">{insight.priority.explanation}</p>
               <PriorityBreakdownView priority={insight.priority} />
-            </Card>
+            </CollapsibleCard>
             {insight.candidates[0] && (
               <Card tone="mint">
                 <p className="eyebrow text-mint-700">Best backup right now</p>
@@ -224,6 +250,18 @@ export default function TaskDetailPage() {
           </aside>
         )}
       </div>
+
+      {!cancelled && (
+        <Card tone="muted" padding="sm" className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <p className="flex items-start gap-2 text-[13px] text-ink-muted">
+            <ShieldCheck aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-mint-600" />
+            Cancelled tasks stay in the activity history, and the circle is told.
+          </p>
+          <Button variant="danger-ghost" size="sm" leftIcon={<Trash2 aria-hidden="true" className="h-4 w-4" />} onClick={() => setConfirmCancel(true)}>
+            Cancel task
+          </Button>
+        </Card>
+      )}
 
       <ConfirmDialog
         open={confirmCancel}

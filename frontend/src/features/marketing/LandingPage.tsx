@@ -29,9 +29,7 @@ export default function LandingPage() {
           <div aria-hidden="true" className="absolute inset-0 rounded-full bg-[#F6EDE3] shadow-[0_20px_60px_-20px_rgba(120,100,80,0.25)]" />
           <div className="relative z-10 flex flex-col items-center px-8 text-center">
             <LogoMark className="mb-6 h-16 w-16 gap-1.5 rounded-2xl p-3.5 [&>span]:h-3.5 [&>span]:w-3.5" />
-            <h1 className="font-sans text-4xl font-extrabold leading-[1.1] tracking-tight text-ink sm:text-5xl">
-              Plan, share and track care — all in one place
-            </h1>
+            <h1 className="font-sans text-4xl font-extrabold leading-[1.1] tracking-tight text-ink sm:text-5xl">Plan, share and track care — all in one place</h1>
             <p className="mt-5 max-w-sm text-ink-muted">One calm, shared plan for everyone who helps look after someone you love.</p>
             <div className="mt-8 flex flex-wrap justify-center gap-3">
               <ButtonLink to="/sign-up" className="rounded-full px-6">

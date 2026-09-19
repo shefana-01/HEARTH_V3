@@ -120,14 +120,35 @@ export function ProgressBar({ value, max = 100, tone = 'primary', label, classNa
     red: 'bg-red-500',
   };
   return (
-    <div role="progressbar" aria-label={label} aria-valuenow={Math.round(value)} aria-valuemin={0} aria-valuemax={max} className={cn('h-2 w-full overflow-hidden rounded-full bg-surface-sunken', className)}>
+    <div
+      role="progressbar"
+      aria-label={label}
+      aria-valuenow={Math.round(value)}
+      aria-valuemin={0}
+      aria-valuemax={max}
+      className={cn('h-2 w-full overflow-hidden rounded-full bg-surface-sunken', className)}
+    >
       <div className={cn('h-full rounded-full transition-[width] duration-500', fill[tone])} style={{ width: `${pct}%` }} />
     </div>
   );
 }
 
 /** Informational banner. */
-export function Callout({ tone = 'primary', icon, title, children, action, className }: { tone?: Tone; icon?: ReactNode; title?: ReactNode; children?: ReactNode; action?: ReactNode; className?: string }) {
+export function Callout({
+  tone = 'primary',
+  icon,
+  title,
+  children,
+  action,
+  className,
+}: {
+  tone?: Tone;
+  icon?: ReactNode;
+  title?: ReactNode;
+  children?: ReactNode;
+  action?: ReactNode;
+  className?: string;
+}) {
   const tones: Record<Tone, string> = {
     neutral: 'border-line bg-surface-muted',
     primary: 'border-primary-100 bg-primary-50',

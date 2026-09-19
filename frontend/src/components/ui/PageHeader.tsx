@@ -1,3 +1,4 @@
+import { useShell } from '@/components/layout/ShellContext';
 import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, ChevronRight } from 'lucide-react';
@@ -59,10 +60,21 @@ export function PageHeader({
   meta?: ReactNode;
   className?: string;
 }) {
+  // On detail screens the mobile app bar already has a back button, so the trail is desktop-only there.
+  const shell = useShell();
+  const trailClass = shell?.hasMobileBack ? 'hidden lg:block' : undefined;
   return (
     <header className={cn('mb-6 sm:mb-8', className)}>
-      {breadcrumbs && <Breadcrumbs items={breadcrumbs} />}
-      {back && <BackLink to={back.to}>{back.label}</BackLink>}
+      {breadcrumbs && (
+        <div className={trailClass}>
+          <Breadcrumbs items={breadcrumbs} />
+        </div>
+      )}
+      {back && (
+        <div className={trailClass}>
+          <BackLink to={back.to}>{back.label}</BackLink>
+        </div>
+      )}
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div className="min-w-0 max-w-2xl">
           {eyebrow && <p className="eyebrow mb-1.5">{eyebrow}</p>}

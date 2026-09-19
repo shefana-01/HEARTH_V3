@@ -12,11 +12,9 @@ export const required =
   (value) =>
     value.trim() ? undefined : `${label} is required.`;
 
-export const email: Validator = (value) =>
-  !value.trim() || EMAIL_RE.test(value.trim()) ? undefined : 'Enter a valid email address, like name@example.com.';
+export const email: Validator = (value) => (!value.trim() || EMAIL_RE.test(value.trim()) ? undefined : 'Enter a valid email address, like name@example.com.');
 
-export const phone: Validator = (value) =>
-  !value.trim() || PHONE_RE.test(value.trim()) ? undefined : 'Enter a valid phone number.';
+export const phone: Validator = (value) => (!value.trim() || PHONE_RE.test(value.trim()) ? undefined : 'Enter a valid phone number.');
 
 export const minLength =
   (label: string, min: number): Validator =>

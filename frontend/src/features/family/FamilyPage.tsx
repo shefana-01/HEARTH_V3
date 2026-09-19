@@ -29,7 +29,7 @@ export default function FamilyPage() {
   const [inviteOpen, setInviteOpen] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
 
-  if (status === 'error') return <ErrorState headingLevel="h1" message="We couldnΓÇÖt load your circle." onRetry={refresh} />;
+  if (status === 'error') return <ErrorState headingLevel="h1" message="We couldn’t load your circle." onRetry={refresh} />;
   if (!family) return <PageSkeleton />;
 
   const scheduled = (tasks.data ?? []).filter((t) => t.status === 'scheduled');
@@ -53,7 +53,7 @@ export default function FamilyPage() {
       await navigator.clipboard.writeText(family.inviteCode);
       toast({ title: 'Family code copied', description: family.inviteCode });
     } catch {
-      toast({ tone: 'error', title: 'CouldnΓÇÖt copy', description: `Your code is ${family.inviteCode}.` });
+      toast({ tone: 'error', title: 'Couldn’t copy', description: `Your code is ${family.inviteCode}.` });
     }
   };
 
@@ -62,7 +62,7 @@ export default function FamilyPage() {
       <PageHeader
         eyebrow={family.name}
         title="Family circle"
-        description="WhoΓÇÖs helping, what theyΓÇÖre good at, and how the work is shared."
+        description="Who’s helping, what they’re good at, and how the work is shared."
         actions={
           <>
             <Button variant="secondary" onClick={exportRoster} leftIcon={<Download aria-hidden="true" className="h-4 w-4" />}>
@@ -88,9 +88,7 @@ export default function FamilyPage() {
               <h2 id="recipient-heading" className="mt-1 font-display text-2xl">
                 {recipient.name}
               </h2>
-              <p className="text-sm text-ink-muted">
-                {[recipient.relation, age ? `${age} years` : null, family.careFocus].filter(Boolean).join(' ┬╖ ')}
-              </p>
+              <p className="text-sm text-ink-muted">{[recipient.relation, age ? `${age} years` : null, family.careFocus].filter(Boolean).join(' · ')}</p>
               {recipient.careNotes ? (
                 <p className="mt-3 max-w-prose text-[15px] text-ink">{recipient.careNotes}</p>
               ) : (
@@ -137,23 +135,24 @@ export default function FamilyPage() {
             </div>
             <div>
               <dt className="text-xs text-ink-subtle">Unassigned</dt>
-              <dd className="font-display text-xl">{tasks.data ? unassigned : 'ΓÇô'}</dd>
+              <dd className="font-display text-xl">{tasks.data ? unassigned : '–'}</dd>
             </div>
           </dl>
         </Card>
       </div>
 
       <Card as="section" aria-labelledby="members-heading">
-        <CardHeader title={<span id="members-heading">Members</span>} description="Open tasks count everything scheduled that hasnΓÇÖt happened yet." icon={<Users aria-hidden="true" className="h-5 w-5" />} />
+        <CardHeader
+          title={<span id="members-heading">Members</span>}
+          description="Open tasks count everything scheduled that hasn’t happened yet."
+          icon={<Users aria-hidden="true" className="h-5 w-5" />}
+        />
         <ul className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           {members.map((m) => (
             <li key={m.id}>
-              <Link
-                to={`/family/${m.id}`}
-                className="group flex h-full flex-col rounded-2xl border border-line bg-surface-muted p-4 transition-colors hover:border-primary-200 hover:bg-primary-50/60"
-              >
+              <Link to={`/family/${m.id}`} className="group flex h-full flex-col rounded-2xl border border-line bg-surface-muted p-4 transition-colors hover:border-primary-200 hover:bg-primary-50/60">
                 <div className="flex items-start gap-3">
-                  <Avatar name={m.name} size="lg" />
+                  <Avatar name={m.name} src={m.photo} size="lg" />
                   <div className="min-w-0 flex-1">
                     <p className="truncate font-semibold text-ink">
                       {m.name}
@@ -172,7 +171,7 @@ export default function FamilyPage() {
                   <ChevronRight aria-hidden="true" className="mt-1 h-4 w-4 shrink-0 text-ink-subtle transition-transform group-hover:translate-x-0.5" />
                 </div>
                 {m.focus && <p className="mt-3 text-sm text-ink">{m.focus}</p>}
-                {m.skills.length > 0 && <p className="mt-1 text-xs text-ink-subtle">{m.skills.map((s) => SKILLS[s]).join(' ┬╖ ')}</p>}
+                {m.skills.length > 0 && <p className="mt-1 text-xs text-ink-subtle">{m.skills.map((s) => SKILLS[s]).join(' · ')}</p>}
                 <div className="mt-auto flex items-center justify-between gap-2 pt-3 text-xs text-ink-muted">
                   <span>{availabilitySummary(m)}</span>
                   {m.role !== 'observer' && <span>{tasks.data ? `${openFor(m.id)} open task${openFor(m.id) === 1 ? '' : 's'}` : ''}</span>}
@@ -186,7 +185,7 @@ export default function FamilyPage() {
             compact
             className="mt-4"
             icon={<UserPlus aria-hidden="true" />}
-            title="ItΓÇÖs just you so far"
+            title="It’s just you so far"
             description="Invite family, friends or neighbours so Hearth can share the work fairly."
             action={isLead ? <Button onClick={() => setInviteOpen(true)}>Invite someone</Button> : undefined}
           />
@@ -196,12 +195,20 @@ export default function FamilyPage() {
       <InviteMemberDialog
         open={inviteOpen}
         onClose={() => setInviteOpen(false)}
-        onInvited={(m: FamilyMember) => {
+        onInvited={(m) => {
           toast({ title: 'Invitation recorded', description: `${m.name} is now listed as invited.` });
           void refresh();
         }}
       />
-      <FamilyDetailsDialog family={family} open={detailsOpen} onClose={() => setDetailsOpen(false)} onSaved={() => { toast({ title: 'Family details saved' }); void refresh(); }} />
+      <FamilyDetailsDialog
+        family={family}
+        open={detailsOpen}
+        onClose={() => setDetailsOpen(false)}
+        onSaved={() => {
+          toast({ title: 'Family details saved' });
+          void refresh();
+        }}
+      />
     </>
   );
 }

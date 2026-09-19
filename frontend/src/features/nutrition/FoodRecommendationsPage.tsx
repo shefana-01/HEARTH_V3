@@ -31,7 +31,7 @@ export default function FoodRecommendationsPage() {
     } else {
       const item = await add.run(f.id);
       if (item) toast({ title: 'Added to the grocery list', description: f.name });
-      else toast({ tone: 'error', title: 'CouldnΓÇÖt add it', description: 'Please try again.' });
+      else toast({ tone: 'error', title: 'Couldn’t add it', description: 'Please try again.' });
     }
     await data.reload();
     setBusyId(null);
@@ -51,7 +51,12 @@ export default function FoodRecommendationsPage() {
       ) : !data.data ? (
         <ListSkeleton rows={3} />
       ) : !plan ? (
-        <EmptyState icon={<Target aria-hidden="true" />} title="Set nutrition goals first" description="Food options are matched to the goals your family configures." action={<ButtonLink to="/nutrition">Set up goals</ButtonLink>} />
+        <EmptyState
+          icon={<Target aria-hidden="true" />}
+          title="Set nutrition goals first"
+          description="Food options are matched to the goals your family configures."
+          action={<ButtonLink to="/nutrition">Set up goals</ButtonLink>}
+        />
       ) : (
         <>
           <div className="mb-6 flex flex-wrap gap-2" role="group" aria-label="Filter by goal">
@@ -66,7 +71,12 @@ export default function FoodRecommendationsPage() {
           </div>
 
           {shown.length === 0 ? (
-            <EmptyState icon={<Info aria-hidden="true" />} title="No food options match this goal" description="Try adding more food focuses to the goal." action={<ButtonLink to="/nutrition">Edit goals</ButtonLink>} />
+            <EmptyState
+              icon={<Info aria-hidden="true" />}
+              title="No food options match this goal"
+              description="Try adding more food focuses to the goal."
+              action={<ButtonLink to="/nutrition">Edit goals</ButtonLink>}
+            />
           ) : (
             <ul className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
               {shown.map((f) => (
@@ -93,7 +103,7 @@ export default function FoodRecommendationsPage() {
                     {f.alternatives.length > 0 && (
                       <details className="mt-2 text-[13px] text-ink-muted">
                         <summary className="cursor-pointer font-semibold text-primary-700">Alternatives</summary>
-                        <p className="mt-1">{f.alternatives.join(' ┬╖ ')}</p>
+                        <p className="mt-1">{f.alternatives.join(' · ')}</p>
                       </details>
                     )}
                     <Button
@@ -115,7 +125,8 @@ export default function FoodRecommendationsPage() {
           )}
 
           <Callout tone="neutral" icon={<Info aria-hidden="true" />} className="mt-6">
-            Options come from a general food reference and are matched to your configured goals{plan.avoid.length ? `, leaving out: ${plan.avoid.join(', ')}` : ''}. They are suggestions, not medical advice.
+            Options come from a general food reference and are matched to your configured goals{plan.avoid.length ? `, leaving out: ${plan.avoid.join(', ')}` : ''}. They are suggestions, not medical
+            advice.
           </Callout>
 
           <Card className="sticky bottom-4 z-10 mt-6 flex flex-col gap-3 shadow-raised sm:flex-row sm:items-center sm:justify-between">
@@ -125,7 +136,7 @@ export default function FoodRecommendationsPage() {
                 <span className="font-semibold text-ink">
                   {needed.length} item{needed.length === 1 ? '' : 's'} to buy
                 </span>
-                <span className="text-ink-muted"> ┬╖ about {currency(total)}</span>
+                <span className="text-ink-muted"> · about {currency(total)}</span>
               </span>
             </p>
             <ButtonLink to="/nutrition/groceries" rightIcon={<ArrowRight aria-hidden="true" className="h-4 w-4" />}>

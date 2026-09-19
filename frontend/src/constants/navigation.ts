@@ -1,18 +1,4 @@
-import {
-  Bell,
-  CalendarDays,
-  CircleCheckBig,
-  FlaskConical,
-  FolderLock,
-  History,
-  LayoutDashboard,
-  ListOrdered,
-  Network,
-  Salad,
-  Stethoscope,
-  Users,
-  type LucideIcon,
-} from 'lucide-react';
+import { Bell, CalendarDays, CircleCheckBig, FlaskConical, FolderLock, History, LayoutDashboard, ListOrdered, Network, Salad, Stethoscope, Users, type LucideIcon } from 'lucide-react';
 
 export interface NavItem {
   to: string;

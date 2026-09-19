@@ -4,9 +4,9 @@ Hearth helps a family share the work of caring for someone: tasks, schedules,
 appointments, nutrition and documents, with a decision engine that spots conflicts
 and suggests who could step in.
 
-This is the React frontend for the Hearth care coordination platform. It runs on
-its own today with an in-browser mock backend, and every data call goes through a
-service layer that is ready to be connected to the backend services.
+This is the production-ready React frontend for the Hearth care coordination platform.
+It runs on its own with an in-browser mock backend (the default), or against the Hearth backend
+(`backend/`): every data call goes through a service layer that does one or the other.
 
 **Anyone can use it.** A new account starts empty and sets up its own family in
 onboarding. The Mannan family from the design is only an optional demo
@@ -16,7 +16,7 @@ onboarding. The Mannan family from the design is only an optional demo
 
 ```bash
 npm install
-npm run dev          # http://localhost:5173
+npm run dev          # http://localhost:3000
 ```
 
 Node 18.18+ (tested on Node 22).
@@ -28,7 +28,8 @@ Node 18.18+ (tested on Node 22).
 | `npm run preview` | Serve the production build (http://localhost:4173) |
 | `npm run typecheck` | TypeScript only |
 | `npm run lint` | ESLint (TypeScript, React Hooks, jsx-a11y) |
-| `npm run check` | typecheck + lint + build — run before every merge |
+| `npm run format` / `format:check` | Prettier (config in `.prettierrc.json`) |
+| `npm run check` | typecheck + lint + format check + build — run before every merge |
 
 ### Environment
 
@@ -36,8 +37,8 @@ Copy `.env.example` to `.env.local`:
 
 | Variable | Default | Meaning |
 | --- | --- | --- |
-| `VITE_USE_MOCKS` | `true` | Serve data from the in-browser mock store. Set `false` once endpoints exist. |
-| `VITE_API_BASE_URL` | *(empty)* | API gateway base URL, used by `apiRequest()`. |
+| `VITE_USE_MOCKS` | `true` | `true`: offline demo, data in this browser. `false`: use the Hearth backend. |
+| `VITE_API_BASE_URL` | *(empty)* | API gateway base URL, e.g. `http://localhost:8080/api/v1`. |
 | `VITE_MOCK_LATENCY_MS` | `350` | Simulated network delay, so loading states are visible. |
 
 ## Stack
@@ -71,8 +72,8 @@ tools/verify/     Playwright checks: route crawl, new-account crawl, end-to-end 
 
 ## Architecture
 
-- **Layers:** `features` (pages) → `services` (typed async API) → mock store today,
-  API gateway later. Pages never touch mock data or `fetch`.
+- **Layers:** `features` (pages) → `services` (typed async API) → the mock store or
+  the API gateway, chosen by `VITE_USE_MOCKS`. Pages never touch mock data or `fetch`.
 - **Routing:** real URLs for every screen, lazy-loaded per page, with browser
   back/forward, deep links and refresh all working. Guards:
   - `RequireAuth` sends signed-out visitors to `/sign-in?next=…` and returns them
@@ -115,12 +116,27 @@ self-hosted. There is one shared focus ring, and motion respects
 `prefers-reduced-motion`. Primitives are in `src/components/ui` and exported from
 `@/components/ui`.
 
+## Mobile (phones & tablets)
+
+One codebase serves desktop and mobile; below `lg` (1024 px) the shell switches to mobile patterns, following `Hearth_Mobile_Interface.pdf`:
+
+- **Bottom tab bar** on top-level screens — Home · Tasks · Schedule · Family · More. "More" opens a bottom sheet (native `<dialog>`, so focus is trapped and Escape closes it) with every other section.
+- **App bar on detail screens** — back button and title instead of the logo; the tab bar is hidden. Each detail route declares its title and logical parent in `src/app/routeMeta.ts`, so Back works from deep links and notifications too.
+- **Pinned action bar** (`<ActionBar>`) — primary actions sit at the bottom of the screen within thumb reach on task details, task/appointment forms, time away, reassignment confirmation, candidate review, impact analysis and unsaved availability. It renders inline on desktop and reports its height so content is never hidden behind it.
+- **Collapsible sections** (`<CollapsibleCard>`) for secondary detail such as the priority breakdown.
+- **Floating "Add task" button** on the task list.
+- **Schedule** becomes a day strip plus a vertical timeline; **What-if** gets Current / Proposed / Impact tabs.
+- Toasts appear at the top on small screens so they never cover bottom controls; safe-area insets are respected (`viewport-fit=cover`).
+
+Deliberately not taken from the mobile PDF: multiple care recipients, in-app messaging, WhatsApp alerts, "remember this device", @handles and profile photos, task drafts, prescription/dosage items, distances, and security claims (HIPAA, 256-bit AES, end-to-end encryption). These are product or backend decisions, not layout.
+
 ## Screens → routes
 
 | PDF screen | Route |
 | --- | --- |
 | 1 Promotional · 2 Landing | `/` · `/welcome` |
 | 3 Sign in · 4 Sign up | `/sign-in` · `/sign-up` |
+| Email links (not in the PDF; needed once email exists) | `/verify-email` · `/reset-password` |
 | 6 Family onboarding · 7 Join family | `/onboarding` · `/join/:code?` |
 | 10 Dashboard · 11 Attention detail + 15 Task conflict (merged) | `/dashboard` · `/tasks/:id/resolve` |
 | 12 Create task · 13 Task details · 14 My tasks | `/tasks/new` (`/tasks/:id/edit`) · `/tasks/:id` · `/tasks` |
@@ -138,19 +154,29 @@ self-hosted. There is one shared focus ring, and motion respects
 
 ## Backend integration
 
-`src/services/README.md` has the full service-by-service map and the steps to connect
-an endpoint. In short:
+The backend lives in `backend/` (see its README). To use it:
 
-- Each of the 68 service operations has one clearly marked line,
-  `backendNotConnected('<service>', '<operation>')`. Replace it with `apiRequest(...)`
-  once the contract is agreed. No endpoint URLs were invented.
-- `apiRequest()` already handles the base URL, JSON, the bearer token and `ApiError`.
-- The decision engine can move server-side; the UI only needs the same result shapes.
-- These are deliberately mock-only and are labelled as such in the UI:
-  - password verification and password changes (belong to the identity provider)
-  - sending invitation emails, and joining from another device
-  - storing document files (metadata only until file storage exists)
-  - email and phone alerts
+```
+# .env.local
+VITE_USE_MOCKS=false
+VITE_API_BASE_URL=http://localhost:8080/api/v1
+```
+
+- Every service operation has two paths: the mock one and one `apiRequest(...)` call.
+  `src/services/README.md` lists which endpoint each operation uses.
+- `apiRequest()` (`src/services/api/client.ts`) handles the base URL, JSON, file
+  uploads, the bearer token, renewing an expired token once and silently, and turning
+  the API's error documents into the message the UI shows.
+- CareGraph is read from Neo4j through `GET /caregraph`; the frontend only adds wording and layout.
+- With the backend the decision engine runs on the server. `engine.ts` stays as the
+  reference implementation: the backend's test suite checks its Java engine against it.
+- Only in the offline demo: the sample family, and "delete data on this device".
+- Email: with the backend, sign-up sends a confirmation link (`/verify-email`), invitations are
+  emailed, and "Forgot password" sends a reset link (`/reset-password`). An account with an
+  unconfirmed address sees a notice with "Send the link again" and cannot join a family yet.
+  The offline demo has no email, so none of this appears there.
+- Not built on either side yet: changing a password while signed in, email alerts for
+  day-to-day changes, WhatsApp/SMS/push.
 
 ## Accessibility
 
@@ -171,7 +197,7 @@ an endpoint. In short:
 ## Verification
 
 ```bash
-npm run check                       # typecheck + lint + build
+npm run check                       # typecheck + lint + format check + build
 npm run build && npm run preview    # then, in another terminal:
 cd tools/verify && npm install && npm run all
 ```
@@ -189,14 +215,21 @@ screenshots go.
   settings, CareGraph, keyboard and dialog behaviour, and sign-out with a protected
   deep link.
 
+- **`connected/connected.mjs`** tests connected mode (`VITE_USE_MOCKS=false`): sign-up,
+  onboarding, every page and ten flows through the API client, including silent token
+  renewal. It runs against `connected/stub-api.mjs`, a small stand-in written from the
+  backend's contract, or against the real backend. The steps are at the top of the file.
+
 Latest results are in the delivery notes: all suites pass with 0 console errors.
 
 ## Known limitations
 
 - There are no unit tests yet. The decision engine is pure and is the best first
   candidate for Vitest.
-- Two ESLint warnings remain (`react-refresh/only-export-components` for the
-  `buttonStyles` and `initials` helpers). They only affect hot-reload granularity in
-  development.
 - The mock store keeps one account per browser in `localStorage`. Clearing site data
   resets it.
+- Connected mode keeps the session tokens in `localStorage`. That is simple and works
+  across tabs; for a public deployment, move the refresh token to an `HttpOnly` cookie
+  set by the gateway and add a Content-Security-Policy.
+- Connected mode was tested in a browser against a stand-in API built from the
+  backend's contract, not yet against the running backend.

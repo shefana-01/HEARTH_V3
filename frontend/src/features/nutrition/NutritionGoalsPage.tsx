@@ -7,7 +7,25 @@ import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { timeAgo } from '@/lib/dates';
 import { currency } from '@/lib/format';
 import { NUTRITION_TAG_LABELS } from '@/constants/labels';
-import { Badge, Button, ButtonLink, Callout, Card, CardHeader, Dialog, EmptyState, ErrorState, FormError, FormField, Input, PageHeader, PageSkeleton, Textarea, ToggleChip, useToast } from '@/components/ui';
+import {
+  Badge,
+  Button,
+  ButtonLink,
+  Callout,
+  Card,
+  CardHeader,
+  Dialog,
+  EmptyState,
+  ErrorState,
+  FormError,
+  FormField,
+  Input,
+  PageHeader,
+  PageSkeleton,
+  Textarea,
+  ToggleChip,
+  useToast,
+} from '@/components/ui';
 import type { NutritionPlan, NutritionTag } from '@/types/domain';
 
 type Draft = Omit<NutritionPlan, 'updatedAt'>;
@@ -36,7 +54,11 @@ function PlanEditor({ open, onClose, initial, onSaved }: { open: boolean; onClos
     if (draft.weeklyBudget.max && draft.weeklyBudget.max < draft.weeklyBudget.min) e2.budget = 'The maximum must be at least the minimum.';
     setErrors(e2);
     if (Object.values(e2).some(Boolean)) return;
-    const split = (s: string) => s.split(',').map((x) => x.trim()).filter(Boolean);
+    const split = (s: string) =>
+      s
+        .split(',')
+        .map((x) => x.trim())
+        .filter(Boolean);
     const saved = await save.run({ ...draft, goals: draft.goals.map((g) => ({ ...g, title: g.title.trim(), target: g.target.trim() })), preferences: split(prefs), avoid: split(avoid) });
     if (saved) {
       toast({ title: 'Nutrition plan saved' });
@@ -88,13 +110,24 @@ function PlanEditor({ open, onClose, initial, onSaved }: { open: boolean; onClos
               </div>
               {errors[`tags-${i}`] && <p className="mt-2 text-[13px] font-medium text-red-600">{errors[`tags-${i}`]}</p>}
               {draft.goals.length > 1 && (
-                <Button variant="danger-ghost" size="sm" className="mt-3" leftIcon={<Trash2 aria-hidden="true" className="h-4 w-4" />} onClick={() => setDraft((d) => ({ ...d, goals: d.goals.filter((_, j) => j !== i) }))}>
+                <Button
+                  variant="danger-ghost"
+                  size="sm"
+                  className="mt-3"
+                  leftIcon={<Trash2 aria-hidden="true" className="h-4 w-4" />}
+                  onClick={() => setDraft((d) => ({ ...d, goals: d.goals.filter((_, j) => j !== i) }))}
+                >
                   Remove goal
                 </Button>
               )}
             </div>
           ))}
-          <Button variant="soft" size="sm" leftIcon={<Plus aria-hidden="true" className="h-4 w-4" />} onClick={() => setDraft((d) => ({ ...d, goals: [...d.goals, { id: crypto.randomUUID(), title: '', target: '', tags: [] }] }))}>
+          <Button
+            variant="soft"
+            size="sm"
+            leftIcon={<Plus aria-hidden="true" className="h-4 w-4" />}
+            onClick={() => setDraft((d) => ({ ...d, goals: [...d.goals, { id: crypto.randomUUID(), title: '', target: '', tags: [] }] }))}
+          >
             Add a goal
           </Button>
         </fieldset>
@@ -109,10 +142,28 @@ function PlanEditor({ open, onClose, initial, onSaved }: { open: boolean; onClos
         </FormField>
         <div className="grid gap-3 sm:grid-cols-3">
           <FormField label="Weekly budget from ($)">
-            {(p) => <Input {...p} type="number" min={0} inputMode="decimal" value={draft.weeklyBudget.min || ''} onChange={(e) => setDraft({ ...draft, weeklyBudget: { ...draft.weeklyBudget, min: Number(e.target.value) } })} />}
+            {(p) => (
+              <Input
+                {...p}
+                type="number"
+                min={0}
+                inputMode="decimal"
+                value={draft.weeklyBudget.min || ''}
+                onChange={(e) => setDraft({ ...draft, weeklyBudget: { ...draft.weeklyBudget, min: Number(e.target.value) } })}
+              />
+            )}
           </FormField>
           <FormField label="to ($)" error={errors.budget}>
-            {(p) => <Input {...p} type="number" min={0} inputMode="decimal" value={draft.weeklyBudget.max || ''} onChange={(e) => setDraft({ ...draft, weeklyBudget: { ...draft.weeklyBudget, max: Number(e.target.value) } })} />}
+            {(p) => (
+              <Input
+                {...p}
+                type="number"
+                min={0}
+                inputMode="decimal"
+                value={draft.weeklyBudget.max || ''}
+                onChange={(e) => setDraft({ ...draft, weeklyBudget: { ...draft.weeklyBudget, max: Number(e.target.value) } })}
+              />
+            )}
           </FormField>
           <FormField label="Reviewed by" aside="Optional">
             {(p) => <Input {...p} value={draft.reviewedBy} onChange={(e) => setDraft({ ...draft, reviewedBy: e.target.value })} placeholder="e.g. Family doctor" />}
@@ -255,13 +306,13 @@ export default function NutritionGoalsPage() {
                 </div>
               </div>
               <p className="font-display text-2xl text-primary-700">
-                {currency(p.weeklyBudget.min)} ΓÇô {currency(p.weeklyBudget.max)}
+                {currency(p.weeklyBudget.min)} – {currency(p.weeklyBudget.max)}
               </p>
             </Card>
           )}
 
           <Callout tone="neutral" icon={<Info aria-hidden="true" />}>
-            Based on the goals configured here or provided by a professional, Hearth presents matching food options. It doesnΓÇÖt diagnose conditions or replace medical or dietary advice.
+            Based on the goals configured here or provided by a professional, Hearth presents matching food options. It doesn’t diagnose conditions or replace medical or dietary advice.
           </Callout>
         </div>
       )}

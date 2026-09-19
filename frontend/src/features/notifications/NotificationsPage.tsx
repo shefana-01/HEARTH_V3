@@ -141,11 +141,7 @@ export default function NotificationsPage() {
             {typesPresent.length > 1 && (
               <label className="flex items-center gap-2 text-sm font-semibold text-ink">
                 Type
-                <Select
-                  className="w-auto font-normal"
-                  value={type}
-                  onChange={(e) => setType(e.target.value as NotificationType | 'all')}
-                >
+                <Select className="w-auto font-normal" value={type} onChange={(e) => setType(e.target.value as NotificationType | 'all')}>
                   <option value="all">All types</option>
                   {typesPresent.map((t) => (
                     <option key={t} value={t}>

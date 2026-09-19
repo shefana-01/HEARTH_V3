@@ -85,12 +85,7 @@ export default function SignUpPage() {
             {(p) => <PasswordInput {...p} autoComplete="new-password" value={form.confirm} onChange={(e) => set('confirm', e.target.value)} />}
           </FormField>
           <div>
-            <Checkbox
-              label="I agree to the Terms of Use and Privacy Notice"
-              checked={form.terms}
-              onChange={(e) => set('terms', e.target.checked)}
-              aria-invalid={errors.terms ? true : undefined}
-            />
+            <Checkbox label="I agree to the Terms of Use and Privacy Notice" checked={form.terms} onChange={(e) => set('terms', e.target.checked)} aria-invalid={errors.terms ? true : undefined} />
             {errors.terms && <p className="mt-1.5 text-[13px] font-medium text-red-600">{errors.terms}</p>}
           </div>
           <Button type="submit" size="lg" block loading={pending} rightIcon={<ArrowRight aria-hidden="true" className="h-4 w-4" />}>

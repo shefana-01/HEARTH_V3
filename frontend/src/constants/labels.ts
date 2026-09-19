@@ -51,14 +51,7 @@ export const ROLES: Record<MemberRole, { label: string; description: string }> =
   observer: { label: 'Observer', description: 'Receives updates only.' },
 };
 
-export const CARE_FOCUS_OPTIONS = [
-  'Elderly parent care',
-  'Recovery after surgery or illness',
-  'Long-term condition support',
-  'Disability support',
-  'Child or teen care',
-  'General family wellbeing',
-];
+export const CARE_FOCUS_OPTIONS = ['Elderly parent care', 'Recovery after surgery or illness', 'Long-term condition support', 'Disability support', 'Child or teen care', 'General family wellbeing'];
 
 export const RELATION_SUGGESTIONS = ['Mother', 'Father', 'Grandmother', 'Grandfather', 'Daughter', 'Son', 'Sister', 'Brother', 'Spouse', 'Partner', 'Aunt', 'Uncle', 'Friend', 'Neighbour', 'Carer'];
 

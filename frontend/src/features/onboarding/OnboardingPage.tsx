@@ -6,6 +6,7 @@ import { useFamily } from '@/app/FamilyProvider';
 import { familyService, type InviteInput } from '@/services/family/familyService';
 import { LogoMark } from '@/components/layout/Logo';
 import { Badge, Button, Card, Checkbox, FormError, FormField, Input, ProgressBar, Select, Textarea, useToast } from '@/components/ui';
+import { INVITE_CODE } from '@/constants/invite';
 import { CARE_FOCUS_OPTIONS, RELATION_SUGGESTIONS, ROLES, WEEKDAY_LABELS } from '@/constants/labels';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { useMutation } from '@/hooks/useAsync';
@@ -105,7 +106,7 @@ export default function OnboardingPage() {
   const validateStep = (): boolean => {
     const e: Record<string, string | undefined> = {};
     if (draft.step === 1 && draft.path === 'join') {
-      e.inviteCode = /^HEARTH-\d{3}$/i.test(draft.inviteCode.trim()) ? undefined : 'Enter the code you received, like HEARTH-123.';
+      e.inviteCode = INVITE_CODE.test(draft.inviteCode.trim().toUpperCase()) ? undefined : 'Enter the code you received. It starts with HEARTH-.';
     }
     if (draft.step === 2) {
       e.familyName = validate(draft.familyName, required('Family name'));
@@ -198,7 +199,11 @@ export default function OnboardingPage() {
           <Card padding="lg" as="section" aria-live="polite">
             <form onSubmit={next} noValidate>
               {draft.step === 0 && (
-                <StepShell eyebrow="A gentle beginning" title={`Welcome to Hearth, ${firstName}.`} description="Caring for someone is an act of love — but you shouldn’t have to carry it alone. Hearth brings tasks, appointments and everyone’s availability into one shared plan.">
+                <StepShell
+                  eyebrow="A gentle beginning"
+                  title={`Welcome to Hearth, ${firstName}.`}
+                  description="Caring for someone is an act of love — but you shouldn’t have to carry it alone. Hearth brings tasks, appointments and everyone’s availability into one shared plan."
+                >
                   <ul className="grid gap-3 sm:grid-cols-3">
                     {[
                       { icon: Leaf, title: 'Less clutter', text: 'Plain-language updates, no clinical jargon.' },
@@ -219,7 +224,13 @@ export default function OnboardingPage() {
                 <StepShell eyebrow="Choose your path" title="How would you like to set up Hearth?" description="Start a new circle, or join one a relative has already created.">
                   <div className="grid gap-3 sm:grid-cols-2" role="radiogroup" aria-label="Setup path">
                     {[
-                      { value: 'create' as const, icon: House, title: 'Create a new family circle', text: 'Set up a private space and invite the people who help. You’ll be the lead caregiver.', badge: 'Recommended' },
+                      {
+                        value: 'create' as const,
+                        icon: House,
+                        title: 'Create a new family circle',
+                        text: 'Set up a private space and invite the people who help. You’ll be the lead caregiver.',
+                        badge: 'Recommended',
+                      },
                       { value: 'join' as const, icon: KeyRound, title: 'Join an existing circle', text: 'Use the invitation code someone in your family shared with you.', badge: 'Have a code' },
                     ].map((o) => (
                       <button
@@ -247,7 +258,7 @@ export default function OnboardingPage() {
                     ))}
                   </div>
                   {draft.path === 'join' && (
-                    <FormField label="Invitation code" hint="It looks like HEARTH-123." error={errors.inviteCode} required className="mt-5 max-w-xs">
+                    <FormField label="Invitation code" hint="It starts with HEARTH-." error={errors.inviteCode} required className="mt-5 max-w-xs">
                       {(p) => <Input {...p} value={draft.inviteCode} onChange={(e) => set('inviteCode', e.target.value.toUpperCase())} placeholder="HEARTH-123" autoComplete="off" />}
                     </FormField>
                   )}
@@ -291,7 +302,14 @@ export default function OnboardingPage() {
                       {(p) => <Input {...p} value={draft.location} onChange={(e) => set('location', e.target.value)} placeholder="City, country" autoComplete="address-level2" />}
                     </FormField>
                     <FormField label="Routines & preferences worth knowing" aside="Optional" hint="Visible to your circle." className="sm:col-span-2">
-                      {(p) => <Textarea {...p} value={draft.careNotes} onChange={(e) => set('careNotes', e.target.value)} placeholder="e.g. Likes a slow morning, needs an arm on stairs, afternoon tea at 4." />}
+                      {(p) => (
+                        <Textarea
+                          {...p}
+                          value={draft.careNotes}
+                          onChange={(e) => set('careNotes', e.target.value)}
+                          placeholder="e.g. Likes a slow morning, needs an arm on stairs, afternoon tea at 4."
+                        />
+                      )}
                     </FormField>
                   </div>
                 </StepShell>
@@ -313,24 +331,79 @@ export default function OnboardingPage() {
                       <li key={inv.key} className="rounded-2xl border border-line p-4">
                         <div className="grid gap-3 sm:grid-cols-2">
                           <FormField label="Name" error={errors[`name-${i}`]} required>
-                            {(p) => <Input {...p} value={inv.name} onChange={(e) => set('invites', draft.invites.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)))} />}
+                            {(p) => (
+                              <Input
+                                {...p}
+                                value={inv.name}
+                                onChange={(e) =>
+                                  set(
+                                    'invites',
+                                    draft.invites.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)),
+                                  )
+                                }
+                              />
+                            )}
                           </FormField>
                           <FormField label="Email" error={errors[`email-${i}`]} required>
-                            {(p) => <Input {...p} type="email" value={inv.email} onChange={(e) => set('invites', draft.invites.map((x, j) => (j === i ? { ...x, email: e.target.value } : x)))} />}
+                            {(p) => (
+                              <Input
+                                {...p}
+                                type="email"
+                                value={inv.email}
+                                onChange={(e) =>
+                                  set(
+                                    'invites',
+                                    draft.invites.map((x, j) => (j === i ? { ...x, email: e.target.value } : x)),
+                                  )
+                                }
+                              />
+                            )}
                           </FormField>
                           <FormField label="Relationship" aside="Optional">
-                            {(p) => <Input {...p} list="relations-me" value={inv.relation} onChange={(e) => set('invites', draft.invites.map((x, j) => (j === i ? { ...x, relation: e.target.value } : x)))} />}
+                            {(p) => (
+                              <Input
+                                {...p}
+                                list="relations-me"
+                                value={inv.relation}
+                                onChange={(e) =>
+                                  set(
+                                    'invites',
+                                    draft.invites.map((x, j) => (j === i ? { ...x, relation: e.target.value } : x)),
+                                  )
+                                }
+                              />
+                            )}
                           </FormField>
                           <FormField label="Role">
                             {(p) => (
-                              <Select {...p} value={inv.role} onChange={(e) => set('invites', draft.invites.map((x, j) => (j === i ? { ...x, role: e.target.value as MemberRole } : x)))}>
+                              <Select
+                                {...p}
+                                value={inv.role}
+                                onChange={(e) =>
+                                  set(
+                                    'invites',
+                                    draft.invites.map((x, j) => (j === i ? { ...x, role: e.target.value as MemberRole } : x)),
+                                  )
+                                }
+                              >
                                 <option value="contributor">{ROLES.contributor.label} — takes on tasks</option>
                                 <option value="observer">{ROLES.observer.label} — updates only</option>
                               </Select>
                             )}
                           </FormField>
                         </div>
-                        <Button variant="danger-ghost" size="sm" className="mt-3" leftIcon={<Trash2 aria-hidden="true" className="h-4 w-4" />} onClick={() => set('invites', draft.invites.filter((_, j) => j !== i))}>
+                        <Button
+                          variant="danger-ghost"
+                          size="sm"
+                          className="mt-3"
+                          leftIcon={<Trash2 aria-hidden="true" className="h-4 w-4" />}
+                          onClick={() =>
+                            set(
+                              'invites',
+                              draft.invites.filter((_, j) => j !== i),
+                            )
+                          }
+                        >
                           Remove
                         </Button>
                       </li>
@@ -358,8 +431,16 @@ export default function OnboardingPage() {
                           key={d}
                           type="button"
                           aria-pressed={draft.days[i]}
-                          onClick={() => set('days', draft.days.map((v, j) => (j === i ? !v : v)))}
-                          className={cn('h-11 w-14 rounded-xl border text-sm font-semibold transition-colors', draft.days[i] ? 'border-primary-500 bg-primary-600 text-white' : 'border-line bg-surface text-ink-muted hover:border-primary-300')}
+                          onClick={() =>
+                            set(
+                              'days',
+                              draft.days.map((v, j) => (j === i ? !v : v)),
+                            )
+                          }
+                          className={cn(
+                            'h-11 w-14 rounded-xl border text-sm font-semibold transition-colors',
+                            draft.days[i] ? 'border-primary-500 bg-primary-600 text-white' : 'border-line bg-surface text-ink-muted hover:border-primary-300',
+                          )}
                         >
                           {d}
                         </button>
@@ -396,7 +477,12 @@ export default function OnboardingPage() {
                       ['Care focus', draft.careFocus],
                       ['People invited', draft.invites.length ? draft.invites.map((i) => i.name).join(', ') : 'Nobody yet'],
                       ['Your days', WEEKDAY_LABELS.filter((_, i) => draft.days[i]).join(', ')],
-                      ['Your times', WINDOW_PRESETS.filter((w) => draft.windows.includes(w.id)).map((w) => w.label).join(', ') || 'Not set'],
+                      [
+                        'Your times',
+                        WINDOW_PRESETS.filter((w) => draft.windows.includes(w.id))
+                          .map((w) => w.label)
+                          .join(', ') || 'Not set',
+                      ],
                     ].map(([k, v]) => (
                       <div key={k} className="rounded-xl bg-surface-muted px-4 py-3">
                         <dt className="eyebrow">{k}</dt>
@@ -458,7 +544,9 @@ export default function OnboardingPage() {
                 </div>
                 <div className="flex justify-between gap-3">
                   <dt className="text-ink-subtle">Circle</dt>
-                  <dd className="text-right font-medium text-ink">{draft.invites.length + 1} {draft.invites.length ? 'people' : 'person'}</dd>
+                  <dd className="text-right font-medium text-ink">
+                    {draft.invites.length + 1} {draft.invites.length ? 'people' : 'person'}
+                  </dd>
                 </div>
               </dl>
             </Card>
@@ -475,9 +563,17 @@ export default function OnboardingPage() {
                         disabled={i > draft.step}
                         onClick={() => goTo(i)}
                         aria-current={active ? 'step' : undefined}
-                        className={cn('flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left disabled:cursor-default', active ? 'bg-rose-50' : 'hover:bg-surface-muted disabled:hover:bg-transparent')}
+                        className={cn(
+                          'flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left disabled:cursor-default',
+                          active ? 'bg-rose-50' : 'hover:bg-surface-muted disabled:hover:bg-transparent',
+                        )}
                       >
-                        <span className={cn('flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold', done ? 'bg-mint-100 text-mint-700' : active ? 'bg-rose-500 text-white' : 'bg-surface-sunken text-ink-subtle')}>
+                        <span
+                          className={cn(
+                            'flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold',
+                            done ? 'bg-mint-100 text-mint-700' : active ? 'bg-rose-500 text-white' : 'bg-surface-sunken text-ink-subtle',
+                          )}
+                        >
                           {done ? <Check aria-hidden="true" className="h-3.5 w-3.5" strokeWidth={3} /> : i + 1}
                         </span>
                         <span>

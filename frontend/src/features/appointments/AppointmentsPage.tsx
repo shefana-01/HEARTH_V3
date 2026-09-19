@@ -86,7 +86,7 @@ export default function AppointmentsPage() {
         <EmptyState
           icon={<Stethoscope aria-hidden="true" />}
           title={view === 'upcoming' ? 'No upcoming appointments' : 'No past appointments'}
-          description={view === 'upcoming' ? 'Add clinic visits so the circle knows who is going and what to bring.' : 'Visits youΓÇÖve attended will appear here.'}
+          description={view === 'upcoming' ? 'Add clinic visits so the circle knows who is going and what to bring.' : 'Visits you’ve attended will appear here.'}
           action={view === 'upcoming' ? <ButtonLink to="/appointments/new">Add an appointment</ButtonLink> : undefined}
         />
       ) : (
@@ -96,7 +96,7 @@ export default function AppointmentsPage() {
               <div aria-hidden="true" className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-primary-100 blur-2xl" />
               <div className="relative">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <p className="eyebrow text-rose-600">Next visit ┬╖ {next.specialty || 'Appointment'}</p>
+                  <p className="eyebrow text-rose-600">Next visit · {next.specialty || 'Appointment'}</p>
                   {next.prep.length > 0 && (
                     <Badge tone={next.prep.every((p) => p.done) ? 'mint' : 'amber'} dot size="md">
                       {next.prep.filter((p) => p.done).length} of {next.prep.length} prep tasks done
@@ -131,7 +131,11 @@ export default function AppointmentsPage() {
                   </div>
                 </div>
                 <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:justify-end">
-                  <Button variant="secondary" leftIcon={<CalendarCheck2 aria-hidden="true" className="h-4 w-4" />} onClick={() => downloadIcs({ title: next.title, start: next.start, durationMin: next.durationMin, location: next.location, description: next.provider })}>
+                  <Button
+                    variant="secondary"
+                    leftIcon={<CalendarCheck2 aria-hidden="true" className="h-4 w-4" />}
+                    onClick={() => downloadIcs({ title: next.title, start: next.start, durationMin: next.durationMin, location: next.location, description: next.provider })}
+                  >
                     Add to calendar
                   </Button>
                   <ButtonLink to={`/appointments/${next.id}`} rightIcon={<ArrowRight aria-hidden="true" className="h-4 w-4" />}>
@@ -156,7 +160,7 @@ export default function AppointmentsPage() {
                           </Badge>
                         )}
                         <span className="text-[13px] text-ink-subtle">
-                          {formatTime(a.start)} ┬╖ {formatDuration(a.durationMin)}
+                          {formatTime(a.start)} · {formatDuration(a.durationMin)}
                         </span>
                       </div>
                       <Link to={`/appointments/${a.id}`} className="mt-1 block font-display text-lg hover:underline">
@@ -196,7 +200,11 @@ export default function AppointmentsPage() {
                     <ul className="space-y-1.5 text-sm">
                       {a.prep.map((p) => (
                         <li key={p.id} className="flex items-start gap-2 text-ink-muted">
-                          {p.done ? <CircleCheck aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-mint-600" /> : <Circle aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-ink-subtle" />}
+                          {p.done ? (
+                            <CircleCheck aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-mint-600" />
+                          ) : (
+                            <Circle aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-ink-subtle" />
+                          )}
                           <span className={p.done ? 'line-through' : ''}>{p.label}</span>
                         </li>
                       ))}

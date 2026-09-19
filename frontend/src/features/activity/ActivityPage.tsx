@@ -61,7 +61,10 @@ export default function ActivityPage() {
   const actorIds = [...new Set([...members.map((m) => m.id), ...events.map((e) => e.actorId)])].filter((id) => events.some((e) => e.actorId === id));
 
   const exportLog = () => {
-    const rows = [['Date', 'Time', 'Who', 'Category', 'Action', 'Subject', 'Before', 'After'], ...filtered.map((e) => [e.at.slice(0, 10), formatTime(e.at), nameOf(e.actorId), AUDIT_CATEGORIES[e.category].label, e.action, e.subject, e.before ?? '', e.after ?? ''])];
+    const rows = [
+      ['Date', 'Time', 'Who', 'Category', 'Action', 'Subject', 'Before', 'After'],
+      ...filtered.map((e) => [e.at.slice(0, 10), formatTime(e.at), nameOf(e.actorId), AUDIT_CATEGORIES[e.category].label, e.action, e.subject, e.before ?? '', e.after ?? '']),
+    ];
     downloadFile(`${slugify(family?.name ?? 'family')}-activity.csv`, toCsv(rows), 'text/csv');
   };
 
@@ -95,7 +98,14 @@ export default function ActivityPage() {
           <label className="sr-only" htmlFor="activity-search">
             Search activity
           </label>
-          <Input id="activity-search" type="search" placeholder="Search activity" leftIcon={<Search aria-hidden="true" className="h-4 w-4" />} value={query} onChange={(e) => setQuery(e.target.value)} />
+          <Input
+            id="activity-search"
+            type="search"
+            placeholder="Search activity"
+            leftIcon={<Search aria-hidden="true" className="h-4 w-4" />}
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
           <label className="sr-only" htmlFor="activity-actor">
             Who
           </label>

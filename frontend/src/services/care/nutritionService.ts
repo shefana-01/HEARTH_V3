@@ -1,11 +1,11 @@
 /**
  * Nutrition goals, food options and grocery planning — care-service.
- * REST contract: not defined yet.
+ *
  *
  * Hearth only matches food options to the goals the family has configured
  * (or that a professional provided). It does not diagnose or prescribe.
  */
-import { backendNotConnected } from '../api/client';
+import { apiRequest } from '../api/client';
 import { config } from '../config';
 import { actorId, audit, db, fail, memberName, newId, notFound, notify, nowIso, persist, requireFamily, respond } from '../mockStore';
 import { foodOptions } from '@/mocks/foods';
@@ -16,17 +16,16 @@ export interface FoodMatch extends FoodOption {
   onList: boolean;
 }
 
-const mentionsAvoided = (food: FoodOption, avoid: string[]) =>
-  avoid.some((a) => a.trim() && `${food.name} ${food.alternatives.join(' ')}`.toLowerCase().includes(a.trim().toLowerCase()));
+const mentionsAvoided = (food: FoodOption, avoid: string[]) => avoid.some((a) => a.trim() && `${food.name} ${food.alternatives.join(' ')}`.toLowerCase().includes(a.trim().toLowerCase()));
 
 export const nutritionService = {
   async getPlan(): Promise<NutritionPlan | null> {
-    if (!config.useMocks) return backendNotConnected('care-service', 'getNutritionPlan');
+    if (!config.useMocks) return (await apiRequest<NutritionPlan | undefined>('/nutrition/plan')) ?? null;
     return respond(db.nutrition);
   },
 
   async savePlan(plan: Omit<NutritionPlan, 'updatedAt'>): Promise<NutritionPlan> {
-    if (!config.useMocks) return backendNotConnected('care-service', 'saveNutritionPlan');
+    if (!config.useMocks) return apiRequest<NutritionPlan>('/nutrition/plan', { method: 'PUT', body: plan });
     requireFamily();
     const before = db.nutrition?.goals.map((g) => g.target).join('; ');
     db.nutrition = { ...plan, updatedAt: nowIso() };
@@ -38,7 +37,7 @@ export const nutritionService = {
 
   /** Food options whose tags match at least one configured goal, excluding "avoid" items. */
   async getFoodMatches(): Promise<FoodMatch[]> {
-    if (!config.useMocks) return backendNotConnected('care-service', 'getFoodMatches');
+    if (!config.useMocks) return apiRequest<FoodMatch[]>('/nutrition/food-matches');
     const plan = db.nutrition;
     if (!plan) return respond([]);
     const matches = foodOptions
@@ -54,12 +53,12 @@ export const nutritionService = {
   },
 
   async listGroceries(): Promise<GroceryItem[]> {
-    if (!config.useMocks) return backendNotConnected('care-service', 'listGroceries');
+    if (!config.useMocks) return apiRequest<GroceryItem[]>('/groceries');
     return respond(db.groceries);
   },
 
   async addFoodToList(foodId: string): Promise<GroceryItem> {
-    if (!config.useMocks) return backendNotConnected('care-service', 'addFoodToList');
+    if (!config.useMocks) return apiRequest<GroceryItem>('/groceries/from-food', { method: 'POST', body: { foodId } });
     const food = foodOptions.find((f) => f.id === foodId);
     if (!food) return notFound('That food');
     const existing = db.groceries.find((g) => g.foodId === foodId);
@@ -71,7 +70,7 @@ export const nutritionService = {
   },
 
   async addCustomItem(name: string, quantity: number, unit: string): Promise<GroceryItem> {
-    if (!config.useMocks) return backendNotConnected('care-service', 'addGroceryItem');
+    if (!config.useMocks) return apiRequest<GroceryItem>('/groceries', { method: 'POST', body: { name, quantity, unit } });
     if (!name.trim()) return fail('Enter an item name.', 422);
     const item: GroceryItem = { id: newId('gr'), name: name.trim(), group: 'Other', quantity: Math.max(1, quantity), unit: unit.trim() || 'item', estimatedPrice: 0, status: 'needed' };
     db.groceries.push(item);
@@ -80,7 +79,7 @@ export const nutritionService = {
   },
 
   async updateGroceryItem(id: string, patch: Partial<Pick<GroceryItem, 'quantity' | 'status'>>): Promise<GroceryItem> {
-    if (!config.useMocks) return backendNotConnected('care-service', 'updateGroceryItem');
+    if (!config.useMocks) return apiRequest<GroceryItem>(`/groceries/${id}`, { method: 'PATCH', body: patch });
     const item = db.groceries.find((g) => g.id === id);
     if (!item) return notFound('That item');
     Object.assign(item, patch);
@@ -90,7 +89,7 @@ export const nutritionService = {
   },
 
   async removeGroceryItem(id: string): Promise<void> {
-    if (!config.useMocks) return backendNotConnected('care-service', 'removeGroceryItem');
+    if (!config.useMocks) return apiRequest<void>(`/groceries/${id}`, { method: 'DELETE' });
     db.groceries = db.groceries.filter((g) => g.id !== id);
     persist();
     return respond(undefined);
@@ -98,7 +97,7 @@ export const nutritionService = {
 
   /** Bundle the "needed" items into a household errand task. */
   async createGroceryTask(assigneeId: string | null, start: string): Promise<CareTask> {
-    if (!config.useMocks) return backendNotConnected('care-service', 'createGroceryTask');
+    if (!config.useMocks) return apiRequest<CareTask>('/groceries/task', { method: 'POST', body: { assigneeId, start } });
     requireFamily();
     const needed = db.groceries.filter((g) => g.status === 'needed');
     if (!needed.length) return fail('There are no items left to buy.', 422);

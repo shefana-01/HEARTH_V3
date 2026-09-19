@@ -1,7 +1,7 @@
 /**
- * Care tasks — task-service. REST contract: not defined yet.
+ * Care tasks — task-service.
  */
-import { backendNotConnected } from '../api/client';
+import { apiRequest, query } from '../api/client';
 import { config } from '../config';
 import { actorId, audit, db, firstName, memberName, newId, notFound, notify, nowIso, persist, requireFamily, respond } from '../mockStore';
 import { formatDayTime } from '@/lib/dates';
@@ -20,21 +20,19 @@ function find(id: string) {
 
 export const taskService = {
   async listTasks(filter: TaskFilter = {}): Promise<CareTask[]> {
-    if (!config.useMocks) return backendNotConnected('task-service', 'listTasks');
-    const list = db.tasks.filter(
-      (t) => (filter.includeCancelled || t.status !== 'cancelled') && (!filter.assigneeId || t.assigneeId === filter.assigneeId),
-    );
+    if (!config.useMocks) return apiRequest<CareTask[]>(`/tasks${query({ assigneeId: filter.assigneeId, includeCancelled: filter.includeCancelled })}`);
+    const list = db.tasks.filter((t) => (filter.includeCancelled || t.status !== 'cancelled') && (!filter.assigneeId || t.assigneeId === filter.assigneeId));
     return respond([...list].sort(byStart));
   },
 
   async getTask(id: string): Promise<CareTask> {
-    if (!config.useMocks) return backendNotConnected('task-service', 'getTask');
+    if (!config.useMocks) return apiRequest<CareTask>(`/tasks/${id}`);
     const task = find(id);
     return task ? respond(task) : notFound('That task');
   },
 
   async createTask(input: TaskInput): Promise<CareTask> {
-    if (!config.useMocks) return backendNotConnected('task-service', 'createTask');
+    if (!config.useMocks) return apiRequest<CareTask>('/tasks', { method: 'POST', body: input });
     requireFamily();
     const task: CareTask = {
       ...input,
@@ -55,7 +53,7 @@ export const taskService = {
   },
 
   async updateTask(id: string, input: TaskInput): Promise<CareTask> {
-    if (!config.useMocks) return backendNotConnected('task-service', 'updateTask');
+    if (!config.useMocks) return apiRequest<CareTask>(`/tasks/${id}`, { method: 'PUT', body: input });
     const task = find(id);
     if (!task) return notFound('That task');
     const before = `${memberName(task.assigneeId)} · ${formatDayTime(task.start)}`;
@@ -66,7 +64,7 @@ export const taskService = {
   },
 
   async completeTask(id: string): Promise<CareTask> {
-    if (!config.useMocks) return backendNotConnected('task-service', 'completeTask');
+    if (!config.useMocks) return apiRequest<CareTask>(`/tasks/${id}/complete`, { method: 'POST' });
     const task = find(id);
     if (!task) return notFound('That task');
     task.status = 'completed';
@@ -78,7 +76,7 @@ export const taskService = {
   },
 
   async reopenTask(id: string): Promise<CareTask> {
-    if (!config.useMocks) return backendNotConnected('task-service', 'reopenTask');
+    if (!config.useMocks) return apiRequest<CareTask>(`/tasks/${id}/reopen`, { method: 'POST' });
     const task = find(id);
     if (!task) return notFound('That task');
     task.status = 'scheduled';
@@ -90,7 +88,7 @@ export const taskService = {
   },
 
   async cancelTask(id: string): Promise<void> {
-    if (!config.useMocks) return backendNotConnected('task-service', 'cancelTask');
+    if (!config.useMocks) return apiRequest<void>(`/tasks/${id}`, { method: 'DELETE' });
     const task = find(id);
     if (!task) return notFound('That task');
     task.status = 'cancelled';
@@ -103,7 +101,7 @@ export const taskService = {
   },
 
   async assignTask(id: string, memberId: string | null): Promise<CareTask> {
-    if (!config.useMocks) return backendNotConnected('task-service', 'assignTask');
+    if (!config.useMocks) return apiRequest<CareTask>(`/tasks/${id}/assignee`, { method: 'PUT', body: { memberId } });
     const task = find(id);
     if (!task) return notFound('That task');
     const before = memberName(task.assigneeId);
