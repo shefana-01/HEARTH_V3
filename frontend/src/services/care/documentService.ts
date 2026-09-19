@@ -1,11 +1,11 @@
 /**
  * Care documents — care-service + S3-compatible object storage.
- * REST contract: not defined yet.
  *
- * MOCK: only the file's metadata is recorded. The file itself is not stored
- * until the storage service is connected; the UI says so.
+ *
+ * With the API, the file is uploaded and kept by care-service.
+ * MOCK: only the file's metadata is recorded.
  */
-import { backendNotConnected } from '../api/client';
+import { apiRequest } from '../api/client';
 import { config } from '../config';
 import { actorId, audit, db, fail, newId, notFound, nowIso, persist, requireFamily, respond } from '../mockStore';
 import type { CareDocument, DocumentAccess, DocumentCategory } from '@/types/domain';
@@ -22,17 +22,29 @@ export interface UploadInput {
   appointmentId?: string;
 }
 
+/** The file and its details as one multipart form, which is how the API receives uploads. */
+function uploadForm(input: UploadInput): FormData {
+  const form = new FormData();
+  form.append('file', input.file);
+  form.append('title', input.title);
+  form.append('category', input.category);
+  form.append('access', input.access);
+  input.allowedIds.forEach((id) => form.append('allowedIds', id));
+  if (input.appointmentId) form.append('appointmentId', input.appointmentId);
+  return form;
+}
+
 /** Documents the signed-in member is allowed to see. */
 const visible = (d: CareDocument) => d.access === 'circle' || d.allowedIds.includes(actorId()) || d.uploadedById === actorId();
 
 export const documentService = {
   async list(): Promise<CareDocument[]> {
-    if (!config.useMocks) return backendNotConnected('care-service', 'listDocuments');
+    if (!config.useMocks) return apiRequest<CareDocument[]>('/documents');
     return respond(db.documents.filter(visible).sort((a, b) => b.uploadedAt.localeCompare(a.uploadedAt)));
   },
 
   async upload(input: UploadInput): Promise<CareDocument> {
-    if (!config.useMocks) return backendNotConnected('care-service', 'uploadDocument');
+    if (!config.useMocks) return apiRequest<CareDocument>('/documents', { method: 'POST', body: uploadForm(input) });
     requireFamily();
     if (input.file.size > MAX_UPLOAD_MB * 1024 * 1024) return fail(`Files must be ${MAX_UPLOAD_MB} MB or smaller.`, 413);
     const doc: CareDocument = {
@@ -54,7 +66,7 @@ export const documentService = {
   },
 
   async updateAccess(id: string, access: DocumentAccess, allowedIds: string[]): Promise<CareDocument> {
-    if (!config.useMocks) return backendNotConnected('care-service', 'updateDocumentAccess');
+    if (!config.useMocks) return apiRequest<CareDocument>(`/documents/${id}/access`, { method: 'PUT', body: { access, allowedIds } });
     const doc = db.documents.find((d) => d.id === id);
     if (!doc) return notFound('That document');
     doc.access = access;
@@ -65,7 +77,7 @@ export const documentService = {
   },
 
   async remove(id: string): Promise<void> {
-    if (!config.useMocks) return backendNotConnected('care-service', 'deleteDocument');
+    if (!config.useMocks) return apiRequest<void>(`/documents/${id}`, { method: 'DELETE' });
     const doc = db.documents.find((d) => d.id === id);
     if (!doc) return notFound('That document');
     db.documents = db.documents.filter((d) => d.id !== id);

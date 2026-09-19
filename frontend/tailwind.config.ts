@@ -114,6 +114,7 @@ const config: Config = {
           to: { opacity: '1', transform: 'translateY(0) scale(1)' },
         },
         'slide-in-left': { from: { transform: 'translateX(-100%)' }, to: { transform: 'translateX(0)' } },
+        'slide-up': { from: { transform: 'translateY(100%)' }, to: { transform: 'translateY(0)' } },
         'toast-in': {
           from: { opacity: '0', transform: 'translateY(8px)' },
           to: { opacity: '1', transform: 'translateY(0)' },
@@ -124,6 +125,7 @@ const config: Config = {
         'fade-in': 'fade-in 150ms ease-out',
         'scale-in': 'scale-in 180ms cubic-bezier(0.16, 1, 0.3, 1)',
         'slide-in-left': 'slide-in-left 220ms cubic-bezier(0.16, 1, 0.3, 1)',
+        'slide-up': 'slide-up 240ms cubic-bezier(0.16, 1, 0.3, 1)',
         'toast-in': 'toast-in 200ms cubic-bezier(0.16, 1, 0.3, 1)',
         shimmer: 'shimmer 1.4s infinite',
       },

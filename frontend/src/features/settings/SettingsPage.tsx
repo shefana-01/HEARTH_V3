@@ -1,12 +1,14 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Bell, Database, Download, HeartHandshake, KeyRound, LogOut, Mail, Pencil, Phone, ShieldCheck, Trash2, User, Users } from 'lucide-react';
+import { Bell, Camera, Database, Download, HeartHandshake, KeyRound, LogOut, Mail, Pencil, Phone, ShieldCheck, Trash2, User, Users } from 'lucide-react';
 import { useAuth } from '@/app/AuthProvider';
 import { useFamily } from '@/app/FamilyProvider';
 import { authService } from '@/services/auth/authService';
+import { isDemoMode } from '@/services/config';
 import { familyService } from '@/services/family/familyService';
 import { useAsync, useMutation } from '@/hooks/useAsync';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
+import { squarePhoto } from '@/lib/image';
 import { email, maxLength, phone, required, validate } from '@/lib/validation';
 import { ROLES } from '@/constants/labels';
 import {
@@ -24,6 +26,7 @@ import {
   Input,
   PageHeader,
   PageSkeleton,
+  Switch,
   TabPanel,
   Tabs,
   Textarea,
@@ -90,6 +93,7 @@ function ProfileSection() {
   const [draft, setDraft] = useState<ProfileDraft | null>(null);
   const [errors, setErrors] = useState<ProfileErrors>({});
   const save = useMutation(familyService.updateAccount);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (account.data && !draft) setDraft(toDraft(account.data));
@@ -100,6 +104,26 @@ function ProfileSection() {
 
   const dirty = JSON.stringify(draft) !== JSON.stringify(toDraft(account.data));
   const set = (patch: Partial<ProfileDraft>) => setDraft({ ...draft, ...patch });
+
+  const savePhoto = async (photo: string | undefined) => {
+    const saved = await save.run({ photo });
+    if (saved) {
+      account.setData(saved);
+      await Promise.all([refresh(), refreshSession()]);
+      toast({ title: photo ? 'Profile photo updated' : 'Profile photo removed' });
+    }
+  };
+
+  const onPhoto = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    try {
+      await savePhoto(await squarePhoto(file));
+    } catch (err) {
+      toast({ tone: 'error', title: 'Couldn’t use that photo', description: err instanceof Error ? err.message : undefined });
+    }
+  };
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -126,6 +150,23 @@ function ProfileSection() {
         <CardHeader title={<span id="profile-heading">Personal details</span>} description="How you appear to the rest of your circle." icon={<User aria-hidden="true" className="h-5 w-5" />} />
         <form noValidate onSubmit={onSubmit} className="space-y-4">
           <FormError message={save.error} />
+          <div className="flex items-center gap-4">
+            <Avatar name={draft.name || '?'} src={account.data.photo} size="xl" />
+            <div>
+              <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" tabIndex={-1} aria-hidden="true" onChange={onPhoto} />
+              <div className="flex flex-wrap gap-2">
+                <Button variant="secondary" size="sm" leftIcon={<Camera aria-hidden="true" className="h-4 w-4" />} onClick={() => fileRef.current?.click()} disabled={save.pending}>
+                  {account.data.photo ? 'Change photo' : 'Add photo'}
+                </Button>
+                {account.data.photo && (
+                  <Button variant="ghost" size="sm" onClick={() => savePhoto(undefined)} disabled={save.pending}>
+                    Remove
+                  </Button>
+                )}
+              </div>
+              <p className="mt-1.5 text-xs text-ink-subtle">JPG, PNG or WebP, up to 5 MB. Kept on this device in the preview.</p>
+            </div>
+          </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <FormField label="Full name" required error={errors.name}>
               {(p) => <Input {...p} autoComplete="name" value={draft.name} onChange={(e) => set({ name: e.target.value })} />}
@@ -161,7 +202,7 @@ function ProfileSection() {
       <Card as="aside" aria-label="Profile preview" tone="primary">
         <p className="eyebrow mb-3">Preview</p>
         <div className="flex items-center gap-3">
-          <Avatar name={draft.name || '?'} size="lg" />
+          <Avatar name={draft.name || '?'} src={account.data.photo} size="lg" />
           <div className="min-w-0">
             <p className="truncate font-semibold text-ink">{draft.name || 'Your name'}</p>
             <p className="text-sm text-ink-muted">{me ? ROLES[me.role].label : ''}</p>
@@ -235,7 +276,11 @@ function FamilySection() {
         {!isLead && <p className="mt-3 text-sm text-ink-subtle">Only the lead caregiver can change these details.</p>}
       </Card>
       <Card as="section" aria-labelledby="permissions-heading">
-        <CardHeader title={<span id="permissions-heading">Who can see what</span>} icon={<ShieldCheck aria-hidden="true" className="h-5 w-5" />} description="Access is set per person on their profile." />
+        <CardHeader
+          title={<span id="permissions-heading">Who can see what</span>}
+          icon={<ShieldCheck aria-hidden="true" className="h-5 w-5" />}
+          description="Access is set per person on their profile."
+        />
         <ul className="space-y-2">
           {members.map((m) => (
             <li key={m.id}>
@@ -265,13 +310,29 @@ function FamilySection() {
 
 function SecuritySection() {
   const navigate = useNavigate();
-  const { signOut, session } = useAuth();
+  const { toast } = useToast();
+  const { signOut, session, refreshSession } = useAuth();
+  const account = useAsync(() => familyService.getAccount(), []);
+  const savePref = useMutation(familyService.updateAccount);
+  const hasPhone = Boolean(account.data?.phone);
+  const toggleWhatsapp = async (on: boolean) => {
+    const saved = await savePref.run({ whatsappAlerts: on });
+    if (saved) {
+      account.setData(saved);
+      await refreshSession();
+      toast({ title: on ? 'WhatsApp preference saved' : 'WhatsApp alerts turned off', description: on ? 'We’ll use it as soon as alerts are connected.' : undefined });
+    }
+  };
 
   return (
     <div className="grid gap-6 lg:grid-cols-2">
       <Card as="section" aria-labelledby="password-heading">
         <CardHeader title={<span id="password-heading">Password</span>} icon={<KeyRound aria-hidden="true" className="h-5 w-5" />} />
-        <Callout tone="neutral">Password changes and two-step sign-in will be handled by Hearth’s secure sign-in service once it is connected. In this preview, accounts live only on this device.</Callout>
+        <Callout tone="neutral">
+          {isDemoMode
+            ? 'Password changes and two-step sign-in will be handled by Hearth’s secure sign-in service once it is connected. In this preview, accounts live only on this device.'
+            : 'Changing your password and two-step sign-in aren’t available yet.'}
+        </Callout>
         <Button className="mt-4" variant="secondary" disabled>
           Change password
         </Button>
@@ -279,8 +340,7 @@ function SecuritySection() {
       <Card as="section" aria-labelledby="session-heading">
         <CardHeader title={<span id="session-heading">This device</span>} icon={<LogOut aria-hidden="true" className="h-5 w-5" />} />
         <p className="text-sm text-ink-muted">
-          Signed in as <span className="font-semibold text-ink">{session?.account.email}</span>.
-          {session?.isSample && ' Signing out of the sample clears its data.'}
+          Signed in as <span className="font-semibold text-ink">{session?.account.email}</span>.{session?.isSample && ' Signing out of the sample clears its data.'}
         </p>
         <Button
           className="mt-4"
@@ -302,6 +362,23 @@ function SecuritySection() {
             View notifications
           </Link>
         </p>
+        <div className="mt-4 border-t border-line pt-4">
+          <Switch
+            checked={Boolean(account.data?.whatsappAlerts) && hasPhone}
+            onChange={toggleWhatsapp}
+            disabled={!account.data || !hasPhone || savePref.pending}
+            label={
+              <span className="flex flex-wrap items-center gap-2">
+                WhatsApp alerts <Badge tone="amber">Coming soon</Badge>
+              </span>
+            }
+            description={
+              hasPhone
+                ? `Get task changes and conflicts on ${account.data?.phone}. This saves your preference only — messages are sent once Hearth’s notification service is connected.`
+                : 'Add a phone number in Profile first. WhatsApp alerts are sent to it.'
+            }
+          />
+        </div>
       </Card>
     </div>
   );
@@ -346,12 +423,20 @@ function DataSection() {
           <p className="text-sm text-ink">
             You’re exploring <Badge tone="amber">Sample data</Badge>. Nothing here is real, and it’s cleared when you leave.
           </p>
+        ) : isDemoMode ? (
+          <p className="text-sm text-ink-muted">
+            This preview keeps your account and family records in this browser only. They aren’t backed up or shared with other devices until Hearth’s servers are connected.
+          </p>
         ) : (
-          <p className="text-sm text-ink-muted">This preview keeps your account and family records in this browser only. They aren’t backed up or shared with other devices until Hearth’s servers are connected.</p>
+          <p className="text-sm text-ink-muted">
+            Your account and family records are kept on Hearth’s servers, so your circle sees the same plan on every device. This browser only remembers that you’re signed in.
+          </p>
         )}
-        <Button className="mt-4" variant={isSample ? 'secondary' : 'danger-ghost'} leftIcon={<Trash2 aria-hidden="true" className="h-4 w-4" />} onClick={() => setConfirm(true)}>
-          {isSample ? 'Leave the sample' : 'Delete data on this device'}
-        </Button>
+        {isDemoMode && (
+          <Button className="mt-4" variant={isSample ? 'secondary' : 'danger-ghost'} leftIcon={<Trash2 aria-hidden="true" className="h-4 w-4" />} onClick={() => setConfirm(true)}>
+            {isSample ? 'Leave the sample' : 'Delete data on this device'}
+          </Button>
+        )}
       </Card>
       <ConfirmDialog
         open={confirm}
@@ -360,7 +445,11 @@ function DataSection() {
         loading={remove.pending}
         variant={isSample ? 'primary' : 'danger'}
         title={isSample ? 'Leave the sample family?' : 'Delete everything on this device?'}
-        description={isSample ? 'The sample data will be cleared. You can create your own account next.' : 'Your account, family, tasks, appointments and documents will be permanently removed from this browser. This can’t be undone.'}
+        description={
+          isSample
+            ? 'The sample data will be cleared. You can create your own account next.'
+            : 'Your account, family, tasks, appointments and documents will be permanently removed from this browser. This can’t be undone.'
+        }
         confirmLabel={isSample ? 'Leave sample' : 'Delete everything'}
       />
     </div>

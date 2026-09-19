@@ -86,17 +86,41 @@ export function PublicFooter() {
         <div>
           <h2 className="text-sm font-semibold text-ink">Product</h2>
           <ul className="mt-3 space-y-2 text-sm text-ink-muted">
-            <li><a href="#how-it-works" className="hover:text-ink">How it works</a></li>
-            <li><a href="#decisions" className="hover:text-ink">Smart coordination</a></li>
-            <li><a href="#privacy" className="hover:text-ink">Privacy</a></li>
+            <li>
+              <a href="#how-it-works" className="hover:text-ink">
+                How it works
+              </a>
+            </li>
+            <li>
+              <a href="#decisions" className="hover:text-ink">
+                Smart coordination
+              </a>
+            </li>
+            <li>
+              <a href="#privacy" className="hover:text-ink">
+                Privacy
+              </a>
+            </li>
           </ul>
         </div>
         <div>
           <h2 className="text-sm font-semibold text-ink">Get started</h2>
           <ul className="mt-3 space-y-2 text-sm text-ink-muted">
-            <li><Link to="/sign-up" className="hover:text-ink">Create an account</Link></li>
-            <li><Link to="/sign-in" className="hover:text-ink">Sign in</Link></li>
-            <li><Link to="/join" className="hover:text-ink">Join with an invitation code</Link></li>
+            <li>
+              <Link to="/sign-up" className="hover:text-ink">
+                Create an account
+              </Link>
+            </li>
+            <li>
+              <Link to="/sign-in" className="hover:text-ink">
+                Sign in
+              </Link>
+            </li>
+            <li>
+              <Link to="/join" className="hover:text-ink">
+                Join with an invitation code
+              </Link>
+            </li>
           </ul>
         </div>
       </div>

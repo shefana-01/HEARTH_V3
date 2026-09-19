@@ -14,4 +14,9 @@ export function toCsv(rows: (string | number)[][]): string {
 }
 
 /** A filesystem-safe slug for download names. */
-export const slugify = (s: string) => s.replace(/[^\w-]+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '').toLowerCase();
+export const slugify = (s: string) =>
+  s
+    .replace(/[^\w-]+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '')
+    .toLowerCase();

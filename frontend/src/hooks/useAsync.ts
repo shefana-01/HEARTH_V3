@@ -86,22 +86,19 @@ export function useMutation<A extends unknown[], R>(fn: (...args: A) => Promise<
   }, []);
 
   /** Like `run`, but resolves to whether it succeeded — use for operations that return nothing. */
-  const attempt = useCallback(
-    async (...args: A): Promise<boolean> => {
-      setPending(true);
-      setError(null);
-      try {
-        await fnRef.current(...args);
-        return true;
-      } catch (e) {
-        setError(e instanceof Error ? e.message : 'Something went wrong. Please try again.');
-        return false;
-      } finally {
-        setPending(false);
-      }
-    },
-    [],
-  );
+  const attempt = useCallback(async (...args: A): Promise<boolean> => {
+    setPending(true);
+    setError(null);
+    try {
+      await fnRef.current(...args);
+      return true;
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Something went wrong. Please try again.');
+      return false;
+    } finally {
+      setPending(false);
+    }
+  }, []);
 
   return { run, attempt, pending, error, setError };
 }

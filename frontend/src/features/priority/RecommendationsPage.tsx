@@ -163,7 +163,12 @@ export default function RecommendationsPage() {
             </Badge>
           </div>
           {top.length === 0 ? (
-            <EmptyState icon={<Users aria-hidden="true" />} title="Nobody is free for this" description="Invite more people to your circle, or change the task’s time." action={<ButtonLink to={`/tasks/${task.id}/edit`}>Change the time</ButtonLink>} />
+            <EmptyState
+              icon={<Users aria-hidden="true" />}
+              title="Nobody is free for this"
+              description="Invite more people to your circle, or change the task’s time."
+              action={<ButtonLink to={`/tasks/${task.id}/edit`}>Change the time</ButtonLink>}
+            />
           ) : (
             <ul className="space-y-4">
               {top.map((c, i) => (

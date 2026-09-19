@@ -3,10 +3,12 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, CalendarDays, CircleCheck, DoorOpen, Eye, KeyRound, Lock, MailCheck, MapPin, ShieldCheck, Users } from 'lucide-react';
 import { useAuth } from '@/app/AuthProvider';
 import { familyService } from '@/services/family/familyService';
-import { useAsync } from '@/hooks/useAsync';
+import { INVITE_CODE, INVITE_CODE_HINT } from '@/constants/invite';
+import { EmailConfirmNotice } from '@/components/domain/EmailConfirmNotice';
+import { useAsync, useMutation } from '@/hooks/useAsync';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { LogoMark } from '@/components/layout/Logo';
-import { Avatar, Badge, Button, ButtonLink, Callout, Card, FormField, Input, Skeleton } from '@/components/ui';
+import { Avatar, Badge, Button, ButtonLink, Callout, Card, FormError, FormField, Input, Skeleton } from '@/components/ui';
 
 function CodeForm({ initial = '', error }: { initial?: string; error?: string }) {
   const navigate = useNavigate();
@@ -15,8 +17,8 @@ function CodeForm({ initial = '', error }: { initial?: string; error?: string })
   const submit = (e: FormEvent) => {
     e.preventDefault();
     const value = code.trim().toUpperCase();
-    if (!/^HEARTH-\d{3}$/.test(value)) {
-      setLocalError('Invitation codes look like HEARTH-123.');
+    if (!INVITE_CODE.test(value)) {
+      setLocalError(INVITE_CODE_HINT);
       return;
     }
     navigate(`/join/${value}`);
@@ -36,14 +38,22 @@ function CodeForm({ initial = '', error }: { initial?: string; error?: string })
 export default function JoinFamilyPage() {
   useDocumentTitle('Join a family');
   const { code } = useParams();
-  const { session } = useAuth();
+  const { session, refreshSession } = useAuth();
   const navigate = useNavigate();
   const [declined, setDeclined] = useState(false);
   const invite = useAsync(() => (code ? familyService.lookupInvite(code) : Promise.resolve(null)), [code]);
 
-  const accept = () => {
-    if (invite.data?.alreadyMember && session) navigate('/dashboard');
-    else navigate(`/sign-up?invite=${code}`);
+  const join = useMutation(familyService.acceptInvite);
+
+  const accept = async () => {
+    if (!code) return;
+    // Not signed in yet: create an account first, then come back here.
+    if (!session) return navigate(`/sign-up?invite=${code}`);
+    if (invite.data?.alreadyMember) return navigate('/dashboard');
+    if (await join.run(code)) {
+      await refreshSession();
+      navigate('/dashboard');
+    }
   };
 
   return (
@@ -149,18 +159,27 @@ export default function JoinFamilyPage() {
               You’ll join as a <span className="font-semibold text-ink">contributor</span> — you can see routines, share availability and volunteer for tasks.
             </p>
 
+            <EmailConfirmNotice className="mt-4" />
+            {join.error && (
+              <div className="mt-4">
+                <FormError message={join.error} />
+              </div>
+            )}
             <div className="mt-6 flex flex-col-reverse gap-2 border-t border-line pt-5 sm:flex-row sm:justify-end">
               <Button variant="secondary" onClick={() => setDeclined(true)}>
                 Decline politely
               </Button>
-              <Button onClick={accept} leftIcon={<DoorOpen aria-hidden="true" className="h-4 w-4" />}>
+              <Button onClick={accept} loading={join.pending} leftIcon={<DoorOpen aria-hidden="true" className="h-4 w-4" />}>
                 {invite.data.alreadyMember && session ? 'You’re already a member — open Hearth' : 'Accept & join'}
               </Button>
             </div>
           </Card>
         )}
         <p className="mt-6 text-center text-sm text-ink-subtle">
-          Don’t have a code? <ButtonLink to="/sign-up" variant="ghost" size="sm">Start your own circle</ButtonLink>
+          Don’t have a code?{' '}
+          <ButtonLink to="/sign-up" variant="ghost" size="sm">
+            Start your own circle
+          </ButtonLink>
         </p>
       </main>
     </div>

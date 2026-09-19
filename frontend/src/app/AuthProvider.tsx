@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { authService, type Session, type SignUpInput } from '@/services/auth/authService';
+import { SIGNED_OUT_EVENT } from '@/services/api/client';
 
 interface AuthContextValue {
   status: 'loading' | 'ready';
@@ -24,6 +25,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .then(setSession)
       .catch(() => setSession(null))
       .finally(() => setStatus('ready'));
+  }, []);
+
+  // The API client fires this when a session has expired and could not be renewed.
+  useEffect(() => {
+    const onSignedOut = () => setSession(null);
+    window.addEventListener(SIGNED_OUT_EVENT, onSignedOut);
+    return () => window.removeEventListener(SIGNED_OUT_EVENT, onSignedOut);
   }, []);
 
   const signIn = useCallback(async (email: string, password: string) => {
@@ -53,10 +61,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setSession(await authService.getSession());
   }, []);
 
-  const value = useMemo(
-    () => ({ status, session, signIn, signUp, startSample, signOut, refreshSession }),
-    [status, session, signIn, signUp, startSample, signOut, refreshSession],
-  );
+  const value = useMemo(() => ({ status, session, signIn, signUp, startSample, signOut, refreshSession }), [status, session, signIn, signUp, startSample, signOut, refreshSession]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

@@ -96,9 +96,7 @@ export function FamilyDetailsDialog({ family, open, onClose, onSaved }: { family
           <FormField label="Family name" required error={errors.name}>
             {(p) => <Input {...p} value={draft.name} onChange={(e) => set({ name: e.target.value })} />}
           </FormField>
-          <FormField label="City or area">
-            {(p) => <Input {...p} value={draft.location} onChange={(e) => set({ location: e.target.value })} />}
-          </FormField>
+          <FormField label="City or area">{(p) => <Input {...p} value={draft.location} onChange={(e) => set({ location: e.target.value })} />}</FormField>
           <FormField label="Care focus" className="sm:col-span-2">
             {(p) => (
               <Select {...p} value={draft.careFocus} onChange={(e) => set({ careFocus: e.target.value })}>

@@ -1,36 +1,72 @@
 /**
- * In-app notifications — notification-service (fed by Kafka domain events in
- * the target architecture). REST contract: not defined yet.
+ * In-app notifications — notification-service, which builds them from the
+ * Kafka events the other services publish.
  */
-import { backendNotConnected } from '../api/client';
+import { apiRequest } from '../api/client';
 import { config } from '../config';
 import { db, persist, respond } from '../mockStore';
 import type { NotificationItem } from '@/types/domain';
 
 type Listener = (unread: number) => void;
 const listeners = new Set<Listener>();
-const unreadCount = () => db.notifications.filter((n) => !n.read).length;
+
+/** With the API: the last unread count we were told, refreshed by polling. */
+let remoteUnread = 0;
+let pollTimer: number | undefined;
+const POLL_MS = 30_000;
+
+const unreadCount = () => (config.useMocks ? db.notifications.filter((n) => !n.read).length : remoteUnread);
 const emit = () => listeners.forEach((l) => l(unreadCount()));
+
+async function refreshFromApi(): Promise<void> {
+  try {
+    remoteUnread = (await apiRequest<{ unread: number }>('/notifications/unread-count')).unread;
+    emit();
+  } catch {
+    /* signed out or offline — keep the last known count */
+  }
+}
 
 export const notificationService = {
   async list(): Promise<NotificationItem[]> {
-    if (!config.useMocks) return backendNotConnected('notification-service', 'listNotifications');
+    if (!config.useMocks) {
+      const items = await apiRequest<NotificationItem[]>('/notifications');
+      remoteUnread = items.filter((n) => !n.read).length;
+      emit();
+      return items;
+    }
     return respond([...db.notifications].sort((a, b) => b.createdAt.localeCompare(a.createdAt)));
   },
 
   unreadCount,
 
-  /** Subscribe to unread-count changes (replaced by a push channel later). */
+  /** Subscribe to unread-count changes. With the API the count is polled (a push channel can replace this). */
   subscribe(listener: Listener): () => void {
     listeners.add(listener);
-    return () => listeners.delete(listener);
+    if (!config.useMocks && pollTimer === undefined) {
+      void refreshFromApi();
+      pollTimer = window.setInterval(() => void refreshFromApi(), POLL_MS);
+    }
+    return () => {
+      listeners.delete(listener);
+      if (listeners.size === 0 && pollTimer !== undefined) {
+        window.clearInterval(pollTimer);
+        pollTimer = undefined;
+      }
+    };
   },
 
-  /** Let other services announce that new notifications may exist. */
-  refresh: emit,
+  /** Check for new notifications now (e.g. after navigating). */
+  refresh(): void {
+    if (config.useMocks) emit();
+    else void refreshFromApi();
+  },
 
   async markRead(id: string): Promise<void> {
-    if (!config.useMocks) return backendNotConnected('notification-service', 'markRead');
+    if (!config.useMocks) {
+      await apiRequest<void>(`/notifications/${id}/read`, { method: 'POST' });
+      return refreshFromApi();
+    }
     const n = db.notifications.find((x) => x.id === id);
     if (n) n.read = true;
     persist();
@@ -39,7 +75,10 @@ export const notificationService = {
   },
 
   async markAllRead(): Promise<void> {
-    if (!config.useMocks) return backendNotConnected('notification-service', 'markAllRead');
+    if (!config.useMocks) {
+      await apiRequest<void>('/notifications/read-all', { method: 'POST' });
+      return refreshFromApi();
+    }
     db.notifications.forEach((n) => (n.read = true));
     persist();
     emit();
@@ -47,7 +86,10 @@ export const notificationService = {
   },
 
   async dismiss(id: string): Promise<void> {
-    if (!config.useMocks) return backendNotConnected('notification-service', 'dismiss');
+    if (!config.useMocks) {
+      await apiRequest<void>(`/notifications/${id}`, { method: 'DELETE' });
+      return refreshFromApi();
+    }
     db.notifications = db.notifications.filter((n) => n.id !== id);
     persist();
     emit();

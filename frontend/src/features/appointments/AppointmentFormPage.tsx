@@ -7,7 +7,7 @@ import { useAsync, useMutation } from '@/hooks/useAsync';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { combineDateTime, toDateInputValue } from '@/lib/dates';
 import { maxLength, required, validate } from '@/lib/validation';
-import { Button, Card, ErrorState, FormError, FormField, Input, PageHeader, PageSkeleton, Select, Textarea, useToast } from '@/components/ui';
+import { ActionBar, Button, Card, ErrorState, FormError, FormField, Input, PageHeader, PageSkeleton, Select, Textarea, useToast } from '@/components/ui';
 import type { Appointment } from '@/types/domain';
 
 const DURATIONS = [15, 30, 45, 60, 90, 120];
@@ -105,7 +105,7 @@ function AppointmentForm({ existing }: { existing?: Appointment }) {
             <FormField label="Location" aside="Optional" className="sm:col-span-2">
               {(p) => <Input {...p} value={form.location} onChange={(e) => set('location', e.target.value)} placeholder="Address, building or room" />}
             </FormField>
-            <FormField label="Who will go with them?" hint="TheyΓÇÖll be notified and the visit counts in their schedule.">
+            <FormField label="Who will go with them?" hint="They’ll be notified and the visit counts in their schedule.">
               {(p) => (
                 <Select {...p} value={form.escortId} onChange={(e) => set('escortId', e.target.value)}>
                   <option value="">Decide later</option>
@@ -128,14 +128,14 @@ function AppointmentForm({ existing }: { existing?: Appointment }) {
               {(p) => <Textarea {...p} value={form.note} onChange={(e) => set('note', e.target.value)} />}
             </FormField>
           </div>
-          <div className="flex flex-col-reverse gap-2 border-t border-line pt-5 sm:flex-row sm:justify-end">
+          <ActionBar className="flex-row lg:justify-end lg:border-t lg:border-line lg:pt-5">
             <Button variant="secondary" onClick={() => navigate(-1)}>
               Cancel
             </Button>
-            <Button type="submit" loading={save.pending}>
+            <Button type="submit" className="flex-1 sm:flex-none" loading={save.pending}>
               {existing ? 'Save changes' : 'Add appointment'}
             </Button>
-          </div>
+          </ActionBar>
         </form>
       </Card>
     </>

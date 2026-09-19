@@ -9,7 +9,26 @@ import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { combineDateTime, toDateInputValue } from '@/lib/dates';
 import { currency } from '@/lib/format';
 import { cn } from '@/lib/cn';
-import { Badge, Button, ButtonLink, Card, CardHeader, Checkbox, EmptyState, ErrorState, FormError, IconButton, Input, ListSkeleton, PageHeader, ProgressBar, QuantityStepper, RadioCards, SegmentedControl, useToast } from '@/components/ui';
+import {
+  Badge,
+  Button,
+  ButtonLink,
+  Card,
+  CardHeader,
+  Checkbox,
+  EmptyState,
+  ErrorState,
+  FormError,
+  IconButton,
+  Input,
+  ListSkeleton,
+  PageHeader,
+  ProgressBar,
+  QuantityStepper,
+  RadioCards,
+  SegmentedControl,
+  useToast,
+} from '@/components/ui';
 import { ScorePill } from '@/components/domain/Scores';
 import type { GroceryItem } from '@/types/domain';
 
@@ -92,7 +111,11 @@ export default function GroceryPlanPage() {
             <Card>
               <div className="flex items-center justify-between">
                 <p className="eyebrow">Estimated cost</p>
-                {budgetMax > 0 && <Badge tone={total <= budgetMax ? 'mint' : 'amber'} dot>{total <= budgetMax ? 'Within budget' : 'Over budget'}</Badge>}
+                {budgetMax > 0 && (
+                  <Badge tone={total <= budgetMax ? 'mint' : 'amber'} dot>
+                    {total <= budgetMax ? 'Within budget' : 'Over budget'}
+                  </Badge>
+                )}
               </div>
               <p className="mt-2 font-display text-3xl">~{currency(total)}</p>
               {budgetMax > 0 && <ProgressBar value={total} max={budgetMax} tone={total <= budgetMax ? 'mint' : 'amber'} label="Spending against weekly budget" className="mt-3" />}
@@ -108,7 +131,7 @@ export default function GroceryPlanPage() {
             <Card>
               <p className="eyebrow">For</p>
               <p className="mt-2 font-semibold text-ink">{family?.recipient.name}</p>
-              <p className="text-sm text-ink-muted">{plan ? `${plan.goals.map((g) => g.title).join(' ┬╖ ')}` : 'No nutrition goals set'}</p>
+              <p className="text-sm text-ink-muted">{plan ? `${plan.goals.map((g) => g.title).join(' · ')}` : 'No nutrition goals set'}</p>
             </Card>
           </div>
 
@@ -132,7 +155,12 @@ export default function GroceryPlanPage() {
                 }
               />
               {shown.length === 0 ? (
-                <EmptyState compact icon={<ShoppingBasket aria-hidden="true" />} title={items.length ? 'Nothing in this view' : 'Your list is empty'} description="Add items from food options, or type your own below." />
+                <EmptyState
+                  compact
+                  icon={<ShoppingBasket aria-hidden="true" />}
+                  title={items.length ? 'Nothing in this view' : 'Your list is empty'}
+                  description="Add items from food options, or type your own below."
+                />
               ) : (
                 <ul className="space-y-2">
                   {shown.map((item) => (
@@ -142,7 +170,7 @@ export default function GroceryPlanPage() {
                           checked={item.status === 'in-pantry'}
                           onChange={(e) => patch(item, { status: e.target.checked ? 'in-pantry' : 'needed' })}
                           label={<span className={item.status === 'in-pantry' ? 'text-ink-subtle line-through' : ''}>{item.name}</span>}
-                          description={`${item.group} ┬╖ ${item.unit}${item.estimatedPrice ? ` ┬╖ ~${currency(item.estimatedPrice)} each` : ''}`}
+                          description={`${item.group} · ${item.unit}${item.estimatedPrice ? ` · ~${currency(item.estimatedPrice)} each` : ''}`}
                         />
                       </div>
                       <div className="flex items-center gap-2 self-end sm:self-auto">
@@ -167,7 +195,13 @@ export default function GroceryPlanPage() {
                   <label htmlFor="grocery-name" className="sr-only">
                     Item name
                   </label>
-                  <Input id="grocery-name" placeholder="Add your own item" value={newItem.name} onChange={(e) => setNewItem({ ...newItem, name: e.target.value })} aria-invalid={itemError ? true : undefined} />
+                  <Input
+                    id="grocery-name"
+                    placeholder="Add your own item"
+                    value={newItem.name}
+                    onChange={(e) => setNewItem({ ...newItem, name: e.target.value })}
+                    aria-invalid={itemError ? true : undefined}
+                  />
                 </div>
                 <div>
                   <label htmlFor="grocery-qty" className="sr-only">

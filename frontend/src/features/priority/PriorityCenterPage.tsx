@@ -106,10 +106,7 @@ export default function PriorityCenterPage() {
                   <li key={r.id} className="flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-surface-muted px-4 py-3 text-sm">
                     <span>
                       <span className="font-semibold text-ink">{r.taskTitle}</span>
-                      <span className="text-ink-muted">
-                        {' '}
-                        — {r.status === 'approved' ? `${firstNameOf(r.fromMemberId)} → ${firstNameOf(r.approvedMemberId)}` : 'request withdrawn'}
-                      </span>
+                      <span className="text-ink-muted"> — {r.status === 'approved' ? `${firstNameOf(r.fromMemberId)} → ${firstNameOf(r.approvedMemberId)}` : 'request withdrawn'}</span>
                     </span>
                     <Badge tone={r.status === 'approved' ? 'mint' : 'neutral'}>{r.resolvedAt ? timeAgo(r.resolvedAt) : r.status}</Badge>
                   </li>

@@ -158,9 +158,7 @@ export default function CareGraphPage() {
                     <X aria-hidden="true" className="h-4 w-4" />
                   </IconButton>
                 </div>
-                <p className="mt-2 text-[13px] text-ink-subtle">
-                  {neighbours.size ? `${neighbours.size - 1} direct connection${neighbours.size === 2 ? '' : 's'}` : 'No connections yet'}
-                </p>
+                <p className="mt-2 text-[13px] text-ink-subtle">{neighbours.size ? `${neighbours.size - 1} direct connection${neighbours.size === 2 ? '' : 's'}` : 'No connections yet'}</p>
                 <ButtonLink to={`/caregraph/${encodeNodeId(selected.id)}`} size="sm" className="mt-3" rightIcon={<ArrowRight aria-hidden="true" className="h-4 w-4" />}>
                   Open details
                 </ButtonLink>
@@ -179,7 +177,10 @@ export default function CareGraphPage() {
                   <ul className="space-y-2">
                     {list.map((n) => (
                       <li key={n.id}>
-                        <Link to={`/caregraph/${encodeNodeId(n.id)}`} className={cn('flex items-center justify-between gap-3 rounded-2xl border bg-surface p-3', n.flagged ? 'border-red-200' : 'border-line')}>
+                        <Link
+                          to={`/caregraph/${encodeNodeId(n.id)}`}
+                          className={cn('flex items-center justify-between gap-3 rounded-2xl border bg-surface p-3', n.flagged ? 'border-red-200' : 'border-line')}
+                        >
                           <span className="min-w-0">
                             <span className="block truncate font-semibold text-ink">{n.label}</span>
                             <span className="block truncate text-[13px] text-ink-subtle">{n.sublabel}</span>

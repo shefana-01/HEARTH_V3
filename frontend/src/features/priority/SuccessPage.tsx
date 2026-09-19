@@ -18,7 +18,13 @@ export default function SuccessPage() {
 
   const { request, task } = req.data;
   if (request.status !== 'approved') {
-    return <EmptyState icon={<ListChecks aria-hidden="true" />} title="This reassignment hasn’t been approved yet" action={<ButtonLink to={`/priority/requests/${request.id}`}>Review candidates</ButtonLink>} />;
+    return (
+      <EmptyState
+        icon={<ListChecks aria-hidden="true" />}
+        title="This reassignment hasn’t been approved yet"
+        action={<ButtonLink to={`/priority/requests/${request.id}`}>Review candidates</ButtonLink>}
+      />
+    );
   }
 
   const to = memberById(request.approvedMemberId);

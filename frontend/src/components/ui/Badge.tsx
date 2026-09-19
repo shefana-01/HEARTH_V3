@@ -29,12 +29,7 @@ export interface BadgeProps extends HTMLAttributes<HTMLSpanElement> {
 export function Badge({ tone = 'neutral', dot, size = 'sm', className, children, ...rest }: BadgeProps) {
   return (
     <span
-      className={cn(
-        'inline-flex max-w-full items-center gap-1.5 whitespace-nowrap rounded-full font-semibold',
-        size === 'sm' ? 'px-2 py-0.5 text-2xs' : 'px-2.5 py-1 text-xs',
-        soft[tone],
-        className,
-      )}
+      className={cn('inline-flex max-w-full items-center gap-1.5 whitespace-nowrap rounded-full font-semibold', size === 'sm' ? 'px-2 py-0.5 text-2xs' : 'px-2.5 py-1 text-xs', soft[tone], className)}
       {...rest}
     >
       {dot && <span aria-hidden="true" className={cn('h-1.5 w-1.5 shrink-0 rounded-full', dots[tone])} />}

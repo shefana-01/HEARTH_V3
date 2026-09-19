@@ -3,14 +3,16 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "Hearth — family care coordination platform (web frontend)",
+  "description": "Hearth \u2014 family care coordination platform (web frontend)",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "typecheck": "tsc -b --pretty",
     "lint": "eslint .",
-    "check": "npm run typecheck && npm run lint && vite build"
+    "check": "npm run typecheck && npm run lint && npm run format:check && vite build",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
   },
   "dependencies": {
     "@fontsource-variable/newsreader": "^5.1.0",
@@ -35,6 +37,7 @@
     "eslint-plugin-react-refresh": "^0.4.14",
     "globals": "^15.12.0",
     "postcss": "^8.4.47",
+    "prettier": "^3.9.9",
     "tailwindcss": "^3.4.14",
     "typescript": "~5.6.3",
     "typescript-eslint": "^8.15.0",

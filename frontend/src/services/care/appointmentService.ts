@@ -1,7 +1,7 @@
 /**
- * Appointments — care-service. REST contract: not defined yet.
+ * Appointments — care-service.
  */
-import { backendNotConnected } from '../api/client';
+import { apiRequest } from '../api/client';
 import { config } from '../config';
 import { actorId, audit, db, firstName, newId, notFound, notify, nowIso, persist, requireFamily, respond } from '../mockStore';
 import { formatDayTime } from '@/lib/dates';
@@ -11,18 +11,18 @@ const find = (id: string) => db.appointments.find((a) => a.id === id);
 
 export const appointmentService = {
   async list(): Promise<Appointment[]> {
-    if (!config.useMocks) return backendNotConnected('care-service', 'listAppointments');
+    if (!config.useMocks) return apiRequest<Appointment[]>('/appointments');
     return respond([...db.appointments].sort((a, b) => a.start.localeCompare(b.start)));
   },
 
   async get(id: string): Promise<Appointment> {
-    if (!config.useMocks) return backendNotConnected('care-service', 'getAppointment');
+    if (!config.useMocks) return apiRequest<Appointment>(`/appointments/${id}`);
     const appt = find(id);
     return appt ? respond(appt) : notFound('That appointment');
   },
 
   async create(input: AppointmentInput): Promise<Appointment> {
-    if (!config.useMocks) return backendNotConnected('care-service', 'createAppointment');
+    if (!config.useMocks) return apiRequest<Appointment>('/appointments', { method: 'POST', body: input });
     requireFamily();
     const appt: Appointment = {
       ...input,
@@ -41,7 +41,7 @@ export const appointmentService = {
   },
 
   async update(id: string, input: Omit<AppointmentInput, 'prep'>): Promise<Appointment> {
-    if (!config.useMocks) return backendNotConnected('care-service', 'updateAppointment');
+    if (!config.useMocks) return apiRequest<Appointment>(`/appointments/${id}`, { method: 'PUT', body: input });
     const appt = find(id);
     if (!appt) return notFound('That appointment');
     Object.assign(appt, input);
@@ -54,7 +54,7 @@ export const appointmentService = {
   },
 
   async remove(id: string): Promise<void> {
-    if (!config.useMocks) return backendNotConnected('care-service', 'deleteAppointment');
+    if (!config.useMocks) return apiRequest<void>(`/appointments/${id}`, { method: 'DELETE' });
     const appt = find(id);
     if (!appt) return notFound('That appointment');
     db.appointments = db.appointments.filter((a) => a.id !== id);
@@ -67,7 +67,7 @@ export const appointmentService = {
   },
 
   async togglePrep(id: string, prepId: string): Promise<Appointment> {
-    if (!config.useMocks) return backendNotConnected('care-service', 'togglePrep');
+    if (!config.useMocks) return apiRequest<Appointment>(`/appointments/${id}/prep/${prepId}/toggle`, { method: 'POST' });
     const appt = find(id);
     const item = appt?.prep.find((p) => p.id === prepId);
     if (!appt || !item) return notFound('That preparation item');
@@ -78,7 +78,7 @@ export const appointmentService = {
   },
 
   async addPrep(id: string, label: string): Promise<Appointment> {
-    if (!config.useMocks) return backendNotConnected('care-service', 'addPrep');
+    if (!config.useMocks) return apiRequest<Appointment>(`/appointments/${id}/prep`, { method: 'POST', body: { label } });
     const appt = find(id);
     if (!appt) return notFound('That appointment');
     appt.prep.push({ id: newId('p'), label: label.trim(), done: false });
@@ -87,7 +87,7 @@ export const appointmentService = {
   },
 
   async removePrep(id: string, prepId: string): Promise<Appointment> {
-    if (!config.useMocks) return backendNotConnected('care-service', 'removePrep');
+    if (!config.useMocks) return apiRequest<Appointment>(`/appointments/${id}/prep/${prepId}`, { method: 'DELETE' });
     const appt = find(id);
     if (!appt) return notFound('That appointment');
     appt.prep = appt.prep.filter((p) => p.id !== prepId);

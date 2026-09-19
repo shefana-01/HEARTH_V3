@@ -1,5 +1,5 @@
 import { useEffect, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowRight, CircleCheckBig, FlaskConical, RotateCcw, TriangleAlert } from 'lucide-react';
 import { useFamily } from '@/app/FamilyProvider';
 import { taskService } from '@/services/tasks/taskService';
@@ -10,6 +10,7 @@ import { formatDayTime, formatTimeRange, toDateInputValue, combineDateTime } fro
 import { cn } from '@/lib/cn';
 import { Avatar, Badge, Button, ButtonLink, Callout, Card, CardHeader, EmptyState, ErrorState, FormField, Input, PageHeader, PageSkeleton, Select, Skeleton, useToast } from '@/components/ui';
 import { useSimulationParams } from './useSimulationParams';
+import { SimulatorTabs, type SimulatorView } from './SimulatorTabs';
 import type { CareTask, Conflict } from '@/types/domain';
 
 const timeOf = (iso: string) => {
@@ -17,7 +18,23 @@ const timeOf = (iso: string) => {
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 };
 
-function TaskState({ title, task, assigneeId, start, conflict, label, tone }: { title: string; task: CareTask; assigneeId: string | null; start: string; conflict?: Conflict; label: string; tone: 'neutral' | 'proposed' }) {
+function TaskState({
+  title,
+  task,
+  assigneeId,
+  start,
+  conflict,
+  label,
+  tone,
+}: {
+  title: string;
+  task: CareTask;
+  assigneeId: string | null;
+  start: string;
+  conflict?: Conflict;
+  label: string;
+  tone: 'neutral' | 'proposed';
+}) {
   const { nameOf } = useFamily();
   const end = new Date(new Date(start).getTime() + task.durationMin * 60_000).toISOString();
   return (
@@ -50,6 +67,8 @@ export default function SimulatorPage() {
   const { toast } = useToast();
   const { members, firstNameOf } = useFamily();
   const { change, update, query, hasChange } = useSimulationParams();
+  const [searchParams] = useSearchParams();
+  const view: SimulatorView = searchParams.get('view') === 'current' || !hasChange ? 'current' : 'proposed';
 
   const base = useAsync(() => Promise.all([taskService.listTasks(), decisionService.listAttention()]), []);
   const [tasks = [], attention = []] = base.data ?? [];
@@ -74,13 +93,18 @@ export default function SimulatorPage() {
     return (
       <>
         <PageHeader eyebrow="Coordination diagnostics" title="What-if simulator" />
-        <EmptyState icon={<FlaskConical aria-hidden="true" />} title="No upcoming tasks to simulate" description="Create a task first, then try moving it or giving it to someone else." action={<ButtonLink to="/tasks/new">Create a task</ButtonLink>} />
+        <EmptyState
+          icon={<FlaskConical aria-hidden="true" />}
+          title="No upcoming tasks to simulate"
+          description="Create a task first, then try moving it or giving it to someone else."
+          action={<ButtonLink to="/tasks/new">Create a task</ButtonLink>}
+        />
       </>
     );
   }
 
   const currentConflict = attention.find((a) => a.task.id === task?.id)?.conflict;
-  const proposedAssignee = change?.assigneeId !== undefined ? change.assigneeId : task?.assigneeId ?? null;
+  const proposedAssignee = change?.assigneeId !== undefined ? change.assigneeId : (task?.assigneeId ?? null);
   const proposedStart = change?.start ?? task?.start ?? '';
   const proposedConflict = sim.data?.conflictsAfter.find((c) => c.taskId === task?.id);
 
@@ -95,11 +119,7 @@ export default function SimulatorPage() {
 
   return (
     <>
-      <PageHeader
-        eyebrow="Coordination diagnostics"
-        title="What-if simulator"
-        description="Try moving a task or giving it to someone else. Nothing changes until you apply it."
-      />
+      <PageHeader eyebrow="Coordination diagnostics" title="What-if simulator" description="Try moving a task or giving it to someone else. Nothing changes until you apply it." />
 
       <Callout tone="rose" icon={<FlaskConical aria-hidden="true" />} className="mb-6" title="Simulation mode — no changes applied to the live schedule">
         Safe to experiment: results are calculated by the decision engine from your family’s current plan.
@@ -122,7 +142,11 @@ export default function SimulatorPage() {
           </FormField>
           <FormField label="Give it to">
             {(p) => (
-              <Select {...p} value={change?.assigneeId === undefined ? '__same__' : change.assigneeId ?? 'none'} onChange={(e) => update({ assignee: e.target.value === '__same__' ? null : e.target.value })}>
+              <Select
+                {...p}
+                value={change?.assigneeId === undefined ? '__same__' : (change.assigneeId ?? 'none')}
+                onChange={(e) => update({ assignee: e.target.value === '__same__' ? null : e.target.value })}
+              >
                 <option value="__same__">Keep {task ? firstNameOf(task.assigneeId) : 'current'}</option>
                 {members
                   .filter((m) => m.status === 'active' && m.role !== 'observer' && m.id !== task?.assigneeId)
@@ -165,20 +189,26 @@ export default function SimulatorPage() {
         )}
       </Card>
 
+      {task && <SimulatorTabs active={view} query={query} hasChange={hasChange} />}
+
       {task && (
         <div className="grid gap-4 lg:grid-cols-2">
-          <TaskState label="Current state (live)" title={task.title} task={task} assigneeId={task.assigneeId} start={task.start} conflict={currentConflict} tone="neutral" />
-          {!hasChange ? (
-            <Card tone="muted" className="flex h-full flex-col items-center justify-center text-center">
-              <FlaskConical aria-hidden="true" className="mb-3 h-8 w-8 text-primary-500" />
-              <p className="font-display text-lg">Proposed state</p>
-              <p className="mt-1 max-w-xs text-sm text-ink-muted">Choose a different person or time above to see what would happen.</p>
-            </Card>
-          ) : sim.status === 'loading' ? (
-            <Skeleton className="h-full min-h-[14rem]" />
-          ) : (
-            <TaskState label="Proposed state (simulation)" title={task.title} task={task} assigneeId={proposedAssignee} start={proposedStart} conflict={proposedConflict} tone="proposed" />
-          )}
+          <div className={cn(view !== 'current' && 'hidden lg:block')}>
+            <TaskState label="Current state (live)" title={task.title} task={task} assigneeId={task.assigneeId} start={task.start} conflict={currentConflict} tone="neutral" />
+          </div>
+          <div className={cn(view !== 'proposed' && 'hidden lg:block')}>
+            {!hasChange ? (
+              <Card tone="muted" className="flex h-full flex-col items-center justify-center text-center">
+                <FlaskConical aria-hidden="true" className="mb-3 h-8 w-8 text-primary-500" />
+                <p className="font-display text-lg">Proposed state</p>
+                <p className="mt-1 max-w-xs text-sm text-ink-muted">Choose a different person or time above to see what would happen.</p>
+              </Card>
+            ) : sim.status === 'loading' ? (
+              <Skeleton className="h-full min-h-[14rem]" />
+            ) : (
+              <TaskState label="Proposed state (simulation)" title={task.title} task={task} assigneeId={proposedAssignee} start={proposedStart} conflict={proposedConflict} tone="proposed" />
+            )}
+          </div>
         </div>
       )}
 
@@ -193,7 +223,9 @@ export default function SimulatorPage() {
                 <p className="font-semibold text-ink">
                   {sim.data.resolved.length} conflict{sim.data.resolved.length === 1 ? '' : 's'} resolved · {sim.data.introduced.length} new conflict{sim.data.introduced.length === 1 ? '' : 's'}
                 </p>
-                <p className="text-[13px] text-ink-muted">{sim.data.workload.length} family member{sim.data.workload.length === 1 ? '' : 's'} affected</p>
+                <p className="text-[13px] text-ink-muted">
+                  {sim.data.workload.length} family member{sim.data.workload.length === 1 ? '' : 's'} affected
+                </p>
               </div>
             </div>
             <div className="flex flex-col gap-2 sm:flex-row">

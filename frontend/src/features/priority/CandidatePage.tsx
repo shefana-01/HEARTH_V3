@@ -7,7 +7,7 @@ import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { formatTime, isSameDay } from '@/lib/dates';
 import { cn } from '@/lib/cn';
 import { SKILLS } from '@/constants/labels';
-import { Avatar, Badge, ButtonLink, Card, CardHeader, EmptyState, ErrorState, PageHeader, PageSkeleton } from '@/components/ui';
+import { ActionBar, Avatar, Badge, ButtonLink, Card, CardHeader, EmptyState, ErrorState, PageHeader, PageSkeleton } from '@/components/ui';
 import { ScorePill, SuitabilityBreakdown } from '@/components/domain/Scores';
 import { fitLabel, riskOf, useRequest } from './shared';
 
@@ -26,7 +26,13 @@ export default function CandidatePage() {
   const index = candidates.findIndex((c) => c.memberId === memberId);
   const c = candidates[index];
   if (!c || !member) {
-    return <EmptyState icon={<Info aria-hidden="true" />} title="This person isn’t a candidate for the task" action={<ButtonLink to={`/priority/requests/${request.id}`}>Back to recommendations</ButtonLink>} />;
+    return (
+      <EmptyState
+        icon={<Info aria-hidden="true" />}
+        title="This person isn’t a candidate for the task"
+        action={<ButtonLink to={`/priority/requests/${request.id}`}>Back to recommendations</ButtonLink>}
+      />
+    );
   }
 
   const risk = riskOf(c);
@@ -71,7 +77,11 @@ export default function CandidatePage() {
           </Card>
 
           <Card>
-            <CardHeader title={`Why Hearth suggests ${member.name.split(' ')[0]}`} icon={<Sparkles aria-hidden="true" className="h-5 w-5" />} action={<Badge tone="primary">{c.reasons.length} match factors</Badge>} />
+            <CardHeader
+              title={`Why Hearth suggests ${member.name.split(' ')[0]}`}
+              icon={<Sparkles aria-hidden="true" className="h-5 w-5" />}
+              action={<Badge tone="primary">{c.reasons.length} match factors</Badge>}
+            />
             <ul className="space-y-2.5">
               {c.reasons.map((r) => (
                 <li key={r} className="flex items-start gap-3 rounded-xl bg-mint-50 p-3 text-sm text-ink">
@@ -152,14 +162,14 @@ export default function CandidatePage() {
         <ButtonLink to={`/tasks/${task.id}`} variant="ghost" leftIcon={<ArrowLeft aria-hidden="true" className="h-4 w-4" />}>
           Return to task
         </ButtonLink>
-        <div className="flex flex-col-reverse gap-2 sm:flex-row">
+        <ActionBar className="flex-col-reverse">
           <ButtonLink to={`/priority/requests/${request.id}`} variant="accent">
             Choose another candidate
           </ButtonLink>
           <ButtonLink to={`/priority/requests/${request.id}/approve/${member.id}`} rightIcon={<Send aria-hidden="true" className="h-4 w-4" />}>
             Propose reassignment to {member.name.split(' ')[0]}
           </ButtonLink>
-        </div>
+        </ActionBar>
       </div>
     </>
   );

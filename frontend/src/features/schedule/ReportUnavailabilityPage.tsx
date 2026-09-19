@@ -9,7 +9,25 @@ import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { combineDateTime, formatDayTime, formatTime, toDateInputValue } from '@/lib/dates';
 import { maxLength, validate } from '@/lib/validation';
 import { UNAVAILABILITY_REASONS } from '@/constants/labels';
-import { Badge, Button, Callout, Card, CardHeader, ErrorState, FormError, FormField, Input, PageHeader, PageSkeleton, RadioCards, Select, Textarea, ToggleChip, useToast } from '@/components/ui';
+import {
+  ActionBar,
+  Badge,
+  Button,
+  Callout,
+  Card,
+  CardHeader,
+  ErrorState,
+  FormError,
+  FormField,
+  Input,
+  PageHeader,
+  PageSkeleton,
+  RadioCards,
+  Select,
+  Textarea,
+  ToggleChip,
+  useToast,
+} from '@/components/ui';
 import type { CareTask } from '@/types/domain';
 
 type Mode = 'task' | 'rest-of-day' | 'custom';
@@ -61,7 +79,7 @@ export default function ReportUnavailabilityPage() {
     const result = await report.run({ start: range.start.toISOString(), end: range.end.toISOString(), reason, note });
     if (!result) return;
     if (result.requestIds.length) {
-      toast({ title: 'Thanks ΓÇö weΓÇÖll find cover', description: `${result.requestIds.length} task(s) need a new caregiver.` });
+      toast({ title: 'Thanks — we’ll find cover', description: `${result.requestIds.length} task(s) need a new caregiver.` });
       navigate(result.requestIds.length === 1 ? `/priority/requests/${result.requestIds[0]}` : '/priority');
     } else {
       toast({ title: 'Time away recorded', description: 'None of your tasks were affected.' });
@@ -78,10 +96,14 @@ export default function ReportUnavailabilityPage() {
         back={{ to: '/schedule', label: 'Back to schedule' }}
         eyebrow="Care continuity"
         title="Report unavailability"
-        meta={<Badge tone="mint" dot size="md">Nothing changes until someone confirms</Badge>}
+        meta={
+          <Badge tone="mint" dot size="md">
+            Nothing changes until someone confirms
+          </Badge>
+        }
       />
-      <Callout tone="primary" icon={<Heart aria-hidden="true" />} title="Life happens, and thatΓÇÖs okay." className="mb-6">
-        Tell the circle when you canΓÇÖt help. Hearth will suggest who can cover so {family?.recipient.name ?? 'your loved one'} is looked after calmly.
+      <Callout tone="primary" icon={<Heart aria-hidden="true" />} title="Life happens, and that’s okay." className="mb-6">
+        Tell the circle when you can’t help. Hearth will suggest who can cover so {family?.recipient.name ?? 'your loved one'} is looked after calmly.
       </Callout>
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_21rem]">
@@ -94,7 +116,13 @@ export default function ReportUnavailabilityPage() {
               value={mode}
               onChange={setMode}
               options={[
-                { value: 'task', label: 'Just one task', description: 'Your other commitments stay as they are.', disabled: upcoming.length === 0, aside: upcoming.length === 0 ? <Badge>No upcoming tasks</Badge> : undefined },
+                {
+                  value: 'task',
+                  label: 'Just one task',
+                  description: 'Your other commitments stay as they are.',
+                  disabled: upcoming.length === 0,
+                  aside: upcoming.length === 0 ? <Badge>No upcoming tasks</Badge> : undefined,
+                },
                 { value: 'rest-of-day', label: 'The rest of today', description: `From now until midnight.` },
                 { value: 'custom', label: 'A specific time', description: 'Choose a date and a time range.' },
               ]}
@@ -106,7 +134,7 @@ export default function ReportUnavailabilityPage() {
                   <Select {...p} value={selectedTask?.id ?? ''} onChange={(e) => setTaskId(e.target.value)}>
                     {upcoming.map((t) => (
                       <option key={t.id} value={t.id}>
-                        {t.title} ΓÇö {formatDayTime(t.start)}
+                        {t.title} — {formatDayTime(t.start)}
                       </option>
                     ))}
                   </Select>
@@ -133,7 +161,7 @@ export default function ReportUnavailabilityPage() {
 
             <fieldset>
               <legend className="mb-2 text-sm font-semibold text-ink">
-                2. Reason <span className="font-normal text-ink-subtle">(optional ΓÇö helps the family plan)</span>
+                2. Reason <span className="font-normal text-ink-subtle">(optional — helps the family plan)</span>
               </legend>
               <div className="flex flex-wrap gap-2">
                 {UNAVAILABILITY_REASONS.map((r) => (
@@ -145,23 +173,27 @@ export default function ReportUnavailabilityPage() {
             </fieldset>
 
             <FormField label="3. A note for the circle" aside="Optional" error={errors.note} hint="Visible to your family circle only.">
-              {(p) => <Textarea {...p} value={note} onChange={(e) => setNote(e.target.value)} placeholder="Anything that would help whoever covers for youΓÇª" />}
+              {(p) => <Textarea {...p} value={note} onChange={(e) => setNote(e.target.value)} placeholder="Anything that would help whoever covers for you…" />}
             </FormField>
 
-            <div className="flex flex-col-reverse gap-2 border-t border-line pt-5 sm:flex-row sm:justify-end">
+            <ActionBar className="flex-row lg:justify-end lg:border-t lg:border-line lg:pt-5">
               <Button variant="secondary" onClick={() => navigate(-1)}>
                 Cancel
               </Button>
-              <Button type="submit" loading={report.pending} rightIcon={<ArrowRight aria-hidden="true" className="h-4 w-4" />}>
+              <Button type="submit" className="flex-1 sm:flex-none" loading={report.pending} rightIcon={<ArrowRight aria-hidden="true" className="h-4 w-4" />}>
                 {affected.length ? 'Report & find cover' : 'Report time away'}
               </Button>
-            </div>
+            </ActionBar>
           </form>
         </Card>
 
         <aside className="space-y-4">
           <Card>
-            <CardHeader title="What this affects" icon={<CalendarClock aria-hidden="true" className="h-5 w-5" />} description={range ? `${formatDayTime(range.start.toISOString())} ΓÇô ${formatTime(range.end.toISOString())}` : undefined} />
+            <CardHeader
+              title="What this affects"
+              icon={<CalendarClock aria-hidden="true" className="h-5 w-5" />}
+              description={range ? `${formatDayTime(range.start.toISOString())} – ${formatTime(range.end.toISOString())}` : undefined}
+            />
             {affected.length ? (
               <ul className="space-y-2">
                 {affected.map((t) => (

@@ -6,7 +6,7 @@ import { decisionService } from '@/services/decision/decisionService';
 import { useAsync, useMutation } from '@/hooks/useAsync';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { dayDiff, formatRelativeDay } from '@/lib/dates';
-import { ButtonLink, Callout, EmptyState, ErrorState, Input, ListSkeleton, PageHeader, SectionHeader, SegmentedControl, Select, Tabs, TabPanel, useToast } from '@/components/ui';
+import { ButtonLink, Callout, FabLink, EmptyState, ErrorState, Input, ListSkeleton, PageHeader, SectionHeader, SegmentedControl, Select, Tabs, TabPanel, useToast } from '@/components/ui';
 import { TaskRow } from '@/components/domain/TaskRow';
 import type { CareTask } from '@/types/domain';
 
@@ -44,7 +44,13 @@ export default function TasksPage() {
 
   const visible = buckets[filter]
     .filter(matchesQuery)
-    .sort((a, b) => (filter === 'completed' ? b.start.localeCompare(a.start) : sort === 'priority' ? PRIORITY_RANK[a.priority] - PRIORITY_RANK[b.priority] || a.start.localeCompare(b.start) : a.start.localeCompare(b.start)));
+    .sort((a, b) =>
+      filter === 'completed'
+        ? b.start.localeCompare(a.start)
+        : sort === 'priority'
+          ? PRIORITY_RANK[a.priority] - PRIORITY_RANK[b.priority] || a.start.localeCompare(b.start)
+          : a.start.localeCompare(b.start),
+    );
 
   const groups = visible.reduce<Map<string, CareTask[]>>((map, t) => {
     const key = formatRelativeDay(t.start);
@@ -74,7 +80,7 @@ export default function TasksPage() {
         title={scope === 'mine' ? 'My tasks' : 'Family tasks'}
         description={data.data ? `${buckets.today.length} task${buckets.today.length === 1 ? '' : 's'} scheduled today${scope === 'mine' ? ' for you' : ''}.` : undefined}
         actions={
-          <ButtonLink to="/tasks/new" leftIcon={<Plus aria-hidden="true" className="h-4 w-4" />}>
+          <ButtonLink to="/tasks/new" className="hidden lg:inline-flex" leftIcon={<Plus aria-hidden="true" className="h-4 w-4" />}>
             New task
           </ButtonLink>
         }
@@ -160,6 +166,9 @@ export default function TasksPage() {
           {overdue.length ? 'Mark them done if they happened, or reschedule them.' : `${buckets.completed.length} task${buckets.completed.length === 1 ? '' : 's'} completed so far.`}
         </Callout>
       )}
+      <FabLink to="/tasks/new" icon={<Plus />}>
+        Add task
+      </FabLink>
     </>
   );
 }

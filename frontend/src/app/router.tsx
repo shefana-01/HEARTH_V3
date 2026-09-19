@@ -4,6 +4,7 @@ import { AppShell } from '@/components/layout/AppShell';
 import { PageSkeleton } from '@/components/ui';
 import { RedirectIfAuthed, RequireAuth, RequireFamily } from './guards';
 import { RouteError } from './RouteError';
+import { detail } from './routeMeta';
 
 /** Code-split each page and show a skeleton while its chunk loads. */
 function page(factory: () => Promise<{ default: ComponentType }>) {
@@ -24,6 +25,8 @@ export const router = createBrowserRouter([
       { path: '/welcome', element: page(() => import('@/features/marketing/LandingPage')) },
       { path: '/sign-in', element: <RedirectIfAuthed>{page(() => import('@/features/auth/SignInPage'))}</RedirectIfAuthed> },
       { path: '/sign-up', element: <RedirectIfAuthed>{page(() => import('@/features/auth/SignUpPage'))}</RedirectIfAuthed> },
+      { path: '/verify-email', element: page(() => import('@/features/auth/VerifyEmailPage')) },
+      { path: '/reset-password', element: page(() => import('@/features/auth/ResetPasswordPage')) },
       { path: '/join/:code?', element: page(() => import('@/features/onboarding/JoinFamilyPage')) },
       { path: '/onboarding', element: <RequireAuth>{page(() => import('@/features/onboarding/OnboardingPage'))}</RequireAuth> },
 
@@ -40,40 +43,52 @@ export const router = createBrowserRouter([
           { path: '/dashboard', element: page(() => import('@/features/dashboard/DashboardPage')) },
 
           { path: '/tasks', element: page(() => import('@/features/tasks/TasksPage')) },
-          { path: '/tasks/new', element: page(() => import('@/features/tasks/TaskFormPage')) },
-          { path: '/tasks/:taskId', element: page(() => import('@/features/tasks/TaskDetailPage')) },
-          { path: '/tasks/:taskId/edit', element: page(() => import('@/features/tasks/TaskFormPage')) },
-          { path: '/tasks/:taskId/resolve', element: page(() => import('@/features/tasks/ConflictPage')) },
+          { path: '/tasks/new', ...detail('New task', '/tasks'), element: page(() => import('@/features/tasks/TaskFormPage')) },
+          { path: '/tasks/:taskId', ...detail('Task', '/tasks'), element: page(() => import('@/features/tasks/TaskDetailPage')) },
+          { path: '/tasks/:taskId/edit', ...detail('Edit task', (p) => `/tasks/${p.taskId}`), element: page(() => import('@/features/tasks/TaskFormPage')) },
+          { path: '/tasks/:taskId/resolve', ...detail('Resolve conflict', (p) => `/tasks/${p.taskId}`), element: page(() => import('@/features/tasks/ConflictPage')) },
 
           { path: '/schedule', element: page(() => import('@/features/schedule/SchedulePage')) },
-          { path: '/schedule/availability', element: page(() => import('@/features/schedule/AvailabilityPage')) },
-          { path: '/schedule/unavailable', element: page(() => import('@/features/schedule/ReportUnavailabilityPage')) },
+          { path: '/schedule/availability', ...detail('My availability', '/schedule'), element: page(() => import('@/features/schedule/AvailabilityPage')) },
+          { path: '/schedule/unavailable', ...detail('Time away', '/schedule'), element: page(() => import('@/features/schedule/ReportUnavailabilityPage')) },
 
           { path: '/priority', element: page(() => import('@/features/priority/PriorityCenterPage')) },
-          { path: '/priority/requests/:requestId', element: page(() => import('@/features/priority/RecommendationsPage')) },
-          { path: '/priority/requests/:requestId/candidates/:memberId', element: page(() => import('@/features/priority/CandidatePage')) },
-          { path: '/priority/requests/:requestId/approve/:memberId', element: page(() => import('@/features/priority/ApprovalPage')) },
-          { path: '/priority/requests/:requestId/done', element: page(() => import('@/features/priority/SuccessPage')) },
+          { path: '/priority/requests/:requestId', ...detail('Recommendations', '/priority'), element: page(() => import('@/features/priority/RecommendationsPage')) },
+          {
+            path: '/priority/requests/:requestId/candidates/:memberId',
+            ...detail('Candidate', (p) => `/priority/requests/${p.requestId}`),
+            element: page(() => import('@/features/priority/CandidatePage')),
+          },
+          {
+            path: '/priority/requests/:requestId/approve/:memberId',
+            ...detail('Confirm reassignment', (p) => `/priority/requests/${p.requestId}/candidates/${p.memberId}`),
+            element: page(() => import('@/features/priority/ApprovalPage')),
+          },
+          { path: '/priority/requests/:requestId/done', ...detail('Reassigned', '/priority'), element: page(() => import('@/features/priority/SuccessPage')) },
 
           { path: '/what-if', element: page(() => import('@/features/whatif/SimulatorPage')) },
-          { path: '/what-if/impact', element: page(() => import('@/features/whatif/ImpactPage')) },
+          { path: '/what-if/impact', ...detail('Impact', (_p, search) => `/what-if${search}`), element: page(() => import('@/features/whatif/ImpactPage')) },
 
           { path: '/caregraph', element: page(() => import('@/features/caregraph/CareGraphPage')) },
-          { path: '/caregraph/:nodeId', element: page(() => import('@/features/caregraph/EntityPage')) },
+          { path: '/caregraph/:nodeId', ...detail('CareGraph item', '/caregraph'), element: page(() => import('@/features/caregraph/EntityPage')) },
 
           { path: '/appointments', element: page(() => import('@/features/appointments/AppointmentsPage')) },
-          { path: '/appointments/new', element: page(() => import('@/features/appointments/AppointmentFormPage')) },
-          { path: '/appointments/:appointmentId', element: page(() => import('@/features/appointments/AppointmentDetailPage')) },
-          { path: '/appointments/:appointmentId/edit', element: page(() => import('@/features/appointments/AppointmentFormPage')) },
+          { path: '/appointments/new', ...detail('New appointment', '/appointments'), element: page(() => import('@/features/appointments/AppointmentFormPage')) },
+          { path: '/appointments/:appointmentId', ...detail('Appointment', '/appointments'), element: page(() => import('@/features/appointments/AppointmentDetailPage')) },
+          {
+            path: '/appointments/:appointmentId/edit',
+            ...detail('Edit appointment', (p) => `/appointments/${p.appointmentId}`),
+            element: page(() => import('@/features/appointments/AppointmentFormPage')),
+          },
 
           { path: '/nutrition', element: page(() => import('@/features/nutrition/NutritionGoalsPage')) },
-          { path: '/nutrition/recommendations', element: page(() => import('@/features/nutrition/FoodRecommendationsPage')) },
-          { path: '/nutrition/groceries', element: page(() => import('@/features/nutrition/GroceryPlanPage')) },
+          { path: '/nutrition/recommendations', ...detail('Food options', '/nutrition'), element: page(() => import('@/features/nutrition/FoodRecommendationsPage')) },
+          { path: '/nutrition/groceries', ...detail('Grocery planning', '/nutrition'), element: page(() => import('@/features/nutrition/GroceryPlanPage')) },
 
           { path: '/documents', element: page(() => import('@/features/documents/DocumentsPage')) },
 
           { path: '/family', element: page(() => import('@/features/family/FamilyPage')) },
-          { path: '/family/:memberId', element: page(() => import('@/features/family/MemberPage')) },
+          { path: '/family/:memberId', ...detail('Member', '/family'), element: page(() => import('@/features/family/MemberPage')) },
 
           { path: '/notifications', element: page(() => import('@/features/notifications/NotificationsPage')) },
           { path: '/activity', element: page(() => import('@/features/activity/ActivityPage')) },

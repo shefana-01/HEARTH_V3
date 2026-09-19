@@ -8,8 +8,9 @@ import { useAsync, useMutation } from '@/hooks/useAsync';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { formatDayTime, formatDuration } from '@/lib/dates';
 import { cn } from '@/lib/cn';
-import { Avatar, Badge, Button, ButtonLink, Callout, Card, CardHeader, Checkbox, EmptyState, ErrorState, PageHeader, PageSkeleton, ProgressBar, useToast } from '@/components/ui';
+import { ActionBar, Avatar, Badge, Button, ButtonLink, Callout, Card, CardHeader, Checkbox, EmptyState, ErrorState, PageHeader, PageSkeleton, ProgressBar, useToast } from '@/components/ui';
 import { useSimulationParams } from './useSimulationParams';
+import { SimulatorTabs } from './SimulatorTabs';
 
 export default function ImpactPage() {
   useDocumentTitle('What-if impact analysis');
@@ -27,7 +28,8 @@ export default function ImpactPage() {
 
   if (!change || !hasChange) {
     return (
-      <EmptyState headingLevel="h1"
+      <EmptyState
+        headingLevel="h1"
         icon={<FlaskConical aria-hidden="true" />}
         title="No simulation to analyse"
         description="Set up a change in the simulator first."
@@ -56,7 +58,17 @@ export default function ImpactPage() {
 
   return (
     <>
-      <Callout tone="rose" icon={<FlaskConical aria-hidden="true" />} className="mb-6" title="Simulation — no changes have been applied" action={<ButtonLink to={`/what-if?${query}`} size="sm" variant="secondary">Back to simulator</ButtonLink>}>
+      <Callout
+        tone="rose"
+        icon={<FlaskConical aria-hidden="true" />}
+        className="mb-6"
+        title="Simulation — no changes have been applied"
+        action={
+          <ButtonLink to={`/what-if?${query}`} size="sm" variant="secondary">
+            Back to simulator
+          </ButtonLink>
+        }
+      >
         This analysis uses your circle’s current schedule, availability and reported time away.
       </Callout>
 
@@ -74,9 +86,12 @@ export default function ImpactPage() {
           </Card>
         }
       />
+      <SimulatorTabs active="impact" query={query} hasChange={hasChange} />
 
       <Card className="mb-6">
-        <Badge tone="primary" className="mb-2">Simulated scenario</Badge>
+        <Badge tone="primary" className="mb-2">
+          Simulated scenario
+        </Badge>
         <p className="font-display text-xl">
           “{task.title}” → {nameOf(newAssignee)}, {formatDayTime(newStart)}
         </p>
@@ -103,12 +118,21 @@ export default function ImpactPage() {
         </Card>
 
         <Card tone={safe ? 'primary' : 'red'}>
-          <CardHeader title="Conflict check" icon={safe ? <ShieldCheck aria-hidden="true" className="h-5 w-5" /> : <TriangleAlert aria-hidden="true" className="h-5 w-5" />} action={<Badge tone={safe ? 'mint' : 'red'}>{safe ? 'Passed' : `${result.introduced.length} new`}</Badge>} />
+          <CardHeader
+            title="Conflict check"
+            icon={safe ? <ShieldCheck aria-hidden="true" className="h-5 w-5" /> : <TriangleAlert aria-hidden="true" className="h-5 w-5" />}
+            action={<Badge tone={safe ? 'mint' : 'red'}>{safe ? 'Passed' : `${result.introduced.length} new`}</Badge>}
+          />
           {safe ? (
             <>
               <p className="font-display text-lg">No new conflicts introduced</p>
               <ul className="mt-3 grid gap-2 text-[13px] text-ink-muted sm:grid-cols-2">
-                {['No double-booking', 'Reported time away respected', 'Within usual availability', `${result.conflictsAfter.length} other open issue${result.conflictsAfter.length === 1 ? '' : 's'} unchanged`].map((t) => (
+                {[
+                  'No double-booking',
+                  'Reported time away respected',
+                  'Within usual availability',
+                  `${result.conflictsAfter.length} other open issue${result.conflictsAfter.length === 1 ? '' : 's'} unchanged`,
+                ].map((t) => (
                   <li key={t} className="flex items-center gap-1.5">
                     <CircleCheckBig aria-hidden="true" className="h-3.5 w-3.5 text-mint-600" /> {t}
                   </li>
@@ -181,14 +205,14 @@ export default function ImpactPage() {
           <Button variant="danger-ghost" leftIcon={<Trash2 aria-hidden="true" className="h-4 w-4" />} onClick={() => navigate('/what-if')}>
             Discard simulation
           </Button>
-          <div className="flex flex-col-reverse gap-2 sm:flex-row">
+          <ActionBar className="flex-row">
             <ButtonLink to={`/what-if?${query}`} variant="secondary" leftIcon={<Pencil aria-hidden="true" className="h-4 w-4" />}>
-              Edit simulation
+              Edit
             </ButtonLink>
-            <Button disabled={!confirmed} loading={apply.pending} onClick={onApply}>
-              Apply changes to live schedule
+            <Button className="flex-1 sm:flex-none" disabled={!confirmed} loading={apply.pending} onClick={onApply}>
+              Apply changes
             </Button>
-          </div>
+          </ActionBar>
         </div>
       </Card>
     </>
