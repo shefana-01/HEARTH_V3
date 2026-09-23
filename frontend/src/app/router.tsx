@@ -40,20 +40,35 @@ export const router = createBrowserRouter([
           </RequireAuth>
         ),
         children: [
-          { path: '/dashboard', element: page(() => import('@/features/dashboard/DashboardPage')) },
+          // Me
+          { path: '/today', element: page(() => import('@/features/today/MyDayPage')) },
+          { path: '/dashboard', element: <Navigate to="/today" replace /> },
 
           { path: '/tasks', element: page(() => import('@/features/tasks/TasksPage')) },
           { path: '/tasks/new', ...detail('New task', '/tasks'), element: page(() => import('@/features/tasks/TaskFormPage')) },
           { path: '/tasks/:taskId', ...detail('Task', '/tasks'), element: page(() => import('@/features/tasks/TaskDetailPage')) },
           { path: '/tasks/:taskId/edit', ...detail('Edit task', (p) => `/tasks/${p.taskId}`), element: page(() => import('@/features/tasks/TaskFormPage')) },
-          { path: '/tasks/:taskId/resolve', ...detail('Resolve conflict', (p) => `/tasks/${p.taskId}`), element: page(() => import('@/features/tasks/ConflictPage')) },
+          { path: '/tasks/:taskId/resolve', ...detail('Sort out a clash', (p) => `/tasks/${p.taskId}`), element: page(() => import('@/features/tasks/ConflictPage')) },
 
           { path: '/schedule', element: page(() => import('@/features/schedule/SchedulePage')) },
-          { path: '/schedule/availability', ...detail('My availability', '/schedule'), element: page(() => import('@/features/schedule/AvailabilityPage')) },
-          { path: '/schedule/unavailable', ...detail('Time away', '/schedule'), element: page(() => import('@/features/schedule/ReportUnavailabilityPage')) },
+          { path: '/schedule/events/new', ...detail('Add to my schedule', '/schedule'), element: page(() => import('@/features/schedule/EventFormPage')) },
+          { path: '/schedule/events/:eventId', ...detail('Edit event', '/schedule'), element: page(() => import('@/features/schedule/EventFormPage')) },
+          { path: '/schedule/availability', ...detail('When I’m free', '/schedule'), element: page(() => import('@/features/schedule/AvailabilityPage')) },
+          { path: '/schedule/unavailable', ...detail('I can’t make it', '/schedule'), element: page(() => import('@/features/schedule/ReportUnavailabilityPage')) },
+
+          { path: '/health', element: page(() => import('@/features/health/HealthPage')) },
+          { path: '/health/suggestions', ...detail('Food suggestions', '/health'), element: page(() => import('@/features/health/FoodSuggestionsPage')) },
+          { path: '/health/:personId', ...detail('Health notes', '/health'), element: page(() => import('@/features/health/HealthProfilePage')) },
+          { path: '/nutrition/*', element: <Navigate to="/health" replace /> },
+
+          // Family
+          { path: '/family', element: page(() => import('@/features/family/FamilyPage')) },
+          { path: '/family/:memberId', ...detail('Member', '/family'), element: page(() => import('@/features/family/MemberPage')) },
+
+          { path: '/chat', element: page(() => import('@/features/chat/ChatPage')) },
 
           { path: '/priority', element: page(() => import('@/features/priority/PriorityCenterPage')) },
-          { path: '/priority/requests/:requestId', ...detail('Recommendations', '/priority'), element: page(() => import('@/features/priority/RecommendationsPage')) },
+          { path: '/priority/requests/:requestId', ...detail('Who can take it?', '/priority'), element: page(() => import('@/features/priority/RecommendationsPage')) },
           {
             path: '/priority/requests/:requestId/candidates/:memberId',
             ...detail('Candidate', (p) => `/priority/requests/${p.requestId}`),
@@ -61,16 +76,12 @@ export const router = createBrowserRouter([
           },
           {
             path: '/priority/requests/:requestId/approve/:memberId',
-            ...detail('Confirm reassignment', (p) => `/priority/requests/${p.requestId}/candidates/${p.memberId}`),
+            ...detail('Confirm handover', (p) => `/priority/requests/${p.requestId}/candidates/${p.memberId}`),
             element: page(() => import('@/features/priority/ApprovalPage')),
           },
-          { path: '/priority/requests/:requestId/done', ...detail('Reassigned', '/priority'), element: page(() => import('@/features/priority/SuccessPage')) },
+          { path: '/priority/requests/:requestId/done', ...detail('Handed over', '/priority'), element: page(() => import('@/features/priority/SuccessPage')) },
 
-          { path: '/what-if', element: page(() => import('@/features/whatif/SimulatorPage')) },
-          { path: '/what-if/impact', ...detail('Impact', (_p, search) => `/what-if${search}`), element: page(() => import('@/features/whatif/ImpactPage')) },
-
-          { path: '/caregraph', element: page(() => import('@/features/caregraph/CareGraphPage')) },
-          { path: '/caregraph/:nodeId', ...detail('CareGraph item', '/caregraph'), element: page(() => import('@/features/caregraph/EntityPage')) },
+          { path: '/groceries', element: page(() => import('@/features/health/ShoppingListPage')) },
 
           { path: '/appointments', element: page(() => import('@/features/appointments/AppointmentsPage')) },
           { path: '/appointments/new', ...detail('New appointment', '/appointments'), element: page(() => import('@/features/appointments/AppointmentFormPage')) },
@@ -81,14 +92,14 @@ export const router = createBrowserRouter([
             element: page(() => import('@/features/appointments/AppointmentFormPage')),
           },
 
-          { path: '/nutrition', element: page(() => import('@/features/nutrition/NutritionGoalsPage')) },
-          { path: '/nutrition/recommendations', ...detail('Food options', '/nutrition'), element: page(() => import('@/features/nutrition/FoodRecommendationsPage')) },
-          { path: '/nutrition/groceries', ...detail('Grocery planning', '/nutrition'), element: page(() => import('@/features/nutrition/GroceryPlanPage')) },
-
           { path: '/documents', element: page(() => import('@/features/documents/DocumentsPage')) },
 
-          { path: '/family', element: page(() => import('@/features/family/FamilyPage')) },
-          { path: '/family/:memberId', ...detail('Member', '/family'), element: page(() => import('@/features/family/MemberPage')) },
+          // More
+          { path: '/what-if', element: page(() => import('@/features/whatif/SimulatorPage')) },
+          { path: '/what-if/impact', ...detail('Impact', (_p, search) => `/what-if${search}`), element: page(() => import('@/features/whatif/ImpactPage')) },
+
+          { path: '/caregraph', element: page(() => import('@/features/caregraph/CareGraphPage')) },
+          { path: '/caregraph/:nodeId', ...detail('Family map', '/caregraph'), element: page(() => import('@/features/caregraph/EntityPage')) },
 
           { path: '/notifications', element: page(() => import('@/features/notifications/NotificationsPage')) },
           { path: '/activity', element: page(() => import('@/features/activity/ActivityPage')) },
