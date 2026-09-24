@@ -44,13 +44,13 @@ export function FormField({ label, hint, error, required, aside, className, chil
       </div>
       {children({ id, 'aria-describedby': describedBy, 'aria-invalid': error ? true : undefined, required })}
       {error ? (
-        <p id={errorId} className="flex items-start gap-1.5 text-[13px] font-medium text-red-600">
+        <p id={errorId} className="flex items-start gap-1.5 text-[0.8125rem] font-medium text-red-600">
           <AlertCircle aria-hidden="true" className="mt-0.5 h-3.5 w-3.5 shrink-0" />
           {error}
         </p>
       ) : (
         hint && (
-          <p id={hintId} className="text-[13px] text-ink-subtle">
+          <p id={hintId} className="text-[0.8125rem] text-ink-subtle">
             {hint}
           </p>
         )
@@ -60,7 +60,7 @@ export function FormField({ label, hint, error, required, aside, className, chil
 }
 
 const control =
-  'w-full rounded-xl border border-line-strong bg-surface px-3.5 text-[15px] text-ink placeholder:text-ink-subtle/80 transition-colors hover:border-primary-300 focus-visible:border-primary-500 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary-100 focus-visible:ring-offset-0 disabled:cursor-not-allowed disabled:bg-surface-muted disabled:text-ink-subtle aria-[invalid=true]:border-red-500 aria-[invalid=true]:focus-visible:ring-red-100';
+  'w-full rounded-xl border border-line-strong bg-surface px-3.5 text-[0.9375rem] text-ink placeholder:text-ink-subtle/80 transition-colors hover:border-primary-300 focus-visible:border-primary-500 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary-100 focus-visible:ring-offset-0 disabled:cursor-not-allowed disabled:bg-surface-muted disabled:text-ink-subtle aria-[invalid=true]:border-red-500 aria-[invalid=true]:focus-visible:ring-red-100';
 
 /* ───────────────────────── Input ───────────────────────── */
 
@@ -144,7 +144,7 @@ export const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(function Che
       </span>
       <label htmlFor={inputId} className="cursor-pointer text-sm text-ink">
         <span className="font-medium">{label}</span>
-        {description && <span className="mt-0.5 block text-[13px] text-ink-subtle">{description}</span>}
+        {description && <span className="mt-0.5 block text-[0.8125rem] text-ink-subtle">{description}</span>}
       </label>
     </div>
   );
@@ -205,13 +205,13 @@ export function RadioCards<T extends string>({
                 <span className="text-sm font-semibold text-ink">{o.label}</span>
                 {o.aside}
               </span>
-              {o.description && <span className="mt-0.5 block text-[13px] text-ink-muted">{o.description}</span>}
+              {o.description && <span className="mt-0.5 block text-[0.8125rem] text-ink-muted">{o.description}</span>}
             </span>
           </label>
         ))}
       </div>
       {error && (
-        <p id={errorId} className="mt-1.5 text-[13px] font-medium text-red-600">
+        <p id={errorId} className="mt-1.5 text-[0.8125rem] font-medium text-red-600">
           {error}
         </p>
       )}
@@ -229,7 +229,7 @@ export function Switch({ checked, onChange, label, description, disabled }: { ch
         <span id={`${id}-label`} className="text-sm font-semibold text-ink">
           {label}
         </span>
-        {description && <p className="mt-0.5 text-[13px] text-ink-subtle">{description}</p>}
+        {description && <p className="mt-0.5 text-[0.8125rem] text-ink-subtle">{description}</p>}
       </div>
       <button
         type="button"
@@ -292,7 +292,7 @@ export function ToggleChip({ pressed, onClick, children }: { pressed: boolean; o
       aria-pressed={pressed}
       onClick={onClick}
       className={cn(
-        'inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[13px] font-semibold transition-colors',
+        'inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[0.8125rem] font-semibold transition-colors',
         pressed ? 'border-primary-500 bg-primary-50 text-primary-800' : 'border-line bg-surface text-ink-muted hover:border-primary-300 hover:text-ink',
       )}
     >

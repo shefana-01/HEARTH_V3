@@ -4,3 +4,5 @@ package-lock.json
 tools/verify/screenshots
 tools/verify/node_modules
 *.md
+dist-connected
+tools/verify/connected/.reference.mjs

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { AlarmClock, ArrowRightLeft, CalendarClock, CircleCheck, History, Pencil, RotateCcw, ShieldCheck, Trash2, TriangleAlert } from 'lucide-react';
+import { AlarmClock, ArrowRightLeft, CalendarClock, CircleCheck, HandHelping, History, Lock, Pencil, RotateCcw, ShieldCheck, Trash2, TriangleAlert, Users } from 'lucide-react';
 import { useFamily } from '@/app/FamilyProvider';
 import { taskService } from '@/services/tasks/taskService';
 import { decisionService } from '@/services/decision/decisionService';
@@ -9,16 +9,19 @@ import { auditService } from '@/services/audit/auditService';
 import { useAsync, useMutation } from '@/hooks/useAsync';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { dayDiff, formatDayTime, formatDuration, formatTime, timeAgo } from '@/lib/dates';
+import { cn } from '@/lib/cn';
 import { PRIORITIES, TASK_CATEGORIES } from '@/constants/labels';
 import { ActionBar, Avatar, Badge, Button, ButtonLink, Callout, Card, CollapsibleCard, ConfirmDialog, Disclosure, ErrorState, PageHeader, PageSkeleton, useToast } from '@/components/ui';
 import { CategoryIcon } from '@/components/domain/TaskRow';
+import { PrivateBadge } from '@/components/domain/People';
 import { PriorityBreakdownView, ScorePill } from '@/components/domain/Scores';
+import { TaskComments } from './TaskComments';
 
 export default function TaskDetailPage() {
   const { taskId = '' } = useParams();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { family, nameOf, memberById, me } = useFamily();
+  const { nameOf, firstNameOf, memberById, personName, people, me } = useFamily();
   const [confirmCancel, setConfirmCancel] = useState(false);
 
   const data = useAsync(async () => {
@@ -36,12 +39,16 @@ export default function TaskDetailPage() {
   const reopen = useMutation(taskService.reopenTask);
   const cancel = useMutation(taskService.cancelTask);
   const reassign = useMutation(decisionService.requestReassignment);
+  const take = useMutation(taskService.assignTask);
 
   if (data.status === 'loading' && !data.data) return <PageSkeleton />;
   if (data.status === 'error' || !data.data) return <ErrorState headingLevel="h1" title="We couldn’t open this task" message={data.error?.message} onRetry={data.reload} />;
 
   const { task, insight, appointment, history } = data.data;
   const assignee = memberById(task.assigneeId);
+  const forPerson = people.find((p) => p.id === task.forId);
+  const isPrivate = task.visibility === 'private';
+  const mine = task.assigneeId === me?.id;
   const done = task.status === 'completed';
   const cancelled = task.status === 'cancelled';
   const conflict = insight?.conflict;
@@ -56,10 +63,32 @@ export default function TaskDetailPage() {
     }
   };
 
-  const onReassign = async () => {
-    const req = await reassign.run(task.id, conflict?.reason ?? `${nameOf(task.assigneeId)} asked for someone else to take this task.`);
+  const onAskSomeone = async () => {
+    const req = await reassign.run(task.id, conflict?.reason ?? `${firstNameOf(task.assigneeId)} asked for someone else to take this task.`);
     if (req) navigate(`/priority/requests/${req.id}`);
-    else toast({ tone: 'error', title: 'Couldn’t request a reassignment', description: reassign.error ?? undefined });
+    else toast({ tone: 'error', title: 'Couldn’t ask for a handover', description: reassign.error ?? undefined });
+  };
+
+  const onTake = async () => {
+    if (!me) return;
+    const updated = await take.run(task.id, me.id);
+    if (updated) {
+      toast({ title: 'It’s yours now', description: task.title });
+      data.reload();
+    } else {
+      toast({ tone: 'error', title: 'Couldn’t take this task', description: take.error ?? undefined });
+    }
+  };
+
+  const onCancel = async () => {
+    const ok = await cancel.attempt(task.id);
+    setConfirmCancel(false);
+    if (!ok) {
+      toast({ tone: 'error', title: 'Couldn’t cancel the task', description: cancel.error ?? undefined });
+      return;
+    }
+    toast({ title: 'Task cancelled', description: task.title });
+    navigate('/tasks');
   };
 
   return (
@@ -80,11 +109,11 @@ export default function TaskDetailPage() {
               </Badge>
             ) : conflict ? (
               <Badge tone="red" size="md" dot>
-                {conflict.kind === 'unassigned' ? 'Needs an owner' : 'Schedule conflict'}
+                {conflict.kind === 'unassigned' ? 'Needs someone' : 'Clash'}
               </Badge>
             ) : (
               <Badge tone="mint" size="md" dot>
-                Scheduled · on track
+                On track
               </Badge>
             )}
             <Badge tone={PRIORITIES[task.priority].tone} size="md">
@@ -93,6 +122,12 @@ export default function TaskDetailPage() {
             {!done && !cancelled && days === 0 && (
               <Badge tone="rose" size="md">
                 Due today
+              </Badge>
+            )}
+            {isPrivate && <PrivateBadge />}
+            {task.forId && (
+              <Badge tone="rose" size="md">
+                For {personName(task.forId)}
               </Badge>
             )}
           </>
@@ -112,10 +147,10 @@ export default function TaskDetailPage() {
             <Callout
               tone="red"
               icon={<TriangleAlert aria-hidden="true" />}
-              title="This task can’t go ahead as planned"
+              title={conflict.kind === 'unassigned' ? 'This task needs someone' : 'This task clashes with something else'}
               action={
-                <ButtonLink to={`/tasks/${task.id}/resolve`} size="sm">
-                  Resolve conflict
+                <ButtonLink to={`/tasks/${task.id}/resolve`} className="min-h-11">
+                  Sort it out
                 </ButtonLink>
               }
             >
@@ -136,31 +171,33 @@ export default function TaskDetailPage() {
                 </p>
               </div>
             </div>
-            {task.notes && <p className="whitespace-pre-line pt-5 text-[15px] text-ink">{task.notes}</p>}
+            {task.notes && <p className="whitespace-pre-line pt-5 text-[0.9375rem] text-ink">{task.notes}</p>}
 
-            <div className="mt-5 grid gap-3 sm:grid-cols-2">
+            <div className={cn('mt-5 grid gap-3', forPerson && 'sm:grid-cols-2')}>
               <div className="flex items-center gap-3 rounded-2xl bg-surface-muted p-4">
                 {assignee ? (
                   <Avatar name={assignee.name} seed={assignee.id} />
                 ) : (
-                  <span className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-dashed border-line-strong text-ink-subtle">?</span>
+                  <span aria-hidden="true" className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-dashed border-line-strong text-ink-subtle">
+                    ?
+                  </span>
                 )}
                 <div className="min-w-0">
-                  <p className="eyebrow">Assigned caregiver</p>
-                  <p className="truncate font-semibold text-ink">
-                    {assignee ? assignee.name : 'Unassigned'} {assignee?.id === me?.id && <Badge tone="rose">You</Badge>}
-                  </p>
-                  {assignee && <p className="truncate text-[13px] text-ink-subtle">{assignee.relation || assignee.focus}</p>}
+                  <p className="eyebrow">Who does it</p>
+                  <p className="truncate font-semibold text-ink">{assignee ? (mine ? 'Me' : assignee.name) : 'Needs someone'}</p>
+                  {assignee && <p className="truncate text-[0.8125rem] text-ink-subtle">{mine ? assignee.name : assignee.relation || assignee.focus}</p>}
                 </div>
               </div>
-              <div className="flex items-center gap-3 rounded-2xl bg-rose-50 p-4">
-                <Avatar name={family?.recipient.name ?? ''} seed="recipient" />
-                <div className="min-w-0">
-                  <p className="eyebrow">Care recipient</p>
-                  <p className="truncate font-semibold text-ink">{family?.recipient.name}</p>
-                  <p className="truncate text-[13px] text-ink-subtle">{family?.recipient.relation}</p>
+              {forPerson && (
+                <div className="flex items-center gap-3 rounded-2xl bg-rose-50 p-4">
+                  <Avatar name={forPerson.name} seed={forPerson.id} />
+                  <div className="min-w-0">
+                    <p className="eyebrow">Who it is for</p>
+                    <p className="truncate font-semibold text-ink">{forPerson.id === me?.id ? 'Me' : forPerson.name}</p>
+                    <p className="truncate text-[0.8125rem] text-ink-subtle">{forPerson.relation}</p>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
 
             {!cancelled && (
@@ -173,21 +210,43 @@ export default function TaskDetailPage() {
                   onClick={onComplete}
                   leftIcon={done ? <RotateCcw aria-hidden="true" className="h-4 w-4" /> : <CircleCheck aria-hidden="true" className="h-4 w-4" />}
                 >
-                  {done ? 'Mark as not done' : 'Mark complete'}
+                  {done ? 'Reopen' : 'Mark done'}
                 </Button>
-                {!done && (
+                {!done && !isPrivate && mine && !insight?.openRequestId && (
                   <Button
                     size="lg"
                     variant="soft"
                     className="sm:flex-1 lg:flex-none"
                     loading={reassign.pending}
-                    onClick={onReassign}
+                    onClick={onAskSomeone}
                     leftIcon={<ArrowRightLeft aria-hidden="true" className="h-4 w-4" />}
                   >
-                    {insight?.openRequestId ? 'View reassignment' : 'Request reassignment'}
+                    Ask someone to take this
+                  </Button>
+                )}
+                {!done && !isPrivate && insight?.openRequestId && (
+                  <ButtonLink
+                    to={`/priority/requests/${insight.openRequestId}`}
+                    size="lg"
+                    variant="soft"
+                    className="sm:flex-1 lg:flex-none"
+                    leftIcon={<Users aria-hidden="true" className="h-4 w-4" />}
+                  >
+                    See who can take it
+                  </ButtonLink>
+                )}
+                {!done && !isPrivate && !mine && (
+                  <Button size="lg" variant="secondary" className="sm:flex-1 lg:flex-none" loading={take.pending} onClick={onTake} leftIcon={<HandHelping aria-hidden="true" className="h-4 w-4" />}>
+                    I’ll take it
                   </Button>
                 )}
               </ActionBar>
+            )}
+            {isPrivate && !cancelled && (
+              <p className="mt-4 flex items-center gap-2 text-[0.8125rem] text-ink-muted">
+                <Lock aria-hidden="true" className="h-4 w-4 shrink-0 text-ink-subtle" />
+                Private tasks stay with you.
+              </p>
             )}
           </Card>
 
@@ -206,6 +265,8 @@ export default function TaskDetailPage() {
               </Link>
             </CollapsibleCard>
           )}
+
+          {!isPrivate && <TaskComments taskId={task.id} />}
 
           <Disclosure title="Activity history" icon={<History />} meta={`${history.length} event${history.length === 1 ? '' : 's'}`}>
             {history.length ? (
@@ -234,17 +295,17 @@ export default function TaskDetailPage() {
 
         {insight && (
           <aside className="space-y-4">
-            <CollapsibleCard title="Priority score" expandFrom="xl" action={<ScorePill score={insight.priority.score} label="Priority score" />} meta={`${insight.priority.score}/100`}>
+            <CollapsibleCard title="Priority score" expandFrom="xl" action={<ScorePill kind="priority" score={insight.priority.score} label="Priority score" />} meta={`${insight.priority.score}/100`}>
               <p className="mb-4 text-sm text-ink-muted">{insight.priority.explanation}</p>
               <PriorityBreakdownView priority={insight.priority} />
             </CollapsibleCard>
-            {insight.candidates[0] && (
+            {!isPrivate && insight.candidates[0] && (
               <Card tone="mint">
-                <p className="eyebrow text-mint-700">Best backup right now</p>
+                <p className="eyebrow text-mint-700">Best person to take it right now</p>
                 <p className="mt-1 font-semibold text-ink">
                   {nameOf(insight.candidates[0].memberId)} · {insight.candidates[0].score}/100
                 </p>
-                <p className="mt-1 text-[13px] text-mint-800">{insight.candidates[0].reasons[0] ?? insight.candidates[0].cautions[0]}</p>
+                <p className="mt-1 text-[0.8125rem] text-mint-800">{insight.candidates[0].reasons[0] ?? insight.candidates[0].cautions[0]}</p>
               </Card>
             )}
           </aside>
@@ -253,11 +314,11 @@ export default function TaskDetailPage() {
 
       {!cancelled && (
         <Card tone="muted" padding="sm" className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <p className="flex items-start gap-2 text-[13px] text-ink-muted">
+          <p className="flex items-start gap-2 text-[0.8125rem] text-ink-muted">
             <ShieldCheck aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-mint-600" />
-            Cancelled tasks stay in the activity history, and the circle is told.
+            {isPrivate ? 'A cancelled private task is simply removed from your list.' : 'Cancelled tasks stay in the activity history, and your family can see that it was cancelled.'}
           </p>
-          <Button variant="danger-ghost" size="sm" leftIcon={<Trash2 aria-hidden="true" className="h-4 w-4" />} onClick={() => setConfirmCancel(true)}>
+          <Button variant="danger-ghost" className="min-h-11" leftIcon={<Trash2 aria-hidden="true" className="h-4 w-4" />} onClick={() => setConfirmCancel(true)}>
             Cancel task
           </Button>
         </Card>
@@ -267,17 +328,12 @@ export default function TaskDetailPage() {
         open={confirmCancel}
         onClose={() => setConfirmCancel(false)}
         title="Cancel this task?"
-        description={`“${task.title}” will be removed from everyone’s schedule. This is recorded in the activity history.`}
+        description={isPrivate ? `“${task.title}” will be removed from your schedule.` : `“${task.title}” will be removed from everyone’s schedule. This is recorded in the activity history.`}
         confirmLabel="Cancel task"
         cancelLabel="Keep task"
         variant="danger"
         loading={cancel.pending}
-        onConfirm={async () => {
-          await cancel.run(task.id);
-          setConfirmCancel(false);
-          toast({ title: 'Task cancelled', description: task.title });
-          navigate('/tasks');
-        }}
+        onConfirm={onCancel}
       />
     </>
   );

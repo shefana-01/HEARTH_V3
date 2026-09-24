@@ -12,8 +12,8 @@ UI (features/*)  →  services/*Service.ts  →  mock store (today)
 ## How a service method is shaped
 
 ```ts
-async listTasks(filter: TaskFilter = {}): Promise<CareTask[]> {
-  if (!config.useMocks) return apiRequest<CareTask[]>(`/tasks${query({ assigneeId: filter.assigneeId })}`);
+async listTasks(filter: TaskFilter = {}): Promise<Task[]> {
+  if (!config.useMocks) return apiRequest<Task[]>(`/tasks${query({ assigneeId: filter.assigneeId })}`);
   // …mock implementation against the in-browser workspace…
   return respond(result);   // simulated latency + structuredClone
 }
@@ -42,29 +42,48 @@ async listTasks(filter: TaskFilter = {}): Promise<CareTask[]> {
 | File | Backend service | Endpoints (under `/api/v1`) |
 | --- | --- | --- |
 | `auth/authService.ts` | family-service | `/auth/sign-up`, `/auth/sign-in`, `/auth/session`, `/auth/sign-out`, `/auth/verify-email`, `/auth/verify-email/resend`, `/auth/password-reset`, `/auth/password-reset/confirm` (`/auth/refresh` is used by the client itself) · mock-only: startSample, deleteLocalData |
-| `family/familyService.ts` | family-service | `/family`, `/members`, `/members/{id}`, `/account`, `/invites/{code}`, `/invites/{code}/accept` |
-| `schedule/scheduleService.ts` | decision-, family- and task-service | `/schedule/events`, `/members/{id}/availability`, `/unavailability` |
+| `family/familyService.ts` | family-service | `/family`, `/family/dependants`, `/members`, `/members/{id}`, `/members/{id}/status`, `/account`, `/invites/{code}`, `/invites/{code}/accept` |
 | `tasks/taskService.ts` | task-service | `/tasks`, `/tasks/{id}`, `/tasks/{id}/complete`, `/reopen`, `/assignee` |
-| `decision/decisionService.ts` | decision-service | `/decisions/attention`, `/decisions/tasks/{id}/insight`, `/decisions/tasks/{id}/acknowledge`, `/decisions/candidates/preview`, `/decisions/simulations`, `/decisions/simulations/apply`, `/reassignment-requests…` |
+| `schedule/eventService.ts` | task-service | `/events`, `/events/{id}` (personal events) |
+| `schedule/scheduleService.ts` | decision-, family- and task-service | `/schedule/events`, `/members/{id}/availability`, `/unavailability` |
+| `decision/decisionService.ts` | decision-service | `/decisions/my-day`, `/decisions/attention`, `/decisions/tasks/{id}/insight`, `/decisions/tasks/{id}/acknowledge`, `/decisions/candidates/preview`, `/decisions/simulations`, `/decisions/simulations/apply`, `/reassignment-requests…` |
 | `care/appointmentService.ts` | care-service | `/appointments`, `/appointments/{id}`, `/appointments/{id}/prep…` |
+| `care/healthService.ts` | care-service | `/health/profiles`, `/health/profiles/{personId}`, `/health/suggestions` |
+| `care/groceryService.ts` | care-service | `/groceries`, `/groceries/from-food`, `/groceries/{id}`, `/groceries/task` |
 | `care/documentService.ts` | care-service | `/documents` (multipart upload), `/documents/{id}/access` |
-| `care/nutritionService.ts` | care-service | `/nutrition/plan`, `/nutrition/food-matches`, `/groceries…` |
-| `care/careGraphService.ts` | care-service (Neo4j) | `/caregraph` for the nodes and relationships, plus `/decisions/attention` to flag tasks in conflict; wording and layout are added here |
+| `care/careGraphService.ts` | care-service (Neo4j) | `/caregraph` for the nodes and relationships, plus `/decisions/attention` to flag tasks with a clash; wording and layout are added here |
+| `chat/chatService.ts` | notification-service | `/messages`, `/messages/read`, `/messages/unread-count`, `/messages/task-counts` (polled) |
 | `notifications/notificationService.ts` | notification-service | `/notifications`, `/notifications/unread-count` (polled every 30 s), `/read`, `/read-all` |
+| `notifications/reminderService.ts` | – | mock only: raises due reminders while the app is open. With the API, task- and care-service raise them on a timer and they arrive as notifications |
 | `audit/auditService.ts` | audit-service | `/audit-events` |
 
 Reporting time away is the one eventually-consistent operation: the API answers at
-once, and the reassignment requests appear a moment later (they are created by a Kafka
+once, and the handover requests appear a moment later (they are created by a Kafka
 consumer). `scheduleService.reportUnavailability` waits up to about 3 seconds for them.
+
+## Who may see what (`mockStore.ts`)
+
+The mock applies the same privacy rules the backend enforces, in three small helpers:
+
+- `canSeeTask` — shared tasks, plus private ones where you are the assignee or wrote them.
+- `canSeeAppointment` — shared ones, plus private ones you attend, go along to or created.
+- `canSeeHealth` — your own notes; with "medical" access also those of people the family
+  looks after and of members who chose to share.
+
+A private task, appointment or "show as busy" event still makes its owner busy for the
+decision engine and appears in other people's week view as a plain "Busy" block.
+Private things write nothing to the activity log, notifications or the family chat.
 
 ## The decision engine (`decision/engine.ts`)
 
-Pure functions with no I/O — conflict detection, the Candidate Suitability Score,
-the Task Priority Score and what-if simulation. The weights are exported
-(`SUITABILITY_WEIGHTS`, `PRIORITY_WEIGHTS`) and shown in the UI next to each score.
+Pure functions with no I/O — clash detection, the Candidate Suitability Score, the Task
+Priority Score, the "my day" ranking with its tie-breakers, and what-if simulation. The
+weights are exported (`SUITABILITY_WEIGHTS`, `PRIORITY_WEIGHTS`) and shown in the UI next to
+each score. Personal events are expanded into concrete busy blocks by `lib/recurrence.ts`
+before the engine runs (`mockStore.engineData()`).
 
-With the backend, decision-service owns these calculations
-(`DecisionEngine.java`, a line-by-line port). `engine.ts` remains the **reference
+With the backend, decision-service owns these calculations (`DecisionEngine.java` and
+`Recurrence.java`, line-by-line ports). `engine.ts` remains the **reference
 implementation**: it powers the offline demo, and the backend's `DecisionEngineTest`
 replays random families through both and requires identical output. If you change a
 rule or a weight, change both and regenerate the expected output (backend README).
@@ -75,8 +94,9 @@ rule or a weight, change both and regenerate the expected output (backend README
   stored or verified. (The backend stores BCrypt hashes and issues signed tokens.)
 - **Invitations** only resolve on the same device. (With the backend, the invited
   person signs up with the invited email and enters the family code.)
+- **Chat** has nobody to answer, since only one person is signed in. The sample family
+  comes with a conversation.
+- **Reminders** are raised by the open tab. (The backend raises them on a timer.)
 - **Document upload** records the file's details only. (The backend stores the file.)
-- **Notifications** are one shared list. (The backend keeps read state per member and
-  does not notify people about their own actions.)
-- **Sample data** (`src/mocks/sampleWorkspace.ts`) is an optional demo, regenerated
-  daily so its times stay current. It exists only in the demo.
+- **Notifications:** you also see family-wide notifications about your own actions. (The
+  backend does not notify people about what they did themselves.)

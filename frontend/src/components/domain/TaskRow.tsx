@@ -1,13 +1,13 @@
 import { Link } from 'react-router-dom';
-import { Check, ChevronRight, Clock, TriangleAlert } from 'lucide-react';
+import { Check, ChevronRight, Clock, Lock, TriangleAlert } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { formatDayTime, formatTime } from '@/lib/dates';
 import { PRIORITIES, TASK_CATEGORIES } from '@/constants/labels';
 import { useFamily } from '@/app/FamilyProvider';
 import { Avatar, Badge } from '@/components/ui';
-import type { CareTask, Conflict } from '@/types/domain';
+import type { Task, Conflict } from '@/types/domain';
 
-export function CategoryIcon({ category, className }: { category: CareTask['category']; className?: string }) {
+export function CategoryIcon({ category, className }: { category: Task['category']; className?: string }) {
   const meta = TASK_CATEGORIES[category];
   const Icon = meta.icon;
   const tones = {
@@ -29,8 +29,8 @@ export function CategoryIcon({ category, className }: { category: CareTask['cate
  * One task in a list: completion toggle, title link, meta line and assignee.
  * `onToggle` is optional so read-only lists can reuse it.
  */
-export function TaskRow({ task, conflict, onToggle, pending, showDay = false }: { task: CareTask; conflict?: Conflict; onToggle?: (task: CareTask) => void; pending?: boolean; showDay?: boolean }) {
-  const { nameOf, firstNameOf } = useFamily();
+export function TaskRow({ task, conflict, onToggle, pending, showDay = false }: { task: Task; conflict?: Conflict; onToggle?: (task: Task) => void; pending?: boolean; showDay?: boolean }) {
+  const { nameOf, firstNameOf, personName, me } = useFamily();
   const done = task.status === 'completed';
   const priority = PRIORITIES[task.priority];
 
@@ -66,20 +66,32 @@ export function TaskRow({ task, conflict, onToggle, pending, showDay = false }: 
             {task.title}
           </Link>
           {task.priority !== 'routine' && !done && <Badge tone={priority.tone}>{priority.label}</Badge>}
+          {task.visibility === 'private' && (
+            <Badge tone="neutral" className="gap-1">
+              <Lock aria-hidden="true" className="h-3 w-3" />
+              Private
+            </Badge>
+          )}
           {conflict && (
             <Badge tone="red" className="gap-1">
               <TriangleAlert aria-hidden="true" className="h-3 w-3" />
-              {conflict.kind === 'unassigned' ? 'Needs an owner' : 'Conflict'}
+              {conflict.kind === 'unassigned' ? 'Needs someone' : 'Clash'}
             </Badge>
           )}
         </div>
-        <p className="mt-1 flex flex-wrap items-center gap-x-2 text-[13px] text-ink-subtle">
+        <p className="mt-1 flex flex-wrap items-center gap-x-2 text-[0.8125rem] text-ink-subtle">
           <span className="inline-flex items-center gap-1">
             <Clock aria-hidden="true" className="h-3.5 w-3.5" />
             {done && task.completedAt ? `Done ${formatTime(task.completedAt)}` : showDay ? formatDayTime(task.start) : formatTime(task.start)}
           </span>
           <span aria-hidden="true">·</span>
-          <span>{task.assigneeId ? firstNameOf(task.assigneeId) : 'Unassigned'}</span>
+          <span>{!task.assigneeId ? 'Needs someone' : task.assigneeId === me?.id ? 'Me' : firstNameOf(task.assigneeId)}</span>
+          {task.forId && task.forId !== task.assigneeId && (
+            <>
+              <span aria-hidden="true">·</span>
+              <span>for {personName(task.forId).split(' ')[0]}</span>
+            </>
+          )}
         </p>
       </div>
 

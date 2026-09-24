@@ -12,7 +12,7 @@ export interface Crumb {
 export function Breadcrumbs({ items }: { items: Crumb[] }) {
   return (
     <nav aria-label="Breadcrumb" className="mb-3">
-      <ol className="flex flex-wrap items-center gap-1 text-[13px] text-ink-subtle">
+      <ol className="flex flex-wrap items-center gap-1 text-[0.8125rem] text-ink-subtle">
         {items.map((c, i) => (
           <li key={`${c.label}-${i}`} className="flex items-center gap-1">
             {i > 0 && <ChevronRight aria-hidden="true" className="h-3.5 w-3.5" />}
@@ -34,7 +34,7 @@ export function Breadcrumbs({ items }: { items: Crumb[] }) {
 
 export function BackLink({ to, children }: { to: string; children: ReactNode }) {
   return (
-    <Link to={to} className="mb-3 inline-flex items-center gap-1.5 rounded text-[13px] font-semibold text-ink-muted hover:text-primary-700">
+    <Link to={to} className="mb-3 inline-flex items-center gap-1.5 rounded text-[0.8125rem] font-semibold text-ink-muted hover:text-primary-700">
       <ArrowLeft aria-hidden="true" className="h-4 w-4" />
       {children}
     </Link>
@@ -79,7 +79,7 @@ export function PageHeader({
         <div className="min-w-0 max-w-2xl">
           {eyebrow && <p className="eyebrow mb-1.5">{eyebrow}</p>}
           <h1 className="font-display text-[1.875rem] leading-tight sm:text-4xl">{title}</h1>
-          {description && <p className="mt-2 text-[15px] text-ink-muted">{description}</p>}
+          {description && <p className="mt-2 text-[0.9375rem] text-ink-muted">{description}</p>}
           {meta && <div className="mt-3 flex flex-wrap items-center gap-2">{meta}</div>}
         </div>
         {actions && <div className="flex flex-wrap gap-2 lg:shrink-0 lg:justify-end">{actions}</div>}
@@ -97,7 +97,7 @@ export function SectionHeader({ title, count, aside, as: Heading = 'h2', id }: {
         </Heading>
         {count !== undefined && <span className="rounded-full bg-surface-sunken px-2 py-0.5 text-xs font-semibold tabular-nums text-ink-muted">{count}</span>}
       </div>
-      {aside && <div className="text-[13px] text-ink-subtle">{aside}</div>}
+      {aside && <div className="text-[0.8125rem] text-ink-subtle">{aside}</div>}
     </div>
   );
 }

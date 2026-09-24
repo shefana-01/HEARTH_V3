@@ -3,7 +3,10 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, CalendarDays, CircleCheck, DoorOpen, Eye, KeyRound, Lock, MailCheck, MapPin, ShieldCheck, Users } from 'lucide-react';
 import { useAuth } from '@/app/AuthProvider';
 import { familyService } from '@/services/family/familyService';
+import { isDemoMode } from '@/services/config';
 import { INVITE_CODE, INVITE_CODE_HINT } from '@/constants/invite';
+import { ROLES } from '@/constants/labels';
+import { plural } from '@/lib/format';
 import { EmailConfirmNotice } from '@/components/domain/EmailConfirmNotice';
 import { useAsync, useMutation } from '@/hooks/useAsync';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
@@ -49,10 +52,10 @@ export default function JoinFamilyPage() {
     if (!code) return;
     // Not signed in yet: create an account first, then come back here.
     if (!session) return navigate(`/sign-up?invite=${code}`);
-    if (invite.data?.alreadyMember) return navigate('/dashboard');
+    if (invite.data?.alreadyMember) return navigate('/today');
     if (await join.run(code)) {
       await refreshSession();
-      navigate('/dashboard');
+      navigate('/today');
     }
   };
 
@@ -71,7 +74,7 @@ export default function JoinFamilyPage() {
       <main className="mx-auto max-w-2xl px-4 pb-16 sm:px-6">
         {!code ? (
           <Card padding="lg">
-            <h1 className="font-display text-3xl">Join a family circle</h1>
+            <h1 className="font-display text-3xl">Join a family</h1>
             <p className="mb-6 mt-2 text-ink-muted">Enter the invitation code someone in your family shared with you.</p>
             <CodeForm />
           </Card>
@@ -86,9 +89,11 @@ export default function JoinFamilyPage() {
             <h1 className="font-display text-3xl">We couldn’t open that invitation</h1>
             <p className="mb-6 mt-2 text-ink-muted">Check the code with the person who invited you, or try again.</p>
             <CodeForm initial={code} error={invite.error?.message} />
-            <Callout tone="neutral" className="mt-6 text-[13px]">
-              Preview limitation: until Hearth’s server is connected, invitations can only be found on the device where the family was created.
-            </Callout>
+            {isDemoMode && (
+              <Callout tone="neutral" className="mt-6 text-[0.8125rem]">
+                In the demo, invitations can only be found on the device where the family was created.
+              </Callout>
+            )}
           </Card>
         ) : declined ? (
           <Card padding="lg" className="text-center">
@@ -113,7 +118,7 @@ export default function JoinFamilyPage() {
 
             <div className="mt-6 rounded-2xl bg-rose-50 p-5">
               <Badge tone="rose" size="md" className="mb-3">
-                Private circle
+                Private family space
               </Badge>
               <p className="font-display text-3xl">{invite.data.family.name}</p>
               <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-ink-muted">
@@ -123,15 +128,15 @@ export default function JoinFamilyPage() {
                     {invite.data.family.location}
                   </span>
                 )}
-                <span>Caring for {invite.data.family.recipient.name}</span>
+                <span>Invited by {invite.data.inviterName}</span>
               </p>
               <ul className="mt-4 grid gap-2 sm:grid-cols-3">
                 {[
-                  { icon: Users, text: `${invite.data.memberCount} members` },
-                  { icon: ShieldCheck, text: invite.data.family.careFocus },
-                  { icon: CalendarDays, text: 'Shared weekly schedule' },
+                  { icon: Users, text: `${plural(invite.data.memberCount, 'person', 'people')} on Hearth` },
+                  { icon: CalendarDays, text: 'Shared tasks and chat' },
+                  { icon: ShieldCheck, text: 'Private stays private' },
                 ].map(({ icon: Icon, text }) => (
-                  <li key={text} className="flex items-center gap-2 rounded-xl bg-surface px-3 py-2.5 text-[13px] font-medium text-ink">
+                  <li key={text} className="flex items-center gap-2 rounded-xl bg-surface px-3 py-2.5 text-[0.8125rem] font-medium text-ink">
                     <Icon aria-hidden="true" className="h-4 w-4 shrink-0 text-rose-500" />
                     <span className="truncate">{text}</span>
                   </li>
@@ -139,24 +144,25 @@ export default function JoinFamilyPage() {
               </ul>
             </div>
 
-            <h2 className="mt-6 font-display text-lg">Your role & privacy</h2>
+            <h2 className="mt-6 font-display text-lg">What you’ll share and see</h2>
             <div className="mt-3 grid gap-3 sm:grid-cols-2">
               <div className="rounded-2xl bg-mint-50 p-4">
                 <p className="mb-1 flex items-center gap-2 text-sm font-semibold text-mint-800">
                   <Eye aria-hidden="true" className="h-4 w-4" /> What you’ll see
                 </p>
-                <p className="text-[13px] text-ink-muted">The shared schedule, tasks assigned to you, appointments you help with and updates from the circle.</p>
+                <p className="text-[0.8125rem] text-ink-muted">The family’s shared tasks, the family chat, who is free, and appointments the family shares.</p>
               </div>
               <div className="rounded-2xl bg-primary-50 p-4">
                 <p className="mb-1 flex items-center gap-2 text-sm font-semibold text-primary-800">
                   <Lock aria-hidden="true" className="h-4 w-4" /> What stays private
                 </p>
-                <p className="text-[13px] text-ink-muted">Restricted documents and medical details, unless the lead caregiver gives you access.</p>
+                <p className="text-[0.8125rem] text-ink-muted">Anyone’s private tasks show only as “Busy”. Health notes and restricted papers stay hidden unless the organiser gives you access.</p>
               </div>
             </div>
-            <p className="mt-3 flex items-start gap-2 rounded-xl bg-surface-muted px-4 py-3 text-[13px] text-ink-muted">
+            <p className="mt-3 flex items-start gap-2 rounded-xl bg-surface-muted px-4 py-3 text-[0.8125rem] text-ink-muted">
               <CircleCheck aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-mint-600" />
-              You’ll join as a <span className="font-semibold text-ink">contributor</span> — you can see routines, share availability and volunteer for tasks.
+              You’ll join as a <span className="font-semibold text-ink">{ROLES.contributor.label.toLowerCase()}</span> or{' '}
+              <span className="font-semibold text-ink">{ROLES.observer.label.toLowerCase()}</span>, as the organiser chose. Members keep their own schedule, take on tasks and can hand them over.
             </p>
 
             <EmailConfirmNotice className="mt-4" />
@@ -167,10 +173,10 @@ export default function JoinFamilyPage() {
             )}
             <div className="mt-6 flex flex-col-reverse gap-2 border-t border-line pt-5 sm:flex-row sm:justify-end">
               <Button variant="secondary" onClick={() => setDeclined(true)}>
-                Decline politely
+                Not now
               </Button>
               <Button onClick={accept} loading={join.pending} leftIcon={<DoorOpen aria-hidden="true" className="h-4 w-4" />}>
-                {invite.data.alreadyMember && session ? 'You’re already a member — open Hearth' : 'Accept & join'}
+                {invite.data.alreadyMember && session ? 'You’re already in — open My day' : 'Accept & join'}
               </Button>
             </div>
           </Card>
@@ -178,7 +184,7 @@ export default function JoinFamilyPage() {
         <p className="mt-6 text-center text-sm text-ink-subtle">
           Don’t have a code?{' '}
           <ButtonLink to="/sign-up" variant="ghost" size="sm">
-            Start your own circle
+            Start your own family space
           </ButtonLink>
         </p>
       </main>

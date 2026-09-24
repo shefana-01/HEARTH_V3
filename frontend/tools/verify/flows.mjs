@@ -67,254 +67,291 @@ async function flow(name, fn) {
 
 // ── Setup: sample family ──
 await go('/sign-in');
-await click(btn('Explore with sample data'));
-await p.waitForURL('**/dashboard');
+await click(btn('Explore with a sample family'));
+await p.waitForURL('**/today');
 await settle();
 
-await flow('dashboard → resolve conflict → recommendations → candidate → approve → success', async () => {
-  await go('/dashboard');
-  await click(link(/Resolve|Review/i));
-  await shot('f1-a-conflict');
-  await click(btn(/Review available caregivers/));
-  await p.waitForURL(/\/priority\/requests\//);
-  await shot('f1-b-recommendations');
-  await click(link('Review details'));
-  await p.waitForURL(/\/candidates\//);
-  await shot('f1-c-candidate');
-  await click(link(/^Propose reassignment to/));
-  await p.waitForURL(/\/approve\//);
-  await shot('f1-d-approve');
-  const ack = p.getByRole('checkbox');
-  if (await ack.count()) await ack.first().check();
-  await click(btn('Approve reassignment'));
-  await p.waitForURL(/\/done$/);
-  await go('/tasks/t3');
-  await expectText(/Afsara Mannan/, 'new assignee on the task');
-  if (/Schedule conflict/.test(await text())) throw new Error('task still shows a conflict after approval');
-  await shot('f1-e-success');
+/** The demo workspace as stored in the browser. */
+const ws = () => p.evaluate(() => JSON.parse(localStorage.getItem('hearth.workspace.v3')));
+const ME = 'm-afsara';
+const must = (cond, what) => {
+  if (!cond) throw new Error(what);
+};
+const pad = (n) => String(n).padStart(2, '0');
+const dateInput = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+const daysAhead = (n) => {
+  const d = new Date();
+  d.setDate(d.getDate() + n);
+  return d;
+};
+
+await flow('my day: ranked list, do first, mark done', async () => {
+  await go('/today');
+  await expectText(/Do first/i, 'a "Do first" card');
+  await expectText(/Can wait/, 'the "Can wait" group');
+  await shot('f1-my-day');
+  const before = (await ws()).tasks.filter((t) => t.status === 'completed').length;
+  await click(btn('Mark done'));
+  await expectText(/Do first|Nothing left|Create a task/i, 'the list to reload');
+  must((await ws()).tasks.filter((t) => t.status === 'completed').length === before + 1, 'one more completed task');
 });
 
-await flow('what-if simulate → impact → apply', async () => {
-  await go('/what-if');
-  await p.getByLabel('Give it to').selectOption({ index: 1 });
-  await settle();
-  await shot('f2-a-simulator');
-  await click(link(/impact|review|analy/i).or(btn(/impact|review|analy/i)));
-  await p.waitForURL(/\/what-if\/impact/);
-  await shot('f2-b-impact');
-  const ack = p.getByRole('checkbox');
-  if (await ack.count()) await ack.first().check();
-  await click(btn(/apply/i));
-  await expectText(/applied|updated|saved/i, 'confirmation after apply');
+await flow('status line: set it, family hub and chat show it', async () => {
+  await go('/today');
+  await click(btn(/Set status|Change/));
+  await p.getByRole('dialog').getByRole('textbox').first().fill('Studying in the library');
+  await click(p.getByRole('dialog').getByRole('button', { name: /^Save/ }));
+  must((await ws()).members.find((m) => m.id === ME).statusNote?.text === 'Studying in the library', 'status saved');
+  await go('/family');
+  await expectText(/Studying in the library/, 'status on the family hub');
+  await go('/chat');
+  await expectText(/Afsara: Studying in the library/, 'status line in the chat');
 });
 
-await flow('grocery list → create grocery task', async () => {
-  await go('/nutrition/groceries');
-  await click(btn(/Create grocery task/));
-  await p.waitForURL(/\/tasks\/[^/]+$/);
-  await expectText(/grocer/i);
-  await shot('f3-grocery-task');
-});
+await flow('personal schedule: weekly event → clash on a task planned on top of it', async () => {
+  const day = daysAhead(3);
+  await go('/schedule/events/new');
+  await p.getByLabel(/^Name\*?$/).fill('Compiler design class');
+  await click(btn('Class', { exact: true }));
+  await p.getByLabel(/^Date\*?$/).fill(dateInput(day));
+  await p.getByLabel(/^Starts\*?$/).fill('10:00');
+  await p.getByLabel(/^Ends\*?$/).fill('11:30');
+  await p.getByText('Every week', { exact: true }).click();
+  await shot('f3-a-event-form');
+  await click(btn('Add to my schedule'));
+  await p.waitForURL(/\/schedule$/);
+  const ev = (await ws()).events.find((e) => e.title === 'Compiler design class');
+  must(ev && ev.repeat === 'weekly' && ev.days.filter(Boolean).length === 1 && ev.durationMin === 90, 'weekly event stored with one weekday and 90 minutes');
+  await expectText(/Compiler design class/, 'the event under "My regular week"');
 
-await flow('food options → add to list', async () => {
-  await go('/nutrition/recommendations');
-  const before = await p.getByRole('button', { name: 'On the grocery list' }).count();
-  await click(btn('Add to grocery list'));
-  await p.waitForFunction((n) => [...document.querySelectorAll('button')].filter((b) => b.textContent?.trim() === 'On the grocery list').length === n, before + 1, { timeout: 5000 }).catch(() => {});
-  const after = await p.getByRole('button', { name: 'On the grocery list' }).count();
-  if (after !== before + 1) throw new Error(`on-list count ${before} → ${after}`);
-});
-
-await flow('document upload (metadata) → listed → delete', async () => {
-  await go('/documents');
-  await click(btn('Upload document'));
-  await p
-    .getByRole('dialog')
-    .locator('input[type=file]')
-    .setInputFiles({ name: 'discharge-summary.pdf', mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.4 test') });
-  await settle();
-  const name = p.getByLabel(/^Name/);
-  await name.fill('Discharge summary (test)');
-  await shot('f4-a-upload-dialog');
-  await click(p.getByRole('dialog').getByRole('button', { name: 'Upload', exact: true }));
-  await expectText(/Discharge summary \(test\)/);
-  await shot('f4-b-listed');
-  // Invalid type is rejected
-  await click(btn('Upload document'));
-  await p
-    .getByRole('dialog')
-    .locator('input[type=file]')
-    .setInputFiles({ name: 'virus.exe', mimeType: 'application/octet-stream', buffer: Buffer.from('MZ') });
-  await settle();
-  await expectText(/type|format|PDF/i, 'file-type validation message');
-  await p.keyboard.press('Escape');
-});
-
-await flow('appointment create with validation', async () => {
-  await go('/appointments/new');
-  await click(btn(/save|create|add appointment/i));
-  await expectText(/required|enter|add a/i, 'validation errors on empty submit');
-  await shot('f5-a-errors');
-  await p.getByLabel(/What is the visit/).fill('Eye check-up (test)');
-  const withField = p.getByLabel(/^With/);
-  if (await withField.count()) await withField.fill('Dr. Example');
-  const tomorrow = new Date(Date.now() + 86400000);
-  await p.getByLabel(/^Date/).fill(tomorrow.toISOString().slice(0, 10));
-  const loc = p.getByLabel(/^Location/);
-  if (await loc.count()) await loc.fill('Community clinic');
-  await click(btn(/save|create|add appointment/i));
-  await p.waitForURL(/\/appointments\/[^/]+$/);
-  await expectText(/Eye check-up \(test\)/);
-  await shot('f5-b-created');
-});
-
-await flow('task create → complete', async () => {
+  // A shared task for me in the middle of that class.
   await go('/tasks/new');
-  await click(btn(/create|save|add task/i));
-  await expectText(/required|enter|add a/i, 'validation errors');
-  await p
-    .getByLabel(/^(Task|Title|What needs doing)/)
-    .first()
-    .fill('Water the plants (test)');
-  await click(btn(/create|save|add task/i));
-  await p.waitForURL(/\/tasks\/[^/]+$/);
-  await expectText(/Water the plants \(test\)/);
-  await click(btn(/mark as done|complete/i));
-  await expectText(/Completed/);
-  await shot('f6-task-done');
+  await p.getByLabel('Task title').fill('Collect parcel from courier');
+  await click(btn('Errands & shopping'));
+  await p.getByLabel(/^Date\*?$/).fill(dateInput(day));
+  await p.getByLabel(/^Time\*?$/).fill('10:30');
+  await settle();
+  await shot('f3-b-task-form');
+  await click(btn('Add task'));
+  await p.waitForURL(/\/tasks\/t-/);
+  await expectText(/Compiler design class/, 'the clash naming the class', 8000);
+  await shot('f3-c-task-clash');
+  await go('/today');
+  await expectText(/Collect parcel from courier/, 'the task in My day');
 });
 
-await flow('report unavailability → creates requests', async () => {
+await flow('private task: study defaults to private, stays mine, hidden from handover', async () => {
+  await go('/tasks/new');
+  await p.getByLabel('Task title').fill('Revise for the networks quiz');
+  await click(btn('Study', { exact: true }));
+  must(await p.getByRole('radio', { name: /Only me/ }).isChecked(), 'visibility switched to "Only me" for a study task');
+  await p.getByLabel(/^Date\*?$/).fill(dateInput(daysAhead(4)));
+  await p.getByLabel(/^Time\*?$/).fill('19:00');
+  await click(btn('Add task'));
+  await p.waitForURL(/\/tasks\/t-/);
+  const t = (await ws()).tasks.find((x) => x.title === 'Revise for the networks quiz');
+  must(t.visibility === 'private' && t.assigneeId === ME, 'stored private and assigned to me');
+  await expectText(/Private/, 'a Private badge');
+  must((await btn(/Ask someone to take/).count()) === 0, 'no handover button on a private task');
+  const audit = (await ws()).audit.some((e) => e.subject === 'Revise for the networks quiz');
+  must(!audit, 'private task left no trace in the family activity log');
+});
+
+await flow('handover: someone else’s task with a clash → I take it → chat is told', async () => {
+  // t7 is tomorrow morning and clashes with Rafid’s lab, so this holds at any time of day.
+  await go('/tasks/t7/resolve');
+  await shot('f5-a-clash');
+  await click(btn('See who can take it'));
+  await p.waitForURL(/\/priority\/requests\//);
+  await expectText(/Afsara|Me/, 'me among the candidates');
+  await shot('f5-b-candidates');
+  await click(p.getByRole('link', { name: /I’ll take it/ }).or(btn(/I’ll take it/)));
+  await p.waitForURL(/\/approve\//);
+  await shot('f5-c-confirm');
+  const ack = p.getByRole('checkbox');
+  if (await ack.count()) await ack.first().check();
+  await click(btn(/Confirm handover|Hand over|Confirm/));
+  await p.waitForURL(/\/done$/);
+  const w = await ws();
+  must(w.tasks.find((t) => t.id === 't7').assigneeId === ME, 'task now mine');
+  must(
+    w.messages.some((m) => m.kind === 'system' && /took over “Take Grandma to her heart check-up”/.test(m.text)),
+    'system line in the family chat',
+  );
+  await go('/chat');
+  await expectText(/Afsara took over/, 'the handover line in the chat');
+});
+
+await flow('I can’t make it: shared task gets a handover request, private one is left to me', async () => {
   await go('/schedule/unavailable');
-  await shot('f7-a-form');
-  await click(btn(/report|save|submit/i).last());
+  await click(p.getByText('The rest of today', { exact: false }));
+  await click(btn('Feeling unwell'));
+  await shot('f6-a-cant-make-it');
+  await click(btn(/Tell my family/));
   await settle();
-  await shot('f7-b-after');
-  if (/\/schedule\/unavailable$/.test(p.url())) await expectText(/required|choose|enter|must/i, 'validation or navigation');
+  const w = await ws();
+  const mine = w.unavailability.filter((u) => u.memberId === ME);
+  must(mine.length === 1, 'time away stored');
+  const open = w.reassignments.filter((r) => r.status === 'open' && r.fromMemberId === ME);
+  const sharedToday = w.tasks.filter(
+    (t) => t.assigneeId === ME && t.status === 'scheduled' && t.visibility === 'family' && new Date(t.start) > new Date() && new Date(t.start).toDateString() === new Date().toDateString(),
+  );
+  must(open.length === sharedToday.length, `a request per shared task left today (${open.length} vs ${sharedToday.length})`);
+  must(!w.reassignments.some((r) => w.tasks.find((t) => t.id === r.taskId)?.visibility === 'private'), 'no request for a private task');
 });
 
-await flow('family: invite (validation) → member edit → access toggle → remove', async () => {
-  await go('/family');
-  await shot('f8-a-family');
-  await click(btn('Invite member'));
-  await click(p.getByRole('dialog').getByRole('button', { name: 'Send invitation' }));
-  await expectText(/Name is required/);
-  await p
-    .getByRole('dialog')
-    .getByLabel(/^Full name/)
-    .fill('Casey Test');
-  await p
-    .getByRole('dialog')
-    .getByLabel(/^Email/)
-    .fill('casey@example.com');
-  await click(p.getByRole('dialog').getByRole('button', { name: 'Send invitation' }));
-  await expectText(/Casey Test/);
-  await click(link(/Casey Test/));
-  await p.waitForURL(/\/family\/[^/]+$/);
-  await shot('f8-b-member');
-  await click(btn('Edit profile'));
-  await p
-    .getByRole('dialog')
-    .getByLabel(/^Household focus/)
-    .fill('Weekend drives');
-  await click(p.getByRole('dialog').getByRole('button', { name: /Driving/ }));
-  await click(p.getByRole('dialog').getByRole('button', { name: 'Save' }));
-  await expectText(/Weekend drives/);
-  await click(p.getByRole('tab', { name: 'Access' }));
-  await click(p.getByRole('switch', { name: /Documents/ }));
-  await expectText(/Access updated/);
-  await shot('f8-c-access');
-  await click(btn('Remove'));
-  await click(p.getByRole('dialog').getByRole('button', { name: 'Remove' }));
-  await p.waitForURL(/\/family$/);
-  await settle();
-  if (await p.getByRole('link', { name: /Casey Test/ }).count()) throw new Error('member still listed after removal');
-});
-
-await flow('family: roster export downloads CSV', async () => {
-  await go('/family');
-  const [dl] = await Promise.all([p.waitForEvent('download'), btn('Export roster').click()]);
-  const path = await dl.path();
-  const csv = fs.readFileSync(path, 'utf8');
-  if (!/^"Name","Relationship"/.test(csv) || csv.split('\r\n').length < 3) throw new Error('unexpected CSV: ' + csv.slice(0, 80));
-});
-
-await flow('notifications: mark one + all read, dismiss', async () => {
-  await go('/notifications');
-  await shot('f9-a-notifications');
-  const before = await p.getByRole('button', { name: 'Dismiss' }).count();
-  await click(btn('Dismiss'));
-  const after = await p.getByRole('button', { name: 'Dismiss' }).count();
-  if (after !== before - 1) throw new Error(`dismiss ${before} → ${after}`);
-  if (await btn('Mark all as read').isEnabled()) await click(btn('Mark all as read'));
-  if (await p.getByRole('button', { name: 'Mark as read' }).count()) throw new Error('unread items remain');
-  const badge = await p
-    .getByRole('link', { name: /Notifications/ })
-    .first()
-    .textContent();
-  await shot('f9-b-read');
-  if (/\d/.test(badge ?? '')) throw new Error('topbar still shows unread count: ' + badge);
-});
-
-await flow('activity: filters + export', async () => {
-  await go('/activity');
-  await shot('f10-activity');
-  await click(p.getByRole('button', { name: 'Circle', exact: true }));
-  await p.getByLabel('Time period').selectOption('all');
-  await settle();
-  await expectText(/event/);
-  const [dl] = await Promise.all([p.waitForEvent('download'), btn('Export CSV').click()]);
-  if (!/activity\.csv$/.test(dl.suggestedFilename())) throw new Error(dl.suggestedFilename());
-});
-
-await flow('settings: profile validation + save updates the shell', async () => {
-  await go('/settings');
-  await p.getByLabel(/^Email/).fill('not-an-email');
-  await click(btn('Save profile'));
-  await expectText(/valid email/);
-  await p.getByLabel(/^Email/).fill('afsara@example.com');
-  await p.getByLabel(/^Full name/).fill('Afsara M. Test');
-  await p.getByLabel(/^About you/).fill('Keeping the week organised.');
-  await click(btn('Save profile'));
-  await expectText(/Profile saved/);
-  await go('/dashboard');
-  await expectText(/Afsara M\. Test/, 'new name in the shell after reload');
-  await go('/settings');
-  await click(p.getByRole('tab', { name: 'Family' }));
-  await click(btn('Edit'));
-  await p
-    .getByRole('dialog')
-    .getByLabel(/^Family name/)
-    .fill('');
-  await click(p.getByRole('dialog').getByRole('button', { name: 'Save changes' }));
-  await expectText(/Family name is required/);
-  await p.keyboard.press('Escape');
-  await shot('f11-settings');
-});
-
-await flow('caregraph: open a node from the graph', async () => {
-  await go('/caregraph');
-  await click(btn(/^Caregiver/).first());
-  await click(p.locator('a[href^="/caregraph/"]').filter({ hasText: /details|open|view/i }));
-  await p.waitForURL(/\/caregraph\/.+/);
-  if (/no longer in the CareGraph/.test(await text())) throw new Error('entity page could not resolve node');
-  await shot('f12-entity');
-});
-
-await flow('keyboard: skip link + dialog focus trap/escape', async () => {
-  await go('/family');
-  await p.keyboard.press('Tab');
-  const first = await p.evaluate(() => document.activeElement?.textContent?.trim());
-  if (!/skip/i.test(first ?? '')) throw new Error('first tab stop is not the skip link: ' + first);
-  await btn('Invite member').focus();
+await flow('family chat: send a message, unread badge clears', async () => {
+  await go('/chat');
+  await p.getByRole('textbox').fill('I can do the school run this week.');
   await p.keyboard.press('Enter');
-  await p.waitForTimeout(200);
-  const inDialog = await p.evaluate(() => Boolean(document.activeElement?.closest('dialog[open]')));
-  if (!inDialog) throw new Error('focus did not move into the dialog');
-  await p.keyboard.press('Escape');
-  await p.waitForTimeout(200);
-  const open = await p.evaluate(() => Boolean(document.querySelector('dialog[open]')));
-  if (open) throw new Error('Escape did not close the dialog');
+  await expectText(/I can do the school run this week\./, 'my message in the log');
+  must(
+    (await ws()).messages.some((m) => m.text === 'I can do the school run this week.' && m.authorId === ME && m.channel === 'family'),
+    'message stored',
+  );
+  await go('/today');
+  must((await p.getByRole('link', { name: /Family chat, \d+ unread/ }).count()) === 0, 'no unread badge after reading');
+});
+
+await flow('task comments', async () => {
+  await go('/tasks/t5');
+  await p.getByLabel('Write a comment').fill('We are out of lentils, I will bring some.');
+  await click(btn('Send'));
+  await expectText(/We are out of lentils/, 'the comment');
+  must(
+    (await ws()).messages.some((m) => m.channel === 'task:t5' && /lentils/.test(m.text)),
+    'comment stored in the task thread',
+  );
+});
+
+await flow('health notes → food suggestions → shopping list (private notes stay unnamed)', async () => {
+  await go(`/health/${ME}`);
+  await p.getByRole('checkbox', { name: /Weak bones or low calcium/ }).check();
+  await shot('f9-a-health-notes');
+  await click(btn('Save', { exact: true }));
+  await p.waitForURL(/\/health$/);
+  must((await ws()).health.find((h) => h.personId === ME).conditions.includes('weak-bones'), 'condition saved');
+  await go(`/health/suggestions`);
+  await expectText(/Sesame seeds/, 'a calcium food in the suggestions');
+  const card = p.getByRole('heading', { name: /Sesame seeds/ }).locator('xpath=ancestor::*[.//button][1]');
+  await shot('f9-b-suggestions');
+  await click(card.getByRole('button', { name: /Add to shopping list/ }));
+  const item = (await ws()).groceries.find((g) => g.foodId === 'sesame');
+  must(item, 'sesame on the shopping list');
+  must(!item.forIds.includes(ME), 'my name is not attached because my notes are private');
+  must(/Calcium|Iron|Magnesium/.test(item.reason ?? ''), 'reason kept as a food tag, not a condition: ' + item.reason);
+  await go('/groceries');
+  await expectText(/Sesame seeds/, 'the item on the list');
+  await shot('f9-c-shopping-list');
+});
+
+await flow('shopping list: add an item and turn the list into a task', async () => {
+  await go('/groceries');
+  await p.getByLabel(/^Name\*?$/).fill('Toothpaste');
+  await click(btn('Add', { exact: true }));
+  await expectText(/Toothpaste/, 'the custom item');
+  await click(btn('Turn into a shopping task'));
+  await click(p.getByRole('dialog').getByRole('button', { name: /Create|Add|Make/ }));
+  await p.waitForURL(/\/tasks\/t-/);
+  const t = (await ws()).tasks.find((x) => /^Shopping \(/.test(x.title));
+  must(t && t.category === 'errands' && t.visibility === 'family' && /Toothpaste/.test(t.notes), 'shopping task created with the items');
+});
+
+await flow('people we look after: add and remove', async () => {
+  await go('/family');
+  await click(btn('Add someone'));
+  const d = p.getByRole('dialog');
+  await d.getByLabel(/^Name\*?$/).fill('Nana Karim');
+  await d.getByLabel(/Relation/).fill('Grandfather');
+  await click(d.getByRole('button', { name: /^(Add|Save)/ }));
+  await expectText(/Nana Karim/, 'the new person');
+  must(
+    (await ws()).family.dependants.some((x) => x.name === 'Nana Karim'),
+    'dependant stored',
+  );
+  await click(btn('Remove Nana Karim'));
+  await click(p.getByRole('dialog').getByRole('button', { name: /Remove/ }));
+  await settle();
+  must(!(await ws()).family.dependants.some((x) => x.name === 'Nana Karim'), 'dependant removed');
+});
+
+await flow('appointment for someone we look after, with someone going along', async () => {
+  await go('/appointments/new');
+  await p.getByLabel('What is the visit?').fill('Eye test');
+  await p.getByLabel('Who is it for?').selectOption('dep-rahima');
+  await p.getByLabel('Doctor or clinic').fill('Vision Care');
+  await p.getByLabel(/^Date\*?$/).fill(dateInput(daysAhead(6)));
+  await p.getByLabel(/^Time\*?$/).fill('11:00');
+  await p.getByLabel('Who is going along?').selectOption(ME);
+  await click(btn('Add appointment'));
+  await p.waitForURL(/\/appointments\/a-/);
+  const a = (await ws()).appointments.find((x) => x.title === 'Eye test');
+  must(a.forId === 'dep-rahima' && a.escortId === ME && a.visibility === 'family', 'stored for Rahima with me going along');
+  await expectText(/Rahima/, 'who it is for');
+  await go('/schedule');
+  await p
+    .getByRole('button', { name: /Next week/ })
+    .click()
+    .catch(() => {});
+});
+
+await flow('documents: upload about a person, only me', async () => {
+  await go('/documents');
+  await p.setInputFiles('input[type=file]', { name: 'x-ray.pdf', mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.4 test') });
+  const d = p.getByRole('dialog');
+  await d.waitFor();
+  await d.getByLabel(/Who is it about/).selectOption('dep-ayaan');
+  await d.getByText('Only me', { exact: true }).click();
+  await shot('f12-upload');
+  await click(d.getByRole('button', { name: /Upload|Save|Add/ }));
+  const doc = (await ws()).documents.find((x) => x.fileName === 'x-ray.pdf');
+  must(doc && doc.ownerId === 'dep-ayaan' && doc.access === 'restricted' && doc.allowedIds.length === 1 && doc.allowedIds[0] === ME, 'stored about Ayaan, restricted to me');
+});
+
+await flow('display: larger text scales the whole page', async () => {
+  await go('/settings');
+  await click(p.getByRole('tab', { name: 'Display' }));
+  const before = await p.evaluate(() => parseFloat(getComputedStyle(document.documentElement).fontSize));
+  await p.getByText('Extra large', { exact: true }).click();
+  await settle();
+  const after = await p.evaluate(() => parseFloat(getComputedStyle(document.documentElement).fontSize));
+  must(after === before * 1.25, `root font size ${before} → ${after}`);
+  await shot('f13-a-extra-large');
+  await p.getByRole('switch', { name: /Stronger contrast/ }).click();
+  must((await p.evaluate(() => document.documentElement.dataset.contrast)) === 'high', 'contrast attribute set');
+  await go('/today');
+  await shot('f13-b-my-day-large-contrast');
+  await go('/settings');
+  await click(p.getByRole('tab', { name: 'Display' }));
+  await p.getByText('Standard', { exact: true }).click();
+  await p.getByRole('switch', { name: /Stronger contrast/ }).click();
+});
+
+await flow('reminder: a task starting soon raises a notification', async () => {
+  const soon = new Date(Date.now() + 9 * 60_000);
+  await go('/tasks/new');
+  await p.getByLabel('Task title').fill('Call the pharmacy');
+  await click(btn('Other', { exact: true }));
+  await p.getByLabel(/^Date\*?$/).fill(dateInput(soon));
+  await p.getByLabel(/^Time\*?$/).fill(`${pad(soon.getHours())}:${pad(soon.getMinutes())}`);
+  await click(btn(/Optional details/));
+  await p.getByLabel('Remind me 15 minutes before').check();
+  await click(btn('Add task'));
+  await p.waitForURL(/\/tasks\/t-/);
+  await p.reload();
+  await settle();
+  await p.waitForFunction(() => JSON.parse(localStorage.getItem('hearth.workspace.v3')).notifications.some((n) => n.type === 'reminder' && /Call the pharmacy/.test(n.message)), null, {
+    timeout: 8000,
+  });
+  await go('/notifications');
+  await expectText(/Call the pharmacy/, 'the reminder in notifications');
+});
+
+await flow('what-if planner still works and never offers a private task to others', async () => {
+  await go('/what-if?task=t7');
+  await expectText(/What-if planner/);
+  await go('/what-if?task=t9');
+  await expectText(/private|Only you|stay with you/i, 'a note that the private task cannot be given away');
 });
 
 await flow('sign out → protected deep link → sign-in with next', async () => {
@@ -324,8 +361,8 @@ await flow('sign out → protected deep link → sign-in with next', async () =>
   await go('/tasks');
   if (!/\/sign-in\?next=%2Ftasks/.test(p.url())) throw new Error('not redirected with next: ' + p.url());
   await go('/sign-in?next=https://evil.example');
-  await click(btn('Explore with sample data'));
-  await p.waitForURL(/\/dashboard/);
+  await click(btn('Explore with a sample family'));
+  await p.waitForURL(/\/today/);
 });
 
 await b.close();

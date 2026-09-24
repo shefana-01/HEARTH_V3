@@ -1,5 +1,5 @@
 import { Link, useParams } from 'react-router-dom';
-import { ArrowLeft, Info, Send, ShieldCheck, Sparkles, CircleCheckBig } from 'lucide-react';
+import { ArrowLeft, CircleCheckBig, Hand, Info, Send, ShieldCheck, Sparkles } from 'lucide-react';
 import { useFamily } from '@/app/FamilyProvider';
 import { taskService } from '@/services/tasks/taskService';
 import { useAsync } from '@/hooks/useAsync';
@@ -8,15 +8,16 @@ import { formatTime, isSameDay } from '@/lib/dates';
 import { cn } from '@/lib/cn';
 import { SKILLS } from '@/constants/labels';
 import { ActionBar, Avatar, Badge, ButtonLink, Card, CardHeader, EmptyState, ErrorState, PageHeader, PageSkeleton } from '@/components/ui';
-import { ScorePill, SuitabilityBreakdown } from '@/components/domain/Scores';
+import { ScorePill } from '@/components/domain/Scores';
+import { SuitabilityFactors } from './FactorBars';
 import { fitLabel, riskOf, useRequest } from './shared';
 
 export default function CandidatePage() {
   const { memberId = '' } = useParams();
   const req = useRequest();
-  const { memberById, nameOf, family } = useFamily();
+  const { memberById, nameOf, personName, me } = useFamily();
   const member = memberById(memberId);
-  useDocumentTitle(member ? `Candidate: ${member.name}` : 'Candidate');
+  useDocumentTitle(member ? `Could ${member.name.split(' ')[0]} take it?` : 'Who can take it?');
   const theirTasks = useAsync(() => taskService.listTasks({ assigneeId: memberId }), [memberId]);
 
   if (req.status === 'loading' && !req.data) return <PageSkeleton />;
@@ -26,32 +27,27 @@ export default function CandidatePage() {
   const index = candidates.findIndex((c) => c.memberId === memberId);
   const c = candidates[index];
   if (!c || !member) {
-    return (
-      <EmptyState
-        icon={<Info aria-hidden="true" />}
-        title="This person isn’t a candidate for the task"
-        action={<ButtonLink to={`/priority/requests/${request.id}`}>Back to recommendations</ButtonLink>}
-      />
-    );
+    return <EmptyState icon={<Info aria-hidden="true" />} title="This person can’t take this task" action={<ButtonLink to={`/priority/requests/${request.id}`}>Back to who can take it</ButtonLink>} />;
   }
 
   const risk = riskOf(c);
+  const first = member.name.split(' ')[0];
+  const isMe = member.id === me?.id;
   const sameDay = (theirTasks.data ?? []).filter((t) => t.status === 'scheduled' && isSameDay(t.start, task.start));
 
   return (
     <>
       <PageHeader
-        breadcrumbs={[{ label: 'Priority center', to: '/priority' }, { label: 'Recommendations', to: `/priority/requests/${request.id}` }, { label: member.name }]}
-        eyebrow="Hand-off intelligence"
-        title="Candidate profile"
-        description={`How well ${member.name} fits “${task.title}” for ${family?.recipient.name}.`}
+        breadcrumbs={[{ label: 'Handovers', to: '/priority' }, { label: 'Who can take it?', to: `/priority/requests/${request.id}` }, { label: member.name }]}
+        title={isMe ? 'Could I take it?' : `Could ${first} take it?`}
+        description={`How well ${isMe ? 'you fit' : `${member.name} fits`} “${task.title}”${task.forId ? ` for ${personName(task.forId)}` : ''}.`}
       />
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_22rem]">
         <div className="space-y-6">
           <Card>
             <div className="flex flex-wrap items-center gap-4">
-              <Avatar name={member.name} seed={member.id} size="xl" />
+              <Avatar name={member.name} seed={member.id} src={member.photo} size="xl" />
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <h2 className="font-display text-2xl">{member.name}</h2>
@@ -69,7 +65,7 @@ export default function CandidatePage() {
                 )}
               </div>
               <div className="text-center">
-                <p className="eyebrow">Suitability</p>
+                <p className="eyebrow">Match</p>
                 <p className="font-display text-4xl text-primary-700">{c.score}</p>
                 <p className="text-xs text-ink-subtle">out of 100</p>
               </div>
@@ -78,9 +74,13 @@ export default function CandidatePage() {
 
           <Card>
             <CardHeader
-              title={`Why Hearth suggests ${member.name.split(' ')[0]}`}
+              title={isMe ? 'Why Hearth suggests you' : `Why Hearth suggests ${first}`}
               icon={<Sparkles aria-hidden="true" className="h-5 w-5" />}
-              action={<Badge tone="primary">{c.reasons.length} match factors</Badge>}
+              action={
+                <Badge tone="primary">
+                  {c.reasons.length} {c.reasons.length === 1 ? 'reason' : 'reasons'}
+                </Badge>
+              }
             />
             <ul className="space-y-2.5">
               {c.reasons.map((r) => (
@@ -99,7 +99,7 @@ export default function CandidatePage() {
           </Card>
 
           <Card>
-            <CardHeader title="Schedule & workload impact" description={`${member.name.split(' ')[0]}’s day, with this task added.`} />
+            <CardHeader title="Their day with this task" description={`${isMe ? 'Your' : `${first}’s`} day, with this task added.`} />
             <ul className="space-y-2">
               {[...sameDay.map((t) => ({ id: t.id, title: t.title, start: t.start, target: false })), { id: 'target', title: task.title, start: task.start, target: true }]
                 .sort((a, b) => a.start.localeCompare(b.start))
@@ -117,7 +117,7 @@ export default function CandidatePage() {
                 <dd className="font-semibold text-ink">{c.tasksThatDay + 1} with this one</dd>
               </div>
               <div className="rounded-xl bg-surface-muted p-3">
-                <dt className="eyebrow">Conflicts</dt>
+                <dt className="eyebrow">Clashes</dt>
                 <dd className={cn('font-semibold', risk.tone === 'mint' ? 'text-mint-700' : 'text-red-600')}>{risk.note}</dd>
               </div>
               <div className="rounded-xl bg-surface-muted p-3">
@@ -130,11 +130,11 @@ export default function CandidatePage() {
 
         <aside className="space-y-4">
           <Card>
-            <CardHeader title="Score breakdown" />
-            <SuitabilityBreakdown candidate={c} />
+            <CardHeader title="How the match adds up" />
+            <SuitabilityFactors candidate={c} />
           </Card>
           <Card>
-            <CardHeader title="Candidate matrix" description="Everyone who could take this task." />
+            <CardHeader title="Everyone who could take it" />
             <ul className="space-y-2">
               {candidates.map((x) => (
                 <li key={x.memberId}>
@@ -145,14 +145,14 @@ export default function CandidatePage() {
                   >
                     <Avatar name={nameOf(x.memberId)} seed={x.memberId} size="sm" />
                     <span className="min-w-0 flex-1 truncate text-sm font-semibold text-ink">{nameOf(x.memberId)}</span>
-                    <ScorePill score={x.score} label="Suitability" />
+                    <ScorePill score={x.score} label="Match" />
                   </Link>
                 </li>
               ))}
             </ul>
             <p className="mt-3 flex items-start gap-2 text-xs text-ink-subtle">
               <ShieldCheck aria-hidden="true" className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-              Approving notifies both people and records the change in the activity history.
+              Confirming tells both people and the family chat, and adds a line to Activity.
             </p>
           </Card>
         </aside>
@@ -163,11 +163,15 @@ export default function CandidatePage() {
           Return to task
         </ButtonLink>
         <ActionBar className="flex-col-reverse">
-          <ButtonLink to={`/priority/requests/${request.id}`} variant="accent">
-            Choose another candidate
+          <ButtonLink to={`/priority/requests/${request.id}`} variant="secondary" className="h-11 lg:h-10">
+            Choose someone else
           </ButtonLink>
-          <ButtonLink to={`/priority/requests/${request.id}/approve/${member.id}`} rightIcon={<Send aria-hidden="true" className="h-4 w-4" />}>
-            Propose reassignment to {member.name.split(' ')[0]}
+          <ButtonLink
+            to={`/priority/requests/${request.id}/approve/${member.id}`}
+            className="h-11 lg:h-10"
+            rightIcon={isMe ? <Hand aria-hidden="true" className="h-4 w-4" /> : <Send aria-hidden="true" className="h-4 w-4" />}
+          >
+            {isMe ? 'I’ll take it' : `Hand over to ${first}`}
           </ButtonLink>
         </ActionBar>
       </div>
