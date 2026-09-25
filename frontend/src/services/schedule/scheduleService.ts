@@ -1,12 +1,12 @@
 /**
- * Family schedule, availability and unavailability —
- * task-service (schedule) and family-service (availability).
- *
+ * The week view, weekly availability and time away —
+ * decision-service (week), family-service (availability) and task-service (time away).
  */
 import { apiRequest, query } from '../api/client';
 import { config } from '../config';
-import { actorId, audit, db, fail, firstName, newId, notify, nowIso, persist, respond } from '../mockStore';
+import { actorId, audit, canSeeAppointment, canSeeTask, db, engineData, fail, firstName, newId, notify, nowIso, persist, personName, respond } from '../mockStore';
 import { detectConflicts, taskEnd } from '../decision/engine';
+import { expandEvents } from '@/lib/recurrence';
 import { formatDayTime, weekDays } from '@/lib/dates';
 import type { ReassignmentRequest, ScheduleEvent, Unavailability, WeeklyAvailability } from '@/types/domain';
 
@@ -19,8 +19,12 @@ export interface UnavailabilityInput {
 
 export interface UnavailabilityResult {
   unavailability: Unavailability;
+  /** Shared tasks that now need someone else. */
   affectedTaskIds: string[];
+  /** Handover requests opened for them. */
   requestIds: string[];
+  /** Private tasks in the same time: only their owner can move those. */
+  personalTaskIds: string[];
 }
 
 const MIN = 60_000;
@@ -34,7 +38,7 @@ const wait = (ms: number) => new Promise((resolve) => window.setTimeout(resolve,
 
 /**
  * The API saves the time away and publishes an event; the decision service
- * then opens a reassignment request per affected task. That takes a moment,
+ * then opens a handover request per affected task. That takes a moment,
  * so wait briefly (up to ~3 s) for the requests before answering.
  */
 async function reportToApi(input: UnavailabilityInput): Promise<UnavailabilityResult> {
@@ -50,7 +54,11 @@ async function reportToApi(input: UnavailabilityInput): Promise<UnavailabilityRe
 }
 
 export const scheduleService = {
-  /** Tasks, appointments and absences in the Monday-based week around `reference`. */
+  /**
+   * Everything in the Monday-based week around `reference`: tasks, appointments,
+   * personal events and time away. Other people's private items come back as
+   * plain "Busy" blocks.
+   */
   async getWeek(reference: Date): Promise<ScheduleEvent[]> {
     if (!config.useMocks) return weekFromApi(reference);
     const days = weekDays(reference);
@@ -60,33 +68,60 @@ export const scheduleService = {
       const t = new Date(iso).getTime();
       return t >= from && t < to;
     };
-    const conflicted = new Set(detectConflicts({ tasks: db.tasks, appointments: db.appointments, members: db.members, unavailability: db.unavailability }).map((c) => c.taskId));
+    const me = actorId();
+    const conflicted = new Set(detectConflicts(engineData()).map((c) => c.taskId));
+    const busy = (id: string, memberId: string | null, start: string, end: string): ScheduleEvent => ({ id, kind: 'busy', title: 'Busy', start, end, memberId });
 
     const events: ScheduleEvent[] = [
       ...db.tasks
         .filter((t) => t.status !== 'cancelled' && inRange(t.start))
-        .map<ScheduleEvent>((t) => ({
-          id: t.id,
-          kind: t.status === 'completed' ? 'completed' : conflicted.has(t.id) ? 'conflict' : 'task',
-          title: t.title,
-          subtitle: t.assigneeId ? firstName(t.assigneeId) : 'Unassigned',
-          start: t.start,
-          end: new Date(taskEnd(t)).toISOString(),
-          memberId: t.assigneeId,
-          href: `/tasks/${t.id}`,
-        })),
+        .map<ScheduleEvent>((t) => {
+          const end = new Date(taskEnd(t)).toISOString();
+          if (!canSeeTask(t)) return busy(t.id, t.assigneeId, t.start, end);
+          return {
+            id: t.id,
+            kind: t.status === 'completed' ? 'completed' : conflicted.has(t.id) ? 'conflict' : 'task',
+            title: t.title,
+            subtitle: t.visibility === 'private' ? 'Private' : t.assigneeId ? firstName(t.assigneeId) : 'Needs someone',
+            start: t.start,
+            end,
+            memberId: t.assigneeId,
+            href: `/tasks/${t.id}`,
+          };
+        }),
       ...db.appointments
         .filter((a) => inRange(a.start))
-        .map<ScheduleEvent>((a) => ({
-          id: a.id,
-          kind: 'appointment',
-          title: a.title,
-          subtitle: a.provider,
-          start: a.start,
-          end: new Date(new Date(a.start).getTime() + a.durationMin * MIN).toISOString(),
-          memberId: a.escortId,
-          href: `/appointments/${a.id}`,
-        })),
+        .map<ScheduleEvent>((a) => {
+          const end = new Date(new Date(a.start).getTime() + a.durationMin * MIN).toISOString();
+          const attendee = db.members.some((m) => m.id === a.forId) ? a.forId : null;
+          const memberId = attendee ?? a.escortId;
+          if (!canSeeAppointment(a)) return busy(a.id, memberId, a.start, end);
+          return {
+            id: a.id,
+            kind: 'appointment',
+            title: a.title,
+            subtitle: `For ${personName(a.forId).split(' ')[0]}${a.provider ? ` · ${a.provider}` : ''}`,
+            start: a.start,
+            end,
+            memberId,
+            alsoMemberId: attendee && a.escortId && a.escortId !== attendee ? a.escortId : undefined,
+            href: `/appointments/${a.id}`,
+          };
+        }),
+      ...expandEvents(db.events, from, to).map<ScheduleEvent>((b) =>
+        b.hidden && b.memberId !== me
+          ? busy(b.id, b.memberId, b.start, b.end)
+          : {
+              id: b.id,
+              kind: 'event',
+              title: b.label,
+              subtitle: firstName(b.memberId),
+              start: b.start,
+              end: b.end,
+              memberId: b.memberId,
+              href: b.memberId === me ? `/schedule/events/${b.eventId}` : undefined,
+            },
+      ),
       ...db.unavailability
         .filter((u) => inRange(u.start))
         .map<ScheduleEvent>((u) => ({
@@ -99,7 +134,7 @@ export const scheduleService = {
           memberId: u.memberId,
         })),
     ];
-    return respond(events.sort((a, b) => a.start.localeCompare(b.start)));
+    return respond(events.sort((a, b) => a.start.localeCompare(b.start) || a.id.localeCompare(b.id)));
   },
 
   async getAvailability(memberId: string): Promise<WeeklyAvailability> {
@@ -131,8 +166,8 @@ export const scheduleService = {
   },
 
   /**
-   * Report time the signed-in member can't cover. Every scheduled task of
-   * theirs in that range gets an open reassignment request.
+   * Tell the family about time the signed-in person can't cover. Every shared
+   * task of theirs in that range gets an open handover request.
    */
   async reportUnavailability(input: UnavailabilityInput): Promise<UnavailabilityResult> {
     if (!config.useMocks) return reportToApi(input);
@@ -144,7 +179,8 @@ export const scheduleService = {
     const unavailability: Unavailability = { id: newId('u'), memberId, start: input.start, end: input.end, reason: input.reason, note: input.note.trim(), createdAt: nowIso() };
     db.unavailability.push(unavailability);
 
-    const affected = db.tasks.filter((t) => t.assigneeId === memberId && t.status === 'scheduled' && new Date(t.start).getTime() < end && taskEnd(t) > start);
+    const inWindow = db.tasks.filter((t) => t.assigneeId === memberId && t.status === 'scheduled' && new Date(t.start).getTime() < end && taskEnd(t) > start);
+    const affected = inWindow.filter((t) => t.visibility === 'family');
     const requestIds = affected.map((task) => {
       const existing = db.reassignments.find((r) => r.taskId === task.id && r.status === 'open');
       if (existing) return existing.id;
@@ -162,13 +198,13 @@ export const scheduleService = {
       return request.id;
     });
 
-    audit({ category: 'schedule', action: 'Reported unavailability', subject: `${formatDayTime(input.start)} – ${formatDayTime(input.end)}`, after: input.reason || undefined });
+    audit({ category: 'schedule', action: 'Reported time away', subject: `${formatDayTime(input.start)} – ${formatDayTime(input.end)}`, after: input.reason || undefined });
     notify({
       type: 'availability',
-      message: `${firstName(memberId)} reported being unavailable${affected.length ? ` — ${affected.length} task(s) need a new caregiver` : ''}.`,
+      message: `${firstName(memberId)} can’t make it ${formatDayTime(input.start)} – ${formatDayTime(input.end)}${affected.length ? ` — ${affected.length} task${affected.length === 1 ? ' needs' : 's need'} someone else` : ''}.`,
       href: '/priority',
     });
     persist();
-    return respond({ unavailability, affectedTaskIds: affected.map((t) => t.id), requestIds });
+    return respond({ unavailability, affectedTaskIds: affected.map((t) => t.id), requestIds, personalTaskIds: inWindow.filter((t) => t.visibility === 'private').map((t) => t.id) });
   },
 };

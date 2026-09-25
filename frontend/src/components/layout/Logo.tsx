@@ -19,7 +19,7 @@ export function Logo({ to = '/', subtitle, className }: { to?: string; subtitle?
       <LogoMark />
       <span className="flex flex-col leading-none">
         <span className="font-display text-xl font-semibold tracking-tight text-ink">Hearth</span>
-        {subtitle && <span className="mt-1 text-[11px] font-medium text-ink-subtle">{subtitle}</span>}
+        {subtitle && <span className="mt-1 text-[0.6875rem] font-medium text-ink-subtle">{subtitle}</span>}
       </span>
     </Link>
   );

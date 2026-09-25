@@ -23,14 +23,16 @@ const config: Config = {
           muted: '#F2F7F5',
           sunken: '#E9F1EE',
         },
+        // Text and border colours are CSS variables (src/styles/index.css) so the
+        // high-contrast display setting can darken them in one place.
         line: {
-          DEFAULT: '#DDE7E3',
-          strong: '#C6D6D0',
+          DEFAULT: 'rgb(var(--line) / <alpha-value>)',
+          strong: 'rgb(var(--line-strong) / <alpha-value>)',
         },
         ink: {
-          DEFAULT: '#1D2A30',
-          muted: '#475860',
-          subtle: '#5E6F77',
+          DEFAULT: 'rgb(var(--ink) / <alpha-value>)',
+          muted: 'rgb(var(--ink-muted) / <alpha-value>)',
+          subtle: 'rgb(var(--ink-subtle) / <alpha-value>)',
           inverse: '#FFFFFF',
         },
         primary: {

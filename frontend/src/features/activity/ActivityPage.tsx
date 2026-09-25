@@ -75,7 +75,7 @@ export default function ActivityPage() {
       <PageHeader
         eyebrow={family?.name}
         title="Activity history"
-        description="A record of what changed in your circle, who changed it and when."
+        description="A record of what changed in your family, who changed it and when."
         actions={
           <Button variant="secondary" onClick={exportLog} disabled={!filtered.length} leftIcon={<Download aria-hidden="true" className="h-4 w-4" />}>
             Export CSV
@@ -138,7 +138,7 @@ export default function ActivityPage() {
         <EmptyState
           icon={<History aria-hidden="true" />}
           title={events.length ? 'No activity matches these filters' : 'No activity yet'}
-          description={events.length ? 'Try a longer time period or clear the filters.' : 'Changes to tasks, schedules and care records will be listed here.'}
+          description={events.length ? 'Try a longer time period or clear the filters.' : 'Changes to tasks, schedules, health notes and papers will be listed here.'}
           action={
             filtersActive && events.length ? (
               <Button
@@ -174,7 +174,7 @@ export default function ActivityPage() {
                       <li key={e.id} className="flex gap-3 p-4 sm:gap-4">
                         <Avatar name={nameOf(e.actorId)} size="sm" className="mt-0.5" />
                         <div className="min-w-0 flex-1">
-                          <p className="text-[15px] text-ink">
+                          <p className="text-[0.9375rem] text-ink">
                             <span className="font-semibold">{nameOf(e.actorId)}</span> {e.action.charAt(0).toLowerCase() + e.action.slice(1)}
                             {e.subject && (
                               <>
@@ -189,7 +189,7 @@ export default function ActivityPage() {
                           </p>
                           {hasChange && (
                             <details className="group mt-2">
-                              <summary className="cursor-pointer text-[13px] font-semibold text-primary-700">Change details</summary>
+                              <summary className="cursor-pointer text-[0.8125rem] font-semibold text-primary-700">Change details</summary>
                               <div className="mt-2 grid gap-2 sm:grid-cols-[1fr_auto_1fr] sm:items-center">
                                 <div className={cn('rounded-xl px-3 py-2 text-sm', e.before ? 'bg-surface-sunken text-ink-muted' : 'bg-surface-muted text-ink-subtle')}>
                                   <span className="eyebrow block">Before</span>

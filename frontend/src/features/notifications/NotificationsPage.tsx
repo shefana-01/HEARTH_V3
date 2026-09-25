@@ -75,7 +75,7 @@ export default function NotificationsPage() {
                     <Icon aria-hidden="true" className="h-4 w-4" />
                   </span>
                   <div className="min-w-0 flex-1">
-                    <p className={cn('text-[15px]', n.read ? 'text-ink-muted' : 'font-semibold text-ink')}>
+                    <p className={cn('text-[0.9375rem]', n.read ? 'text-ink-muted' : 'font-semibold text-ink')}>
                       {!n.read && <span className="sr-only">Unread: </span>}
                       {n.message}
                     </p>
@@ -113,7 +113,7 @@ export default function NotificationsPage() {
       <PageHeader
         eyebrow={family?.name}
         title="Notifications"
-        description="Updates from your circle — changes, conflicts and things that need a hand."
+        description="Updates from your family: handovers, clashes, reminders and things that need a hand."
         meta={unread > 0 ? <Badge tone="primary">{unread} unread</Badge> : undefined}
         actions={
           <Button variant="secondary" onClick={onMarkAll} loading={markAll.pending} disabled={!unread} leftIcon={<CheckCheck aria-hidden="true" className="h-4 w-4" />}>
@@ -156,7 +156,7 @@ export default function NotificationsPage() {
             <EmptyState
               icon={<BellOff aria-hidden="true" />}
               title={items.length ? 'You’re all caught up' : 'No notifications yet'}
-              description={items.length ? 'Nothing matches this view.' : 'When tasks change hands, conflicts appear or someone reports time away, you’ll see it here.'}
+              description={items.length ? 'Nothing matches this view.' : 'When a task is handed over, a clash comes up or someone says they can’t make it, you’ll see it here.'}
             />
           ) : (
             <>
