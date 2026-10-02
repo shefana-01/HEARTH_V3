@@ -1,47 +1,33 @@
 package com.hearth.task.api;
 
 import com.hearth.task.application.TaskService;
-import com.hearth.task.dto.TaskDtos.*;
-import jakarta.validation.Valid;
+import com.hearth.task.domain.Task;
+import com.hearth.task.dto.TaskDtos;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
 import java.util.List;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/tasks")
+@RequestMapping("/api/v1/tasks")
 @RequiredArgsConstructor
 public class TaskController {
-
     private final TaskService taskService;
 
-    @PostMapping
-    public ResponseEntity<TaskResponse> createTask(
-            @Valid @RequestBody CreateTaskRequest request,
-            @RequestHeader(value = "X-User-Id", defaultValue = "00000000-0000-0000-0000-000000000001") UUID userId) {
-        return ResponseEntity.ok(taskService.createTask(request, userId));
+    @GetMapping
+    public List<Task> listTasks(@RequestHeader("X-Family-Id") UUID familyId,
+                                @RequestHeader("X-Member-Id") UUID memberId) {
+        return taskService.listVisibleTasks(familyId, memberId);
     }
 
-    @GetMapping("/family/{familyId}")
-    public ResponseEntity<List<TaskResponse>> getFamilyTasks(@PathVariable UUID familyId) {
-        return ResponseEntity.ok(taskService.getFamilyTasks(familyId));
-    }
-
-    @PostMapping("/{taskId}/assign")
-    public ResponseEntity<TaskResponse> assignTask(
-            @PathVariable UUID taskId,
-            @Valid @RequestBody AssignTaskRequest request) {
-        return ResponseEntity.ok(taskService.assignTask(taskId, request.getMemberId()));
-    }
-
-    @PostMapping("/{taskId}/unavailability")
-    public ResponseEntity<TaskResponse> reportUnavailability(
-            @PathVariable UUID taskId,
-            @RequestHeader(value = "X-Member-Id", defaultValue = "00000000-0000-0000-0000-000000000001") UUID memberId,
-            @RequestBody(required = false) ReportUnavailabilityRequest request) {
-        String reason = request != null ? request.getReason() : "Member reported unavailable";
-        return ResponseEntity.ok(taskService.reportUnavailability(taskId, memberId, reason));
+    @GetMapping("/{id}")
+    public ResponseEntity<Task> getTask(@PathVariable UUID id,
+                                        @RequestHeader("X-Member-Id") UUID memberId) {
+        try {
+            return ResponseEntity.ok(taskService.getVisibleTask(id, memberId));
+        } catch (RuntimeException e) {
+            return ResponseEntity.notFound().build();
+        }
     }
 }
