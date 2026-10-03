@@ -1,33 +1,47 @@
 import {
   Activity,
+  AlarmClock,
+  Baby,
   Bell,
+  BookOpen,
+  Briefcase,
   Car,
   CalendarClock,
   CalendarX2,
   ArrowRightLeft,
-  Coffee,
-  Footprints,
+  Dumbbell,
+  GraduationCap,
   HeartHandshake,
+  Home,
   Pill,
+  Plane,
   Salad,
   ShoppingBasket,
   Sparkles,
   TriangleAlert,
+  UserRound,
   Users,
   type LucideIcon,
 } from 'lucide-react';
-import type { AuditCategory, DocumentCategory, MemberRole, NotificationType, NutritionTag, Skill, TaskCategory, TaskPriority, Tone } from '@/types/domain';
+import type { AuditCategory, DocumentCategory, EventKind, MemberRole, NotificationType, NutritionTag, Skill, TaskCategory, TaskPriority, Tone } from '@/types/domain';
 
 export const TASK_CATEGORIES: Record<TaskCategory, { label: string; icon: LucideIcon; tone: Tone }> = {
   medication: { label: 'Medication', icon: Pill, tone: 'rose' },
-  vitals: { label: 'Vitals & checks', icon: Activity, tone: 'rose' },
-  meals: { label: 'Meals & nutrition', icon: Salad, tone: 'mint' },
-  errands: { label: 'Errands & groceries', icon: ShoppingBasket, tone: 'amber' },
-  mobility: { label: 'Mobility & exercise', icon: Footprints, tone: 'mint' },
-  transport: { label: 'Transport & escort', icon: Car, tone: 'primary' },
-  companionship: { label: 'Companionship', icon: Coffee, tone: 'primary' },
-  other: { label: 'Other', icon: HeartHandshake, tone: 'neutral' },
+  health: { label: 'Health & check-ups', icon: Activity, tone: 'rose' },
+  meals: { label: 'Meals & cooking', icon: Salad, tone: 'mint' },
+  errands: { label: 'Errands & shopping', icon: ShoppingBasket, tone: 'amber' },
+  household: { label: 'Household', icon: Home, tone: 'amber' },
+  childcare: { label: 'Childcare', icon: Baby, tone: 'rose' },
+  transport: { label: 'Pick-up & drop-off', icon: Car, tone: 'primary' },
+  study: { label: 'Study', icon: BookOpen, tone: 'primary' },
+  work: { label: 'Work', icon: Briefcase, tone: 'primary' },
+  exercise: { label: 'Exercise & wellbeing', icon: Dumbbell, tone: 'mint' },
+  family: { label: 'Family time', icon: HeartHandshake, tone: 'mint' },
+  other: { label: 'Other', icon: Sparkles, tone: 'neutral' },
 };
+
+/** Categories that are usually a person's own business, so new tasks in them start as private. */
+export const PERSONAL_CATEGORIES: TaskCategory[] = ['study', 'work', 'exercise'];
 
 export const PRIORITIES: Record<TaskPriority, { label: string; tone: Tone }> = {
   routine: { label: 'Routine', tone: 'neutral' },
@@ -38,53 +52,86 @@ export const PRIORITIES: Record<TaskPriority, { label: string; tone: Tone }> = {
 export const SKILLS: Record<Skill, string> = {
   driving: 'Driving',
   medication: 'Medication',
-  errands: 'Errands',
-  meals: 'Meals',
-  mobility: 'Mobility help',
-  companionship: 'Companionship',
-  clinical: 'Clinical checks',
+  errands: 'Errands & shopping',
+  meals: 'Cooking',
+  household: 'Housework',
+  childcare: 'Looking after children',
+  mobility: 'Physical help',
+  companionship: 'Keeping company',
+  clinical: 'Health checks',
 };
 
 export const ROLES: Record<MemberRole, { label: string; description: string }> = {
-  lead: { label: 'Lead caregiver', description: 'Coordinates the circle and approves changes.' },
-  contributor: { label: 'Contributor', description: 'Takes on tasks and shares updates.' },
-  observer: { label: 'Observer', description: 'Receives updates only.' },
+  lead: { label: 'Organiser', description: 'Set up the family space. Can invite people and change who sees what.' },
+  contributor: { label: 'Member', description: 'Takes on tasks, shares their schedule and joins the family chat.' },
+  observer: { label: 'Follower', description: 'Sees updates but is not given tasks.' },
 };
 
-export const CARE_FOCUS_OPTIONS = ['Elderly parent care', 'Recovery after surgery or illness', 'Long-term condition support', 'Disability support', 'Child or teen care', 'General family wellbeing'];
+export const EVENT_KINDS: Record<EventKind, { label: string; icon: LucideIcon }> = {
+  class: { label: 'Class', icon: GraduationCap },
+  work: { label: 'Work', icon: Briefcase },
+  personal: { label: 'Personal', icon: UserRound },
+  travel: { label: 'Travel', icon: Plane },
+  other: { label: 'Other', icon: CalendarClock },
+};
 
-export const RELATION_SUGGESTIONS = ['Mother', 'Father', 'Grandmother', 'Grandfather', 'Daughter', 'Son', 'Sister', 'Brother', 'Spouse', 'Partner', 'Aunt', 'Uncle', 'Friend', 'Neighbour', 'Carer'];
+export const RELATION_SUGGESTIONS = [
+  'Mother',
+  'Father',
+  'Grandmother',
+  'Grandfather',
+  'Daughter',
+  'Son',
+  'Sister',
+  'Brother',
+  'Spouse',
+  'Partner',
+  'Aunt',
+  'Uncle',
+  'Cousin',
+  'Friend',
+  'Neighbour',
+  'Carer',
+];
 
-export const DOCUMENT_CATEGORIES: DocumentCategory[] = ['Clinical summary', 'Prescription', 'Care guideline', 'Lab result', 'Legal', 'Other'];
+export const DOCUMENT_CATEGORIES: DocumentCategory[] = ['Medical report', 'Prescription', 'Lab result', 'Insurance', 'ID & legal', 'School & work', 'Bills & receipts', 'Other'];
 
-export const UNAVAILABILITY_REASONS = ['Work', 'Travel', 'Feeling unwell', 'Family commitment', 'Other'];
+export const UNAVAILABILITY_REASONS = ['Class', 'Work', 'Travel', 'Feeling unwell', 'Family commitment', 'Other'];
+
+/** Quick picks for the status line. */
+export const STATUS_SUGGESTIONS = ['In class', 'At work', 'On my way home', 'Free to help', 'Resting', 'Out shopping'];
 
 export const NOTIFICATION_TYPES: Record<NotificationType, { label: string; icon: LucideIcon; tone: Tone }> = {
   task: { label: 'Task', icon: HeartHandshake, tone: 'primary' },
-  reassignment: { label: 'Reassignment', icon: ArrowRightLeft, tone: 'mint' },
-  conflict: { label: 'Conflict', icon: TriangleAlert, tone: 'red' },
+  reassignment: { label: 'Handover', icon: ArrowRightLeft, tone: 'mint' },
+  conflict: { label: 'Clash', icon: TriangleAlert, tone: 'red' },
   availability: { label: 'Availability', icon: CalendarX2, tone: 'amber' },
   appointment: { label: 'Appointment', icon: CalendarClock, tone: 'primary' },
-  nutrition: { label: 'Nutrition', icon: Salad, tone: 'mint' },
-  circle: { label: 'Circle', icon: Users, tone: 'rose' },
+  nutrition: { label: 'Health & food', icon: Salad, tone: 'mint' },
+  circle: { label: 'Family', icon: Users, tone: 'rose' },
+  reminder: { label: 'Reminder', icon: AlarmClock, tone: 'amber' },
 };
 
 export const AUDIT_CATEGORIES: Record<AuditCategory, { label: string; tone: Tone; icon: LucideIcon }> = {
   tasks: { label: 'Tasks', tone: 'primary', icon: HeartHandshake },
   schedule: { label: 'Schedule', tone: 'amber', icon: CalendarClock },
-  care: { label: 'Care records', tone: 'mint', icon: Sparkles },
-  circle: { label: 'Circle', tone: 'rose', icon: Bell },
+  care: { label: 'Health & records', tone: 'mint', icon: Sparkles },
+  circle: { label: 'Family', tone: 'rose', icon: Bell },
 };
 
 export const WEEKDAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
 export const NUTRITION_TAG_LABELS: Record<NutritionTag, string> = {
-  'low-sodium': 'Low sodium',
-  heart: 'Heart health',
+  iron: 'Iron',
+  'vitamin-c': 'Vitamin C',
+  calcium: 'Calcium',
+  magnesium: 'Magnesium',
+  'omega-3': 'Omega-3',
+  'low-sodium': 'Low salt',
+  heart: 'Heart-friendly',
   'low-glycemic': 'Steady energy',
   'high-fibre': 'High fibre',
   'high-protein': 'High protein',
-  'soft-texture': 'Soft texture',
-  iron: 'Iron',
+  'soft-texture': 'Soft & gentle',
   hydration: 'Hydration',
 };

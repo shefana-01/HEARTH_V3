@@ -4,7 +4,7 @@
  */
 import { apiRequest } from '../api/client';
 import { config } from '../config';
-import { db, persist, respond } from '../mockStore';
+import { actorId, db, persist, respond } from '../mockStore';
 import type { NotificationItem } from '@/types/domain';
 
 type Listener = (unread: number) => void;
@@ -15,7 +15,10 @@ let remoteUnread = 0;
 let pollTimer: number | undefined;
 const POLL_MS = 30_000;
 
-const unreadCount = () => (config.useMocks ? db.notifications.filter((n) => !n.read).length : remoteUnread);
+/** Family-wide notifications, plus the ones addressed to the signed-in person. */
+const mine = (n: NotificationItem) => !n.forId || n.forId === actorId();
+
+const unreadCount = () => (config.useMocks ? db.notifications.filter((n) => mine(n) && !n.read).length : remoteUnread);
 const emit = () => listeners.forEach((l) => l(unreadCount()));
 
 async function refreshFromApi(): Promise<void> {
@@ -35,7 +38,7 @@ export const notificationService = {
       emit();
       return items;
     }
-    return respond([...db.notifications].sort((a, b) => b.createdAt.localeCompare(a.createdAt)));
+    return respond(db.notifications.filter(mine).sort((a, b) => b.createdAt.localeCompare(a.createdAt)));
   },
 
   unreadCount,
@@ -79,7 +82,7 @@ export const notificationService = {
       await apiRequest<void>('/notifications/read-all', { method: 'POST' });
       return refreshFromApi();
     }
-    db.notifications.forEach((n) => (n.read = true));
+    db.notifications.filter(mine).forEach((n) => (n.read = true));
     persist();
     emit();
     return respond(undefined);

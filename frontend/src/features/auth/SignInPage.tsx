@@ -77,7 +77,7 @@ export default function SignInPage() {
     setErrors(next);
     if (next.email || next.password) return;
     const session = await run(form.email, form.password);
-    if (session) navigate(safeNext(params.get('next')) ?? (session.hasFamily ? '/dashboard' : '/onboarding'), { replace: true });
+    if (session) navigate(safeNext(params.get('next')) ?? (session.hasFamily ? '/today' : '/onboarding'), { replace: true });
   };
 
   return (
@@ -97,7 +97,7 @@ export default function SignInPage() {
             Welcome back
           </Badge>
           <h1 className="font-display text-3xl">Sign in to Hearth</h1>
-          <p className="mt-2 text-sm text-ink-muted">Coordinate care, schedules and daily support with your family.</p>
+          <p className="mt-2 text-sm text-ink-muted">Pick up your day and your family’s plans where you left them.</p>
         </div>
 
         <form onSubmit={onSubmit} noValidate className="space-y-4">

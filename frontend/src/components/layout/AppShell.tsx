@@ -1,13 +1,17 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { Link, NavLink, Outlet, useLocation, useMatches, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Bell, CalendarDays, CalendarX2, CircleCheckBig, Ellipsis, House, LogOut, Plus, Settings, Sparkles, UserRound, Users, X } from 'lucide-react';
+import { ArrowLeft, Bell, CalendarDays, CalendarX2, CircleCheckBig, Ellipsis, LogOut, MessagesSquare, Plus, Settings, Sparkles, Sun, UserRound, Users, X } from 'lucide-react';
 import { NAV_SECTIONS, type NavItem } from '@/constants/navigation';
+import { ROLES } from '@/constants/labels';
 import { isRouteMeta } from '@/app/routeMeta';
 import { useMinWidth } from '@/hooks/useMediaQuery';
 import { useAuth } from '@/app/AuthProvider';
 import { useFamily } from '@/app/FamilyProvider';
 import { EmailConfirmNotice } from '@/components/domain/EmailConfirmNotice';
 import { notificationService } from '@/services/notifications/notificationService';
+import { chatService } from '@/services/chat/chatService';
+import { useReminders } from '@/hooks/useReminders';
+import { plural } from '@/lib/format';
 import { cn } from '@/lib/cn';
 import { Avatar, ButtonLink, IconButton, Menu } from '@/components/ui';
 import { Logo } from './Logo';
@@ -45,7 +49,7 @@ function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
 }
 
 function SidebarFooter({ onNavigate }: { onNavigate?: () => void }) {
-  const { family } = useFamily();
+  const { family, people } = useFamily();
   return (
     <div className="space-y-2 border-t border-line p-3">
       <NavLink
@@ -60,8 +64,8 @@ function SidebarFooter({ onNavigate }: { onNavigate?: () => void }) {
       </NavLink>
       {family && (
         <div className="rounded-xl bg-mint-50 px-3 py-2.5">
-          <p className="truncate text-[13px] font-semibold text-mint-800">{family.name}</p>
-          <p className="truncate text-xs text-mint-700">Caring for {family.recipient.name}</p>
+          <p className="truncate text-[0.8125rem] font-semibold text-mint-800">{family.name}</p>
+          <p className="truncate text-xs text-mint-700">{plural(people.length, 'person', 'people')}</p>
         </div>
       )}
     </div>
@@ -79,6 +83,19 @@ function useUnreadCount() {
   return count;
 }
 
+function useUnreadChat() {
+  const location = useLocation();
+  const [count, setCount] = useState(() => chatService.unreadCount());
+  useEffect(() => {
+    setCount(chatService.unreadCount());
+    chatService.refresh();
+  }, [location]);
+  useEffect(() => chatService.subscribe(setCount), []);
+  return count;
+}
+
+const countBadge = 'absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[0.625rem] font-bold text-white';
+
 /** Metadata of the deepest matched route that declares itself a detail screen. */
 function useRouteMeta() {
   const matches = useMatches();
@@ -93,6 +110,7 @@ function Topbar({ meta }: { meta: ReturnType<typeof useRouteMeta> }) {
   const { me } = useFamily();
   const navigate = useNavigate();
   const unread = useUnreadCount();
+  const unreadChat = useUnreadChat();
   const name = me?.name ?? session?.account.name ?? '';
 
   return (
@@ -108,7 +126,7 @@ function Topbar({ meta }: { meta: ReturnType<typeof useRouteMeta> }) {
               <p className="truncate font-display text-lg text-ink">{meta.title}</p>
             </>
           ) : (
-            <Logo to="/dashboard" />
+            <Logo to="/today" />
           )}
         </div>
 
@@ -120,11 +138,23 @@ function Topbar({ meta }: { meta: ReturnType<typeof useRouteMeta> }) {
             </span>
           )}
           <ButtonLink to="/schedule/unavailable" variant="ghost" size="sm" className="hidden xl:inline-flex" leftIcon={<CalendarX2 aria-hidden="true" className="h-4 w-4" />}>
-            Report unavailability
+            I can’t make it
           </ButtonLink>
           <ButtonLink to="/tasks/new" size="sm" leftIcon={<Plus aria-hidden="true" className="h-4 w-4" />} className="hidden lg:inline-flex">
             New task
           </ButtonLink>
+          <NavLink
+            to="/chat"
+            aria-label={unreadChat ? `Family chat, ${unreadChat} unread` : 'Family chat'}
+            className="relative inline-flex h-10 w-10 items-center justify-center rounded-xl text-ink-muted hover:bg-surface-sunken hover:text-ink"
+          >
+            <MessagesSquare aria-hidden="true" className="h-5 w-5" />
+            {unreadChat > 0 && (
+              <span aria-hidden="true" className={countBadge}>
+                {unreadChat > 9 ? '9+' : unreadChat}
+              </span>
+            )}
+          </NavLink>
           <NavLink
             to="/notifications"
             aria-label={unread ? `Notifications, ${unread} unread` : 'Notifications'}
@@ -132,7 +162,7 @@ function Topbar({ meta }: { meta: ReturnType<typeof useRouteMeta> }) {
           >
             <Bell aria-hidden="true" className="h-5 w-5" />
             {unread > 0 && (
-              <span aria-hidden="true" className="absolute right-1.5 top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-bold text-white">
+              <span aria-hidden="true" className={countBadge}>
                 {unread > 9 ? '9+' : unread}
               </span>
             )}
@@ -154,7 +184,7 @@ function Topbar({ meta }: { meta: ReturnType<typeof useRouteMeta> }) {
                 <Avatar name={name || 'You'} seed={me?.id} src={me?.photo} size="sm" />
                 <span className="hidden text-left leading-tight lg:block">
                   <span className="block max-w-[10rem] truncate text-sm font-semibold text-ink">{name}</span>
-                  <span className="block text-xs text-ink-subtle">{me?.role === 'lead' ? 'Lead caregiver' : 'Caregiver'}</span>
+                  <span className="block max-w-[10rem] truncate text-xs text-ink-subtle">{me?.statusNote?.text || (me ? ROLES[me.role].label : '')}</span>
                 </span>
               </button>
             )}
@@ -166,7 +196,7 @@ function Topbar({ meta }: { meta: ReturnType<typeof useRouteMeta> }) {
 }
 
 const TABS: NavItem[] = [
-  { to: '/dashboard', label: 'Home', icon: House },
+  { to: '/today', label: 'My day', icon: Sun },
   { to: '/tasks', label: 'Tasks', icon: CircleCheckBig },
   { to: '/schedule', label: 'Schedule', icon: CalendarDays },
   { to: '/family', label: 'Family', icon: Users },
@@ -176,7 +206,7 @@ const TABS: NavItem[] = [
 function TabBar({ onMore, moreOpen }: { onMore: () => void; moreOpen: boolean }) {
   const { pathname } = useLocation();
   const inTabs = TABS.some((t) => pathname === t.to || pathname.startsWith(`${t.to}/`));
-  const item = 'flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-xl py-1.5 text-[11px] font-semibold transition-colors';
+  const item = 'flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-xl py-1.5 text-[0.6875rem] font-semibold transition-colors';
   return (
     <nav aria-label="Primary" className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-surface/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-md lg:hidden">
       <ul className="mx-auto flex h-16 max-w-xl items-stretch gap-1 px-2 py-1.5">
@@ -262,6 +292,7 @@ export function AppShell() {
   const meta = useRouteMeta();
   const hasTabBar = !meta;
   const closeMore = useCallback(() => setMoreOpen(false), []);
+  useReminders();
 
   useEffect(() => {
     setMoreOpen(false);
@@ -282,7 +313,7 @@ export function AppShell() {
 
         <aside className="fixed inset-y-0 left-0 z-40 hidden w-64 flex-col border-r border-line bg-surface-muted/70 lg:flex">
           <div className="px-5 pb-5 pt-5">
-            <Logo to="/dashboard" subtitle="Family care coordination" />
+            <Logo to="/today" subtitle="Your day, your family" />
           </div>
           <SidebarNav />
           <SidebarFooter />

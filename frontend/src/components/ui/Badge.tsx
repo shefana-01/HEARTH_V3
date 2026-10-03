@@ -33,7 +33,7 @@ export function Badge({ tone = 'neutral', dot, size = 'sm', className, children,
       {...rest}
     >
       {dot && <span aria-hidden="true" className={cn('h-1.5 w-1.5 shrink-0 rounded-full', dots[tone])} />}
-      <span className="truncate">{children}</span>
+      <span className="flex min-w-0 items-center gap-1 truncate">{children}</span>
     </span>
   );
 }

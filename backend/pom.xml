@@ -20,11 +20,13 @@
 
     <modules>
         <module>api-gateway</module>
+        <module>hearth-common</module>
         <module>services/family-service</module>
         <module>services/task-service</module>
         <module>services/decision-service</module>
         <module>services/care-service</module>
         <module>services/notification-service</module>
+        <module>services/audit-service</module>
     </modules>
 
     <properties>

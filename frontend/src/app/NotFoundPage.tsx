@@ -15,7 +15,7 @@ export default function NotFoundPage() {
         headingLevel="h1"
         title="We couldn’t find that page"
         description="The link may be out of date, or the page may have moved."
-        action={<ButtonLink to={session ? '/dashboard' : '/'}>{session ? 'Back to overview' : 'Back to home'}</ButtonLink>}
+        action={<ButtonLink to={session ? '/today' : '/'}>{session ? 'Back to My day' : 'Back to home'}</ButtonLink>}
       />
     </div>
   );

@@ -59,7 +59,7 @@ export function Tabs<T extends string>({
             )}
           >
             {item.label}
-            {item.count !== undefined && <span className={cn('rounded-full px-1.5 text-[11px] tabular-nums', selected ? 'bg-white/20' : 'bg-surface-sunken')}>{item.count}</span>}
+            {item.count !== undefined && <span className={cn('rounded-full px-1.5 text-[0.6875rem] tabular-nums', selected ? 'bg-white/20' : 'bg-surface-sunken')}>{item.count}</span>}
           </button>
         );
       })}

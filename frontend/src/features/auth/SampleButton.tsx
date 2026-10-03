@@ -5,8 +5,8 @@ import { useAuth } from '@/app/AuthProvider';
 import { isDemoMode } from '@/services/config';
 import { Button, useToast, type ButtonProps } from '@/components/ui';
 
-/** Loads the optional sample family and opens the dashboard. Only shown in the offline demo. */
-export function SampleButton({ children = 'Explore with sample data', ...props }: Omit<ButtonProps, 'onClick' | 'loading'>) {
+/** Loads the optional sample family and opens My day. Only shown in the offline demo. */
+export function SampleButton({ children = 'Explore with a sample family', ...props }: Omit<ButtonProps, 'onClick' | 'loading'>) {
   const { startSample } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -16,9 +16,9 @@ export function SampleButton({ children = 'Explore with sample data', ...props }
     setPending(true);
     try {
       await startSample();
-      navigate('/dashboard');
+      navigate('/today');
     } catch (e) {
-      toast({ tone: 'error', title: 'Sample data isn’t available', description: e instanceof Error ? e.message : undefined });
+      toast({ tone: 'error', title: 'The sample family isn’t available', description: e instanceof Error ? e.message : undefined });
     } finally {
       setPending(false);
     }

@@ -1,4 +1,4 @@
-// New-account crawl: signs up, completes onboarding, then visits every page with an empty family.
+// New-account crawl: signs up, completes onboarding, then visits every page of a family that has only just started.
 import { chromium } from 'playwright';
 import fs from 'node:fs';
 
@@ -72,32 +72,39 @@ for (const vp of ['desktop', 'mobile']) {
   await page.getByRole('button', { name: 'Begin' }).click();
   await page.getByRole('button', { name: 'Continue', exact: true }).click();
   await page.getByLabel('Family name').fill('The Rivera Family');
-  await page.getByLabel('Who are you caring for?').fill('Rosa Rivera');
-  await page.getByLabel('Their relationship to the family').fill('Grandmother');
-  for (let i = 0; i < 4; i++) {
-    const c = page.getByRole('button', { name: 'Continue', exact: true });
-    if (await c.count()) await c.click();
-    await page.waitForTimeout(150);
+  await page.getByRole('button', { name: 'Continue', exact: true }).click();
+  // Someone to look after, one regular commitment, nobody invited: the three optional steps.
+  await page.getByRole('button', { name: /Add someone/ }).click();
+  await page.getByLabel('Name').fill('Rosa Rivera');
+  await page.getByRole('button', { name: 'Continue', exact: true }).click();
+  await page.getByRole('button', { name: 'Add classes' }).click();
+  await page.getByRole('button', { name: 'Continue', exact: true }).click();
+  await page.getByRole('button', { name: 'Skip for now' }).click();
+  await page.getByRole('button', { name: 'Create family space & open My day' }).click();
+  await page.waitForURL('**/today');
+  const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('hearth.workspace.v3')));
+  if (saved.family.dependants.length !== 1 || saved.events.length !== 1 || saved.members.length !== 1) {
+    throw new Error(`onboarding saved the wrong things: ${saved.family.dependants.length} looked after, ${saved.events.length} events, ${saved.members.length} members`);
   }
-  await page.getByRole('button', { name: 'Create family & open dashboard' }).click();
-  await page.waitForURL('**/dashboard');
   const routes = [
-    '/dashboard',
+    '/today',
     '/tasks',
     '/tasks/new',
     '/schedule',
+    '/schedule/events/new',
     '/schedule/availability',
     '/schedule/unavailable',
+    '/health',
+    '/health/suggestions',
+    '/groceries',
+    '/family',
+    '/chat',
     '/priority',
     '/what-if',
     '/caregraph',
     '/appointments',
     '/appointments/new',
-    '/nutrition',
-    '/nutrition/recommendations',
-    '/nutrition/groceries',
     '/documents',
-    '/family',
     '/notifications',
     '/activity',
     '/settings',

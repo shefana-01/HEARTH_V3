@@ -30,7 +30,7 @@ export function RequireAuth({ children }: { children: ReactNode }) {
   return <>{children}</>;
 }
 
-/** Pages that need a family circle; new accounts are sent to onboarding first. */
+/** Pages that need a family space; new accounts are sent to onboarding first. */
 export function RequireFamily({ children }: { children: ReactNode }) {
   const { status, family } = useFamily();
   if (status === 'loading') return <FullPageLoader />;
@@ -43,6 +43,6 @@ export function RequireFamily({ children }: { children: ReactNode }) {
 export function RedirectIfAuthed({ children }: { children: ReactNode }) {
   const { status, session } = useAuth();
   if (status === 'loading') return <FullPageLoader />;
-  if (session) return <Navigate to={session.hasFamily ? '/dashboard' : '/onboarding'} replace />;
+  if (session) return <Navigate to={session.hasFamily ? '/today' : '/onboarding'} replace />;
   return <>{children}</>;
 }

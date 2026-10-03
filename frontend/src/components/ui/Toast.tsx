@@ -60,7 +60,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
               <Icon aria-hidden="true" className="lead mt-0.5 h-5 w-5 shrink-0" />
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-semibold text-ink">{t.title}</p>
-                {t.description && <p className="mt-0.5 text-[13px] text-ink-muted">{t.description}</p>}
+                {t.description && <p className="mt-0.5 text-[0.8125rem] text-ink-muted">{t.description}</p>}
               </div>
               <button type="button" onClick={() => dismiss(t.id)} aria-label="Dismiss notification" className="-m-1 rounded-lg p-1 text-ink-subtle hover:bg-surface-muted hover:text-ink">
                 <X aria-hidden="true" className="h-4 w-4" />

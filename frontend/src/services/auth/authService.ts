@@ -1,5 +1,5 @@
 /**
- * Authentication — family-service (which delegates passwords and tokens to its
+ * Signing in and out — family-service (which delegates passwords and tokens to its
  * identity provider: built-in by default, Keycloak optionally).
  *
  * With the API: signing in returns an access token and a refresh token, kept
@@ -114,11 +114,11 @@ export const authService = {
           name: account.name,
           relation: '',
           role: 'lead',
-          focus: 'Care coordination',
+          focus: '',
           email: account.email,
           status: 'active',
           skills: [],
-          availability: { days: [true, true, true, true, true, false, false], windows: [] },
+          availability: { days: [true, true, true, true, true, true, true], windows: [] },
           access: { schedule: true, medical: true, documents: true },
           joinedAt: nowIso(),
         },
@@ -127,7 +127,7 @@ export const authService = {
     return respond(sessionFor(account));
   },
 
-  /** Load the demo family and sign in as its lead caregiver. */
+  /** Load the demo family and sign in as its organiser. */
   async startSample(): Promise<Session> {
     if (!config.useMocks) throw new ApiError('The sample family is part of the offline demo. Create an account to use Hearth.', 501);
     if (db.account && !db.isSample) {

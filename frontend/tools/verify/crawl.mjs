@@ -19,6 +19,8 @@ async function check(page, errs, route, vp, label) {
   await page
     .waitForFunction(() => ![...document.querySelectorAll('[role=status]')].some((el) => /Loading/.test(el.textContent ?? '')) && !document.querySelector('.animate-spin'), null, { timeout: 8000 })
     .catch(() => {});
+  // A redirect (e.g. an old address) loads a second page chunk after the first wait has passed.
+  await page.waitForSelector('h1', { timeout: 5000 }).catch(() => {});
   await page.waitForTimeout(250);
   const info = await page.evaluate(() => {
     const doc = document.documentElement;
@@ -63,46 +65,66 @@ for (const vp of Object.keys(VIEWPORTS)) {
   // Public routes, signed out.
   {
     const { ctx, page, errs } = await newPage(vp);
-    for (const r of ['/', '/welcome', '/sign-in', '/sign-up', '/join', '/join/HEARTH-000', '/this-does-not-exist', '/dashboard']) await check(page, errs, r, vp, 'public-' + slug(r));
+    for (const r of ['/', '/welcome', '/sign-in', '/sign-up', '/join', '/join/HEARTH-000', '/this-does-not-exist', '/today']) await check(page, errs, r, vp, 'public-' + slug(r));
     await ctx.close();
   }
   // Signed in with sample data.
   {
     const { ctx, page, errs } = await newPage(vp);
     await page.goto(base + '/sign-in', { waitUntil: 'networkidle' });
-    await page.getByRole('button', { name: 'Explore with sample data' }).click();
-    await page.waitForURL('**/dashboard');
-    const ws = await page.evaluate(() => JSON.parse(localStorage.getItem('hearth.workspace.v2')));
-    const task = ws.tasks.find((t) => t.status === 'scheduled');
-    const conflictTask = ws.tasks.find((t) => t.id === 't3') ?? task;
+    await page.getByRole('button', { name: 'Explore with a sample family' }).click();
+    await page.waitForURL('**/today');
+    const ws = await page.evaluate(() => JSON.parse(localStorage.getItem('hearth.workspace.v3')));
+    const me = ws.account.memberId;
+    const task = ws.tasks.find((t) => t.status === 'scheduled' && t.visibility === 'family');
+    const privateTask = ws.tasks.find((t) => t.status === 'scheduled' && t.visibility === 'private');
+    const clashTask = ws.tasks.find((t) => t.id === 't2') ?? task;
     const member = ws.members.find((m) => m.role !== 'lead');
+    const dependant = ws.family.dependants[0];
     const appt = ws.appointments[0];
+    const event = ws.events.find((e) => e.memberId === me);
     const routes = [
+      '/today',
       '/dashboard',
       '/tasks',
       '/tasks/new',
+      '/tasks/new?category=study',
       `/tasks/${task.id}`,
+      `/tasks/${privateTask.id}`,
       `/tasks/${task.id}/edit`,
-      `/tasks/${conflictTask.id}/resolve`,
+      `/tasks/${clashTask.id}/resolve`,
+      `/tasks/${privateTask.id}/resolve`,
       '/schedule',
+      '/schedule/events/new',
+      `/schedule/events/${event.id}`,
+      '/schedule/events/nope',
       '/schedule/availability',
       '/schedule/unavailable',
+      '/health',
+      `/health/${me}`,
+      `/health/${dependant.id}`,
+      `/health/${member.id}`,
+      '/health/nope',
+      '/health/suggestions',
+      '/nutrition',
+      '/groceries',
+      '/family',
+      `/family/${member.id}`,
+      `/family/${me}`,
+      '/chat',
       '/priority',
       '/what-if',
       `/what-if/impact?task=${task.id}&assignee=${member.id}`,
       '/caregraph',
       `/caregraph/${encodeURIComponent('member:' + member.id)}`,
+      `/caregraph/${encodeURIComponent('dependant:' + dependant.id)}`,
+      '/caregraph/family',
       '/caregraph/nope',
       '/appointments',
       '/appointments/new',
       `/appointments/${appt.id}`,
       `/appointments/${appt.id}/edit`,
-      '/nutrition',
-      '/nutrition/recommendations',
-      '/nutrition/groceries',
       '/documents',
-      '/family',
-      `/family/${member.id}`,
       '/notifications',
       '/activity',
       '/settings',
