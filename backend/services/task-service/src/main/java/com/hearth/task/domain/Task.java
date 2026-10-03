@@ -41,18 +41,30 @@ public class Task {
 
     @Column(name = "care_criticality", nullable = false)
     @Builder.Default
-    private Double careCriticality = 0.5; // 0.0 (casual chore) to 1.0 (vital medication / care)
+    private Double careCriticality = 0.5;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     @Builder.Default
     private TaskStatus status = TaskStatus.DRAFT;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    @Builder.Default
+    private TaskVisibility visibility = TaskVisibility.SHARED;
+
     @Column(name = "assigned_member_id")
     private UUID assignedMemberId;
 
     @Column(name = "created_by", nullable = false)
     private UUID createdBy;
+
+    @Column(name = "reminder_minutes_before")
+    private Integer reminderMinutesBefore;
+
+    @Column(name = "acknowledged_conflict")
+    @Builder.Default
+    private boolean acknowledgedConflict = false;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     @Builder.Default
