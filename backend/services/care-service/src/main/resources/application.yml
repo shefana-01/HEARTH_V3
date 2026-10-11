@@ -1,25 +1,76 @@
 server:
   port: 8084
+  tomcat:
+    # Read an over-sized upload to the end, so the browser receives "That file is too large" instead of a dropped connection.
+    max-swallow-size: 25MB
 
 spring:
   application:
     name: care-service
   datasource:
-    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/hearth_care}
-    username: ${SPRING_DATASOURCE_USERNAME:postgres}
-    password: ${SPRING_DATASOURCE_PASSWORD:hearth_password}
-    driver-class-name: org.postgresql.Driver
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/hearth_care
+    username: ${DB_USER:hearth}
+    password: ${DB_PASSWORD:hearth}
   jpa:
+    open-in-view: false
     hibernate:
-      ddl-auto: update
-    show-sql: false
-    properties:
-      hibernate:
-        format_sql: true
-        dialect: org.hibernate.dialect.PostgreSQLDialect
+      ddl-auto: validate
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      acks: all
+      properties:
+        # If Kafka is down, give up after 5 s and retry on the next run instead of blocking for a minute.
+        max.block.ms: 5000
+    consumer:
+      auto-offset-reset: earliest
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          jwk-set-uri: ${JWKS_URI:http://localhost:8081/.well-known/jwks.json}
+  # Graph database for the family map. Browse it at http://localhost:7474 (user neo4j).
+  neo4j:
+    uri: ${NEO4J_URI:bolt://localhost:7687}
+    authentication:
+      username: ${NEO4J_USER:neo4j}
+      password: ${NEO4J_PASSWORD:hearth-graph}
+    # Fail quickly when Neo4j is down, so the screen shows a message instead of hanging.
+    connection-timeout: 5s
+    max-transaction-retry-time: 5s
+    pool:
+      connection-acquisition-timeout: 5s
+  servlet:
+    multipart:
+      max-file-size: 20MB
+      max-request-size: 21MB
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  health:
+    neo4j:
+      # Only the family map needs Neo4j; the rest of care-service is healthy without it.
+      enabled: false
 
 springdoc:
-  api-docs:
-    path: /v3/api-docs
   swagger-ui:
     path: /swagger-ui.html
+
+hearth:
+  outbox:
+    enabled: true
+  reminders:
+    # How often to look for appointments that start within the hour.
+    poll-ms: 60000
+  services:
+    family: ${FAMILY_SERVICE_URL:http://localhost:8081}
+    task: ${TASK_SERVICE_URL:http://localhost:8082}
+  graph:
+    # Safety net: rebuild a family's graph at least this often, even if no change event arrived.
+    max-age-seconds: 60
+  storage:
+    # Where uploaded documents are kept. Mount a volume here in Docker.
+    dir: ${STORAGE_DIR:./data/documents}
