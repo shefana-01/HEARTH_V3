@@ -10,8 +10,7 @@ import java.util.UUID;
 
 @Repository
 public interface AppointmentRepository extends JpaRepository<Appointment, UUID> {
-    List<Appointment> findByPatientId(UUID patientId);
-    List<Appointment> findByCaregiverId(UUID caregiverId);
+    List<Appointment> findByForId(UUID forId);
 
     List<Appointment> findByFamilyIdOrderByStartAtAsc(UUID familyId);
     Optional<Appointment> findByIdAndFamilyId(UUID id, UUID familyId);
