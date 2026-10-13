@@ -1,4 +1,4 @@
-﻿package com.hearth.audit.entity;
+package com.hearth.audit.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;

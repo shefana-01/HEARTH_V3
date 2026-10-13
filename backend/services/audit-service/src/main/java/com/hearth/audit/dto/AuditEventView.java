@@ -1,4 +1,4 @@
-﻿package com.hearth.audit.dto;
+package com.hearth.audit.dto;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import java.time.Instant;

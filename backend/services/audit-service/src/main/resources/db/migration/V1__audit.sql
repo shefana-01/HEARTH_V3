@@ -1,4 +1,4 @@
-﻿-- audit-service schema: an append-only activity log. Rows are never updated or deleted by the application.
+-- audit-service schema: an append-only activity log. Rows are never updated or deleted by the application.
 
 create table audit_event (
     id           uuid primary key,

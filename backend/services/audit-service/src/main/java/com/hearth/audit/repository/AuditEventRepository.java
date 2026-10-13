@@ -1,4 +1,4 @@
-﻿package com.hearth.audit.repository;
+package com.hearth.audit.repository;
 
 import com.hearth.audit.entity.AuditEvent;
 import java.util.List;
