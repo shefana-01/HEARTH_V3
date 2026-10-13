@@ -28,9 +28,6 @@ public class Appointment {
         }
     }
 
-    public record PrepItem(String id, String label, boolean done, String doneById) {
-    }
-
     public static final String FAMILY = "family";
     public static final String PRIVATE = "private";
 

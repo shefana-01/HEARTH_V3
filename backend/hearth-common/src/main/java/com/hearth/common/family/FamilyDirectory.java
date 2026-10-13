@@ -13,4 +13,7 @@ public interface FamilyDirectory {
 
     /** Everyone in the caller's family. */
     List<MemberRef> members();
+
+    /** The people the caller's family looks after. May be empty. */
+    List<DependantRef> dependants();
 }
