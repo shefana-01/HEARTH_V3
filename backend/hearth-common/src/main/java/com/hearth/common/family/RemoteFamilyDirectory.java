@@ -21,6 +21,7 @@ public class RemoteFamilyDirectory implements FamilyDirectory {
 
     private static final String CONTEXT_ATTRIBUTE = "hearth.familyContext";
     private static final String MEMBERS_ATTRIBUTE = "hearth.familyMembers";
+    private static final String DEPENDANTS_ATTRIBUTE = "hearth.familyDependants";
 
     private final ServiceClient client;
     private final String familyServiceUrl;
@@ -56,5 +57,20 @@ public class RemoteFamilyDirectory implements FamilyDirectory {
             request.setAttribute(MEMBERS_ATTRIBUTE, members, RequestAttributes.SCOPE_REQUEST);
         }
         return members;
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public List<DependantRef> dependants() {
+        RequestAttributes request = RequestContextHolder.getRequestAttributes();
+        if (request != null && request.getAttribute(DEPENDANTS_ATTRIBUTE, RequestAttributes.SCOPE_REQUEST) instanceof List<?> cached) {
+            return (List<DependantRef>) cached;
+        }
+        List<DependantRef> dependants = client.get(familyServiceUrl + "/api/v1/internal/dependants", new ParameterizedTypeReference<List<DependantRef>>() {
+        });
+        if (request != null) {
+            request.setAttribute(DEPENDANTS_ATTRIBUTE, dependants, RequestAttributes.SCOPE_REQUEST);
+        }
+        return dependants;
     }
 }
