@@ -1,6 +1,6 @@
 import { useMemo, useState, type FormEvent } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { CalendarDays, Check, CircleCheck, Clock, Lightbulb, PlaneTakeoff, Sparkles } from 'lucide-react';
+import { CalendarDays, CircleCheck, Clock, Lightbulb, Lock, PlaneTakeoff, Sparkles } from 'lucide-react';
 import { useFamily } from '@/app/FamilyProvider';
 import { taskService } from '@/services/tasks/taskService';
 import { decisionService } from '@/services/decision/decisionService';
@@ -9,12 +9,11 @@ import { useAsync, useMutation } from '@/hooks/useAsync';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { combineDateTime, formatClock, formatTime, isSameDay, toDateInputValue } from '@/lib/dates';
 import { maxLength, required, validate } from '@/lib/validation';
-import { cn } from '@/lib/cn';
-import { PRIORITIES, TASK_CATEGORIES } from '@/constants/labels';
+import { PERSONAL_CATEGORIES, PRIORITIES, TASK_CATEGORIES } from '@/constants/labels';
 import {
   ActionBar,
-  Avatar,
   Button,
+  Callout,
   Card,
   CardHeader,
   Checkbox,
@@ -30,8 +29,10 @@ import {
   Textarea,
   useToast,
 } from '@/components/ui';
-import { ScorePill } from '@/components/domain/Scores';
-import type { CareTask, TaskCategory, TaskPriority } from '@/types/domain';
+import { PersonSelect, VisibilityField } from '@/components/domain/People';
+import type { Task, TaskCategory, TaskPriority, Visibility } from '@/types/domain';
+import { AssigneePicker } from './AssigneePicker';
+import { CategoryPicker } from './CategoryPicker';
 
 interface FormState {
   title: string;
@@ -40,6 +41,8 @@ interface FormState {
   time: string;
   durationMin: number;
   assigneeId: string | null;
+  forId: string;
+  visibility: Visibility;
   priority: TaskPriority;
   notes: string;
   appointmentId: string;
@@ -54,7 +57,7 @@ function nextHalfHour(): string {
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 }
 
-function fromTask(t: CareTask): FormState {
+function fromTask(t: Task): FormState {
   const d = new Date(t.start);
   return {
     title: t.title,
@@ -63,6 +66,8 @@ function fromTask(t: CareTask): FormState {
     time: `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`,
     durationMin: t.durationMin,
     assigneeId: t.assigneeId,
+    forId: t.forId ?? '',
+    visibility: t.visibility,
     priority: t.priority,
     notes: t.notes,
     appointmentId: t.appointmentId ?? '',
@@ -70,55 +75,71 @@ function fromTask(t: CareTask): FormState {
   };
 }
 
-function TaskForm({ existing }: { existing?: CareTask }) {
-  const { members, me, firstNameOf } = useFamily();
+const defaultVisibility = (category: TaskCategory): Visibility => (PERSONAL_CATEGORIES.includes(category) ? 'private' : 'family');
+
+function TaskForm({ existing }: { existing?: Task }) {
+  const { me, firstNameOf } = useFamily();
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const { toast } = useToast();
-  const [form, setForm] = useState<FormState>(() =>
-    existing
-      ? fromTask(existing)
-      : {
-          title: params.get('title') ?? '',
-          category: (params.get('category') as TaskCategory) || 'other',
-          date: params.get('date') ?? toDateInputValue(),
-          time: nextHalfHour(),
-          durationMin: 30,
-          assigneeId: me?.id ?? null,
-          priority: 'routine',
-          notes: '',
-          appointmentId: params.get('appointment') ?? '',
-          reminder: true,
-        },
-  );
+  const [form, setForm] = useState<FormState>(() => {
+    if (existing) return fromTask(existing);
+    const requested = params.get('category');
+    const category = requested && requested in TASK_CATEGORIES ? (requested as TaskCategory) : 'other';
+    return {
+      title: params.get('title') ?? '',
+      category,
+      date: params.get('date') ?? toDateInputValue(),
+      time: nextHalfHour(),
+      durationMin: 30,
+      assigneeId: me?.id ?? null,
+      forId: '',
+      visibility: defaultVisibility(category),
+      priority: 'routine',
+      notes: '',
+      appointmentId: params.get('appointment') ?? '',
+      reminder: true,
+    };
+  });
+  // Once the person picks who can see the task, a new category no longer changes it.
+  const [visibilityChosen, setVisibilityChosen] = useState(Boolean(existing));
   const [errors, setErrors] = useState<Partial<Record<keyof FormState, string>>>({});
   const [advisoryDismissed, setAdvisoryDismissed] = useState(false);
   const save = useMutation((input: Parameters<typeof taskService.createTask>[0]) => (existing ? taskService.updateTask(existing.id, input) : taskService.createTask(input)));
+
+  const isPrivate = form.visibility === 'private';
 
   const set = <K extends keyof FormState>(key: K, value: FormState[K]) => {
     setForm((f) => ({ ...f, [key]: value }));
     if (key === 'assigneeId' || key === 'date' || key === 'time' || key === 'durationMin') setAdvisoryDismissed(false);
   };
 
+  const setCategory = (category: TaskCategory) => setForm((f) => ({ ...f, category, visibility: visibilityChosen ? f.visibility : defaultVisibility(category) }));
+
+  const setVisibility = (visibility: Visibility) => {
+    setVisibilityChosen(true);
+    set('visibility', visibility);
+  };
+
   const start = form.date && form.time ? combineDateTime(form.date, form.time) : undefined;
-  const helpers = members.filter((m) => m.status === 'active' && m.role !== 'observer');
 
   const context = useAsync(() => Promise.all([taskService.listTasks(), appointmentService.list()]), []);
   const scores = useAsync(
-    () => (start ? decisionService.previewCandidates({ taskId: existing?.id, category: form.category, start, durationMin: form.durationMin }) : Promise.resolve([])),
-    [start, form.category, form.durationMin, existing?.id],
+    () => (start && !isPrivate ? decisionService.previewCandidates({ taskId: existing?.id, category: form.category, start, durationMin: form.durationMin }) : Promise.resolve([])),
+    [start, isPrivate, form.category, form.durationMin, existing?.id],
   );
 
-  const scoreFor = (id: string) => scores.data?.find((s) => s.memberId === id);
-  const selected = form.assigneeId ? scoreFor(form.assigneeId) : undefined;
-  const best = scores.data?.[0];
-  const showAdvisory = !advisoryDismissed && selected && selected.cautions.length > 0 && selected.score < 70;
+  const candidates = scores.data ?? [];
+  const selected = form.assigneeId ? candidates.find((s) => s.memberId === form.assigneeId) : undefined;
+  const best = candidates[0];
+  const showAdvisory = !isPrivate && !advisoryDismissed && selected && selected.cautions.length > 0 && selected.score < 70;
 
   const dayTasks = useMemo(
     () => (context.data?.[0] ?? []).filter((t) => form.date && isSameDay(t.start, `${form.date}T12:00:00`) && t.status !== 'cancelled' && t.id !== existing?.id),
     [context.data, form.date, existing?.id],
   );
   const upcomingAppointments = (context.data?.[1] ?? []).filter((a) => new Date(a.start).getTime() > Date.now() - 86_400_000);
+  const whoDoes = (id: string | null) => (!id ? 'Needs someone' : id === me?.id ? 'Me' : firstNameOf(id));
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -130,6 +151,7 @@ function TaskForm({ existing }: { existing?: CareTask }) {
     };
     setErrors(next);
     if (Object.values(next).some(Boolean) || !start) return;
+    const assigneeId = isPrivate ? (me?.id ?? null) : form.assigneeId;
     const task = await save.run({
       title: form.title,
       notes: form.notes,
@@ -137,14 +159,22 @@ function TaskForm({ existing }: { existing?: CareTask }) {
       priority: form.priority,
       start,
       durationMin: form.durationMin,
-      assigneeId: form.assigneeId,
+      assigneeId,
+      forId: !isPrivate && form.forId ? form.forId : undefined,
+      visibility: form.visibility,
       appointmentId: form.appointmentId || undefined,
       reminder: form.reminder,
     });
     if (task) {
       toast({
-        title: existing ? 'Task updated' : 'Task created',
-        description: !form.assigneeId ? 'It’s waiting for someone to take it.' : form.assigneeId === me?.id ? 'It’s on your list.' : `${firstNameOf(form.assigneeId)} has been notified.`,
+        title: existing ? 'Task updated' : 'Task added',
+        description: isPrivate
+          ? 'Only you can see it.'
+          : !assigneeId
+            ? 'It’s waiting for someone to take it.'
+            : assigneeId === me?.id
+              ? 'It’s on your list.'
+              : `${firstNameOf(assigneeId)} has been told.`,
       });
       navigate(`/tasks/${task.id}`);
     }
@@ -153,44 +183,22 @@ function TaskForm({ existing }: { existing?: CareTask }) {
   return (
     <>
       <PageHeader
-        eyebrow="Household care"
-        title={existing ? 'Edit task' : 'Create a care task'}
-        description="Shared with everyone in your circle."
+        eyebrow="Tasks"
+        title={existing ? 'Edit task' : 'New task'}
+        description={isPrivate ? 'Only you can see this task.' : 'Shared with your family.'}
         breadcrumbs={[{ label: 'Tasks', to: '/tasks' }, ...(existing ? [{ label: existing.title, to: `/tasks/${existing.id}` }] : []), { label: existing ? 'Edit' : 'New task' }]}
       />
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_20rem]">
         <Card padding="lg">
           <form onSubmit={onSubmit} noValidate className="space-y-6">
             <FormError message={save.error} />
-            <FormField label="Task title" required error={errors.title} aside="Clear & brief">
-              {(p) => <Input {...p} value={form.title} onChange={(e) => set('title', e.target.value)} placeholder="e.g. Afternoon medication & water" maxLength={120} />}
+            <FormField label="Task title" required error={errors.title} aside="Short and clear">
+              {(p) => <Input {...p} value={form.title} onChange={(e) => set('title', e.target.value)} placeholder="e.g. Pick up Dadu’s medicine" maxLength={120} />}
             </FormField>
 
-            <fieldset>
-              <legend className="mb-2 text-sm font-semibold text-ink">Type of care</legend>
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                {(Object.keys(TASK_CATEGORIES) as TaskCategory[]).map((c) => {
-                  const meta = TASK_CATEGORIES[c];
-                  const Icon = meta.icon;
-                  const active = form.category === c;
-                  return (
-                    <button
-                      key={c}
-                      type="button"
-                      aria-pressed={active}
-                      onClick={() => set('category', c)}
-                      className={cn(
-                        'flex items-center gap-2 rounded-xl border px-3 py-2.5 text-left text-[13px] font-semibold transition-colors',
-                        active ? 'border-primary-500 bg-primary-50 text-primary-800' : 'border-line text-ink-muted hover:border-primary-300 hover:text-ink',
-                      )}
-                    >
-                      <Icon aria-hidden="true" className="h-4 w-4 shrink-0" />
-                      <span className="truncate">{meta.label}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </fieldset>
+            <CategoryPicker value={form.category} onChange={setCategory} />
+
+            <VisibilityField name="task-visibility" value={form.visibility} onChange={setVisibility} what="task" />
 
             <div className="grid gap-4 sm:grid-cols-3">
               <FormField label="Date" required error={errors.date}>
@@ -212,82 +220,44 @@ function TaskForm({ existing }: { existing?: CareTask }) {
               </FormField>
             </div>
 
-            <fieldset>
-              <div className="mb-2 flex items-center justify-between">
-                <legend className="text-sm font-semibold text-ink">Who will do it?</legend>
-                <span className="text-xs text-ink-subtle">Scores show how well each person fits this time</span>
-              </div>
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4" role="radiogroup" aria-label="Assign to">
-                {helpers.map((m) => {
-                  const active = form.assigneeId === m.id;
-                  const s = scoreFor(m.id);
-                  return (
-                    <button
-                      key={m.id}
-                      type="button"
-                      role="radio"
-                      aria-checked={active}
-                      onClick={() => set('assigneeId', m.id)}
-                      className={cn(
-                        'relative flex flex-col items-center gap-1.5 rounded-2xl border p-3 text-center transition-colors',
-                        active ? 'border-mint-400 bg-mint-50' : 'border-line hover:border-primary-300',
-                      )}
-                    >
-                      {active && <Check aria-hidden="true" className="absolute right-2 top-2 h-4 w-4 text-mint-600" strokeWidth={3} />}
-                      <Avatar name={m.name} seed={m.id} />
-                      <span className="text-sm font-semibold text-ink">
-                        {m.name.split(' ')[0]}
-                        {m.id === me?.id && ' (you)'}
-                      </span>
-                      <span className="text-xs text-ink-subtle">{m.relation || 'Member'}</span>
-                      {s && <ScorePill score={s.score} label={`${m.name} suitability`} />}
-                    </button>
-                  );
-                })}
-                <button
-                  type="button"
-                  role="radio"
-                  aria-checked={form.assigneeId === null}
-                  onClick={() => set('assigneeId', null)}
-                  className={cn(
-                    'flex flex-col items-center justify-center gap-1 rounded-2xl border border-dashed p-3 text-center text-sm font-semibold',
-                    form.assigneeId === null ? 'border-primary-500 bg-primary-50 text-primary-800' : 'border-line-strong text-ink-muted hover:border-primary-300',
-                  )}
-                >
-                  Leave unassigned
-                  <span className="text-xs font-normal text-ink-subtle">Anyone can pick it up</span>
-                </button>
-              </div>
-            </fieldset>
+            {isPrivate ? (
+              <Callout tone="primary" icon={<Lock aria-hidden="true" />}>
+                This one is yours. Your family only sees that you are busy then.
+              </Callout>
+            ) : (
+              <>
+                <AssigneePicker value={form.assigneeId} onChange={(id) => set('assigneeId', id)} scores={candidates} />
 
-            {showAdvisory && selected && (
-              <div role="status" className="rounded-2xl border border-primary-100 bg-primary-50 p-4">
-                <p className="flex items-center gap-2 text-sm font-semibold text-primary-800">
-                  <PlaneTakeoff aria-hidden="true" className="h-4 w-4" /> Schedule advisory
-                  <span className="rounded-full bg-amber-100 px-2 py-0.5 text-2xs font-semibold text-amber-700">Non-blocking</span>
-                </p>
-                <ul className="mt-1.5 list-disc space-y-0.5 pl-5 text-sm text-ink-muted">
-                  {selected.cautions.map((c) => (
-                    <li key={c}>{c}</li>
-                  ))}
-                </ul>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {best && best.memberId !== form.assigneeId && best.score > selected.score && (
-                    <Button size="sm" variant="soft" leftIcon={<Sparkles aria-hidden="true" className="h-4 w-4" />} onClick={() => set('assigneeId', best.memberId)}>
-                      Assign to {firstNameOf(best.memberId)} instead
-                    </Button>
-                  )}
-                  <Button size="sm" variant="ghost" onClick={() => setAdvisoryDismissed(true)}>
-                    Keep {firstNameOf(form.assigneeId)}
-                  </Button>
-                </div>
-              </div>
+                {showAdvisory && selected && (
+                  <div role="status" className="rounded-2xl border border-primary-100 bg-primary-50 p-4">
+                    <p className="flex items-center gap-2 text-sm font-semibold text-primary-800">
+                      <PlaneTakeoff aria-hidden="true" className="h-4 w-4" /> Heads up
+                      <span className="rounded-full bg-amber-100 px-2 py-0.5 text-2xs font-semibold text-amber-700">You can still save</span>
+                    </p>
+                    <ul className="mt-1.5 list-disc space-y-0.5 pl-5 text-sm text-ink-muted">
+                      {selected.cautions.map((c) => (
+                        <li key={c}>{c}</li>
+                      ))}
+                    </ul>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {best && best.memberId !== form.assigneeId && best.score > selected.score && (
+                        <Button size="sm" variant="soft" leftIcon={<Sparkles aria-hidden="true" className="h-4 w-4" />} onClick={() => set('assigneeId', best.memberId)}>
+                          Give it to {best.memberId === me?.id ? 'me' : firstNameOf(best.memberId)} instead
+                        </Button>
+                      )}
+                      <Button size="sm" variant="ghost" onClick={() => setAdvisoryDismissed(true)}>
+                        Keep it with {form.assigneeId === me?.id ? 'me' : firstNameOf(form.assigneeId)}
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
+                <PersonSelect label="Who is it for?" emptyLabel="Nobody in particular" value={form.forId} onChange={(id) => set('forId', id)} />
+              </>
             )}
 
             <div>
-              <p className="mb-2 text-sm font-semibold text-ink" id="priority-label">
-                Priority
-              </p>
+              <p className="mb-2 text-sm font-semibold text-ink">How important is it?</p>
               <SegmentedControl
                 label="Priority"
                 value={form.priority}
@@ -298,8 +268,8 @@ function TaskForm({ existing }: { existing?: CareTask }) {
 
             <Disclosure title="Optional details" meta="Notes, linked appointment, reminder" defaultOpen={Boolean(existing?.notes || form.appointmentId)}>
               <div className="space-y-4">
-                <FormField label="Notes & instructions" error={errors.notes} hint="Visible to everyone who can see this task.">
-                  {(p) => <Textarea {...p} value={form.notes} onChange={(e) => set('notes', e.target.value)} placeholder="Anything the helper should know…" />}
+                <FormField label="Notes" error={errors.notes} hint={isPrivate ? 'Only you can see these.' : 'Everyone who can see this task can read these.'}>
+                  {(p) => <Textarea {...p} value={form.notes} onChange={(e) => set('notes', e.target.value)} placeholder="Anything whoever does this should know…" />}
                 </FormField>
                 <FormField label="Linked appointment" hint="Linking tells Hearth the visit depends on this task.">
                   {(p) => (
@@ -313,16 +283,16 @@ function TaskForm({ existing }: { existing?: CareTask }) {
                     </Select>
                   )}
                 </FormField>
-                <Checkbox label="Send a gentle reminder 15 minutes before" checked={form.reminder} onChange={(e) => set('reminder', e.target.checked)} />
+                <Checkbox label="Remind me 15 minutes before" checked={form.reminder} onChange={(e) => set('reminder', e.target.checked)} />
               </div>
             </Disclosure>
 
             <ActionBar className="flex-row lg:justify-end lg:border-t lg:border-line lg:pt-5">
-              <Button variant="secondary" onClick={() => navigate(-1)}>
+              <Button variant="secondary" size="lg" className="lg:h-10" onClick={() => navigate(-1)}>
                 Cancel
               </Button>
-              <Button type="submit" className="flex-1 sm:flex-none" loading={save.pending} leftIcon={<CircleCheck aria-hidden="true" className="h-4 w-4" />}>
-                {existing ? 'Save changes' : 'Create task'}
+              <Button type="submit" size="lg" className="flex-1 sm:flex-none lg:h-10" loading={save.pending} leftIcon={<CircleCheck aria-hidden="true" className="h-4 w-4" />}>
+                {existing ? 'Save changes' : 'Add task'}
               </Button>
             </ActionBar>
           </form>
@@ -330,25 +300,22 @@ function TaskForm({ existing }: { existing?: CareTask }) {
 
         <aside className="space-y-4">
           <Card>
-            <CardHeader
-              title="That day’s rhythm"
-              description={form.date ? new Date(`${form.date}T12:00:00`).toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' }) : undefined}
-            />
+            <CardHeader title="That day" description={form.date ? new Date(`${form.date}T12:00:00`).toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' }) : undefined} />
             {dayTasks.length ? (
               <ul className="space-y-2">
                 {dayTasks.map((t) => (
                   <li key={t.id} className="flex items-center gap-3 rounded-xl bg-surface-muted px-3 py-2.5">
                     <span className="w-16 shrink-0 text-xs font-semibold tabular-nums text-ink-subtle">{formatTime(t.start)}</span>
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate text-[13px] font-semibold text-ink">{t.title}</span>
-                      <span className="block text-xs text-ink-subtle">{firstNameOf(t.assigneeId)}</span>
+                      <span className="block truncate text-[0.8125rem] font-semibold text-ink">{t.title}</span>
+                      <span className="block text-xs text-ink-subtle">{whoDoes(t.assigneeId)}</span>
                     </span>
                   </li>
                 ))}
                 {form.time && (
                   <li className="flex items-center gap-3 rounded-xl border border-dashed border-primary-300 bg-primary-50 px-3 py-2.5">
                     <span className="w-16 shrink-0 text-xs font-semibold text-primary-700">{formatClock(form.time)}</span>
-                    <span className="truncate text-[13px] font-semibold text-primary-800">{form.title || 'This task'}</span>
+                    <span className="truncate text-[0.8125rem] font-semibold text-primary-800">{form.title || 'This task'}</span>
                   </li>
                 )}
               </ul>
@@ -358,7 +325,7 @@ function TaskForm({ existing }: { existing?: CareTask }) {
           </Card>
           <Card tone="mint" className="flex gap-3">
             <Lightbulb aria-hidden="true" className="h-5 w-5 shrink-0 text-mint-700" />
-            <p className="text-sm text-mint-800">Assigning tasks in advance, with a reminder, gives helpers time to plan — and avoids last-minute scrambles.</p>
+            <p className="text-sm text-mint-800">Setting a day and time ahead, with a reminder, gives whoever does it room to plan.</p>
           </Card>
         </aside>
       </div>
