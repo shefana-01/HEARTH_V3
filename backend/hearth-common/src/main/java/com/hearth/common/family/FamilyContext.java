@@ -47,6 +47,18 @@ public record FamilyContext(
         }
     }
 
+    /** May open health notes that people share, and those of people the family looks after. The lead always can. */
+    @JsonIgnore
+    public boolean canSeeMedical() {
+        return isLead() || medicalAccess;
+    }
+
+    /** May open family documents. The lead always can. */
+    @JsonIgnore
+    public boolean canSeeDocuments() {
+        return isLead() || documentsAccess;
+    }
+
     public ZoneId zone() {
         try {
             return timezone == null || timezone.isBlank() ? ZoneOffset.UTC : ZoneId.of(timezone);

@@ -46,6 +46,14 @@ public final class Events {
         return this;
     }
 
+    public Events notifyMember(UUID memberId, String type, String message, String href) {
+        this.notification = new NotificationInfo(type, message, href);
+        if (memberId != null) {
+            data("recipientId", memberId);
+        }
+        return this;
+    }
+
     /** Values are stored as text or plain JSON values. Null values are left out. */
     public Events data(String key, Object value) {
         if (value != null) {

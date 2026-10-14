@@ -9,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -37,20 +38,26 @@ public class HealthcareService {
 
     @Transactional
     public Appointment createAppointment(CreateAppointmentRequest request) {
-        Appointment appointment = Appointment.builder()
-                .patientId(request.getPatientId())
-                .caregiverId(request.getCaregiverId())
-                .title(request.getTitle())
-                .location(request.getLocation())
-                .scheduledTime(request.getScheduledTime())
-                .durationMinutes(request.getDurationMinutes() != null ? request.getDurationMinutes() : 60)
-                .status("SCHEDULED")
-                .notes(request.getNotes())
-                .build();
+        Patient patient = patientRepository.findById(request.getPatientId()).orElse(null);
+        UUID familyId = patient != null ? patient.getFamilyId() : UUID.randomUUID();
+
+        Appointment appointment = new Appointment();
+        appointment.setId(UUID.randomUUID());
+        appointment.setFamilyId(familyId);
+        appointment.setForId(request.getPatientId());
+        appointment.setEscortId(request.getCaregiverId());
+        appointment.setTitle(request.getTitle());
+        appointment.setLocation(request.getLocation() != null ? request.getLocation() : "");
+        appointment.setStartAt(request.getScheduledTime());
+        appointment.setDurationMin(request.getDurationMinutes() != null ? request.getDurationMinutes() : 60);
+        appointment.setVisibility(Appointment.FAMILY);
+        appointment.setNote(request.getNotes() != null ? request.getNotes() : "");
+        appointment.setCreatedAt(Instant.now());
+        appointment.setCreatedById(request.getCaregiverId() != null ? request.getCaregiverId() : UUID.randomUUID());
         return appointmentRepository.save(appointment);
     }
 
     public List<Appointment> getAppointmentsByPatient(UUID patientId) {
-        return appointmentRepository.findByPatientId(patientId);
+        return appointmentRepository.findByForId(patientId);
     }
 }
