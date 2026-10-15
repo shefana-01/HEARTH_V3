@@ -193,7 +193,7 @@ function TaskForm({ existing }: { existing?: Task }) {
           <form onSubmit={onSubmit} noValidate className="space-y-6">
             <FormError message={save.error} />
             <FormField label="Task title" required error={errors.title} aside="Short and clear">
-              {(p) => <Input {...p} value={form.title} onChange={(e) => set('title', e.target.value)} placeholder="e.g. Pick up Dadu’s medicine" maxLength={120} />}
+              {(p) => <Input {...p} voice value={form.title} onChange={(e) => set('title', e.target.value)} placeholder="e.g. Pick up Dadu’s medicine" maxLength={120} />}
             </FormField>
 
             <CategoryPicker value={form.category} onChange={setCategory} />
@@ -269,7 +269,7 @@ function TaskForm({ existing }: { existing?: Task }) {
             <Disclosure title="Optional details" meta="Notes, linked appointment, reminder" defaultOpen={Boolean(existing?.notes || form.appointmentId)}>
               <div className="space-y-4">
                 <FormField label="Notes" error={errors.notes} hint={isPrivate ? 'Only you can see these.' : 'Everyone who can see this task can read these.'}>
-                  {(p) => <Textarea {...p} value={form.notes} onChange={(e) => set('notes', e.target.value)} placeholder="Anything whoever does this should know…" />}
+                  {(p) => <Textarea {...p} voice value={form.notes} onChange={(e) => set('notes', e.target.value)} placeholder="Anything whoever does this should know…" />}
                 </FormField>
                 <FormField label="Linked appointment" hint="Linking tells Hearth the visit depends on this task.">
                   {(p) => (

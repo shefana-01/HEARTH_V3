@@ -1,6 +1,9 @@
-import { forwardRef, useId, useState, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from 'react';
+import { forwardRef, useId, useRef, useState, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from 'react';
 import { AlertCircle, Check, ChevronDown, Eye, EyeOff, Minus, Plus } from 'lucide-react';
 import { cn } from '@/lib/cn';
+import { useMergedRef } from '@/lib/refs';
+import { useVoiceTyping } from '@/hooks/useVoiceTyping';
+import { VoiceButton, VoiceStatus } from './VoiceTyping';
 
 /* ───────────────────────── FormField ───────────────────────── */
 
@@ -60,21 +63,35 @@ export function FormField({ label, hint, error, required, aside, className, chil
 }
 
 const control =
-  'w-full rounded-xl border border-line-strong bg-surface px-3.5 text-[0.9375rem] text-ink placeholder:text-ink-subtle/80 transition-colors hover:border-primary-300 focus-visible:border-primary-500 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary-100 focus-visible:ring-offset-0 disabled:cursor-not-allowed disabled:bg-surface-muted disabled:text-ink-subtle aria-[invalid=true]:border-red-500 aria-[invalid=true]:focus-visible:ring-red-100';
+  'w-full rounded-xl border border-field bg-surface px-3.5 text-[0.9375rem] text-ink placeholder:text-ink-subtle/80 transition-colors hover:border-primary-300 focus-visible:border-primary-500 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary-100 focus-visible:ring-offset-0 disabled:cursor-not-allowed disabled:bg-surface-muted disabled:text-ink-subtle aria-[invalid=true]:border-red-500 aria-[invalid=true]:focus-visible:ring-red-100';
 
 /* ───────────────────────── Input ───────────────────────── */
 
 export interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   leftIcon?: ReactNode;
   rightSlot?: ReactNode;
+  /** Add a microphone so the field can be filled by speaking. Only shown where the browser supports it. */
+  voice?: boolean;
 }
 
-export const Input = forwardRef<HTMLInputElement, InputProps>(function Input({ leftIcon, rightSlot, className, ...rest }, ref) {
-  return (
+export const Input = forwardRef<HTMLInputElement, InputProps>(function Input({ leftIcon, rightSlot, voice = false, className, ...rest }, ref) {
+  const inner = useRef<HTMLInputElement | null>(null);
+  const setRef = useMergedRef(ref, inner);
+  const voiceTyping = useVoiceTyping(inner, voice && !rightSlot);
+  const slot = voiceTyping.supported ? <VoiceButton voice={voiceTyping} /> : rightSlot;
+
+  const field = (
     <div className="relative flex items-center">
       {leftIcon && <span className="pointer-events-none absolute left-3.5 text-ink-subtle [&>svg]:h-[18px] [&>svg]:w-[18px]">{leftIcon}</span>}
-      <input ref={ref} className={cn(control, 'h-11', leftIcon && 'pl-10', rightSlot && 'pr-11', className)} {...rest} />
-      {rightSlot && <span className="absolute right-1.5">{rightSlot}</span>}
+      <input ref={setRef} className={cn(control, 'h-11', leftIcon && 'pl-10', slot && 'pr-11', className)} {...rest} />
+      {slot && <span className="absolute right-1.5">{slot}</span>}
+    </div>
+  );
+  if (!voiceTyping.supported) return field;
+  return (
+    <div>
+      {field}
+      <VoiceStatus voice={voiceTyping} />
     </div>
   );
 });
@@ -103,8 +120,27 @@ export const PasswordInput = forwardRef<HTMLInputElement, Omit<InputProps, 'type
 
 /* ───────────────────────── Textarea ───────────────────────── */
 
-export const Textarea = forwardRef<HTMLTextAreaElement, TextareaHTMLAttributes<HTMLTextAreaElement>>(function Textarea({ className, rows = 3, ...rest }, ref) {
-  return <textarea ref={ref} rows={rows} className={cn(control, 'min-h-[5.5rem] resize-y py-2.5 leading-relaxed', className)} {...rest} />;
+export interface TextareaProps extends TextareaHTMLAttributes<HTMLTextAreaElement> {
+  /** Add a microphone so the field can be filled by speaking. Only shown where the browser supports it. */
+  voice?: boolean;
+}
+
+export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(function Textarea({ className, rows = 3, voice = false, ...rest }, ref) {
+  const inner = useRef<HTMLTextAreaElement | null>(null);
+  const setRef = useMergedRef(ref, inner);
+  const voiceTyping = useVoiceTyping(inner, voice);
+
+  const area = <textarea ref={setRef} rows={rows} className={cn(control, 'min-h-[5.5rem] resize-y py-2.5 leading-relaxed', voiceTyping.supported && 'pr-12', className)} {...rest} />;
+  if (!voiceTyping.supported) return area;
+  return (
+    <div>
+      <div className="relative">
+        {area}
+        <VoiceButton voice={voiceTyping} className="absolute bottom-1.5 right-1.5" />
+      </div>
+      <VoiceStatus voice={voiceTyping} />
+    </div>
+  );
 });
 
 /* ───────────────────────── Select ───────────────────────── */
@@ -137,7 +173,7 @@ export const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(function Che
           ref={ref}
           id={inputId}
           type="checkbox"
-          className="peer h-5 w-5 cursor-pointer appearance-none rounded-md border-2 border-line-strong bg-surface transition-colors checked:border-primary-600 checked:bg-primary-600 hover:border-primary-400 disabled:cursor-not-allowed disabled:opacity-50"
+          className="peer h-5 w-5 cursor-pointer appearance-none rounded-md border-2 border-field bg-surface transition-colors checked:border-solid-primary checked:bg-solid-primary hover:border-primary-400 disabled:cursor-not-allowed disabled:opacity-50"
           {...rest}
         />
         <Check aria-hidden="true" strokeWidth={3} className="pointer-events-none absolute h-3.5 w-3.5 text-white opacity-0 peer-checked:opacity-100" />
@@ -238,7 +274,7 @@ export function Switch({ checked, onChange, label, description, disabled }: { ch
         aria-labelledby={`${id}-label`}
         disabled={disabled}
         onClick={() => onChange(!checked)}
-        className={cn('relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors disabled:opacity-50', checked ? 'bg-primary-600' : 'bg-line-strong')}
+        className={cn('relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors disabled:opacity-50', checked ? 'bg-solid-primary' : 'bg-field')}
       >
         <span className={cn('inline-block h-5 w-5 rounded-full bg-white shadow transition-transform', checked ? 'translate-x-[22px]' : 'translate-x-0.5')} />
       </button>

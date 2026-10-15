@@ -89,7 +89,7 @@ export function DependantDialog({ dependant, open, onClose, onSaved }: { dependa
           </FormField>
         </div>
         <FormField label="Notes" hint="Routines or anything helpers should know. Optional." error={errors.notes}>
-          {(p) => <Textarea {...p} rows={3} value={draft.notes} onChange={(e) => set({ notes: e.target.value })} />}
+          {(p) => <Textarea {...p} voice rows={3} value={draft.notes} onChange={(e) => set({ notes: e.target.value })} />}
         </FormField>
       </form>
     </Dialog>

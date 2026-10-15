@@ -2,7 +2,7 @@
 export const config = {
   apiBaseUrl: (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/$/, '') ?? '',
   useMocks: (import.meta.env.VITE_USE_MOCKS ?? 'true') !== 'false',
-  mockLatencyMs: Number(import.meta.env.VITE_MOCK_LATENCY_MS ?? 350),
+  mockLatencyMs: Number(import.meta.env.VITE_MOCK_LATENCY_MS ?? 120),
   /** ISO 4217 code used for grocery prices and budgets. */
   currency: (import.meta.env.VITE_CURRENCY as string | undefined) || 'BDT',
 };

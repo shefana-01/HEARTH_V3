@@ -92,7 +92,7 @@ export default function ApprovalPage() {
         </Card>
 
         <div className="flex items-center justify-center" aria-hidden="true">
-          <span className="flex h-11 w-11 rotate-90 items-center justify-center rounded-full bg-primary-600 text-white shadow-raised lg:rotate-0">
+          <span className="flex h-11 w-11 rotate-90 items-center justify-center rounded-full bg-solid-primary text-white shadow-raised lg:rotate-0">
             <ArrowRight className="h-5 w-5" />
           </span>
         </div>

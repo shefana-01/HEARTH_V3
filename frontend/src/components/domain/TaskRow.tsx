@@ -51,7 +51,7 @@ export function TaskRow({ task, conflict, onToggle, pending, showDay = false }: 
           aria-label={done ? `Mark “${task.title}” as not done` : `Mark “${task.title}” as done`}
           className={cn(
             'flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2 transition-colors disabled:opacity-50',
-            done ? 'border-mint-500 bg-mint-500 text-white' : 'border-line-strong text-transparent hover:border-mint-400 hover:text-mint-400',
+            done ? 'border-solid-mint bg-solid-mint text-white' : 'border-line-strong text-transparent hover:border-mint-400 hover:text-mint-400',
           )}
         >
           <Check aria-hidden="true" className="h-4 w-4" strokeWidth={3} />
