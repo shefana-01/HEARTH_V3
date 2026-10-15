@@ -27,14 +27,15 @@ This table says what is in the repository today, so the README and the code agre
 
 | Part | Status | Notes |
 | --- | --- | --- |
-| Frontend (all screens) | **Working** | Runs fully in demo mode with an in-browser data layer. No backend needed. |
-| Decision engine | **Working** | TypeScript reference implementation in `frontend/src/services/decision/engine.ts`. |
-| Frontend API layer | **Written, not connected** | Every service has a REST branch (`VITE_USE_MOCKS=false`) with token handling and silent refresh. It is tested against a stub API in `frontend/tools/verify/connected`. |
-| Backend | **Scaffold** | Spring Boot gateway and five services with entities, repositories, DTOs and controllers. It compiles in CI. It does not yet provide authentication or the `/api/v1` endpoints the frontend API layer calls. |
-| PostgreSQL, Redis | **Local infrastructure** | Started by `docker-compose.yml`. Redis is provisioned but not used by any service yet. |
-| Kafka event backbone | **Planned** | Described in `docs/architecture`. Not in the code or in Docker Compose. |
-| CareGraph in Neo4j | **Planned** | Today the graph is derived in the browser from the family's records. |
-| Deployment (CD) | **Not set up** | CI builds both halves; nothing is deployed. |
+| Frontend (all screens) | **Working** | Complete family coordination suite (My Day, Schedule, Availability, Priority, Conflict resolution, Health & Nutrition, Appointments, Documents vault, Chat, Tasks, Activity log, Notifications). Runs in demo mode (mock store) and connected mode. |
+| Decision engine | **Working** | Pure mathematical scoring model implemented in `frontend/src/services/decision/engine.ts` (Task Priority Score and Candidate Suitability Score). |
+| Frontend API layer | **Working & Tested** | Comprehensive REST client layer (`VITE_USE_MOCKS=false`) with token management, silent refresh, and contract alignment with backend DTOs. |
+| Backend Microservices | **Working (Sprint 3 complete)** | Spring Boot 3.3.4 (Java 21) multi-module system. Includes API Gateway, `hearth-common`, and 6 microservices with Flyway migrations (`ddl-auto: validate`), JWT authentication, JWKS, task CRUD, appointments, document file storage, audit log, and messaging. Builds cleanly in CI (`mvn clean verify`). |
+| Database & Migrations | **Working** | PostgreSQL 16 (database per service) with Flyway versioned schemas across `family-service`, `task-service`, `care-service`, `notification-service`, and `audit-service`. |
+| Local infrastructure | **Working** | Managed via `docker-compose.yml` (PostgreSQL 16 and Redis 7). All 6 service databases initialized. |
+| Event-driven backbone | **Contracts defined** | Kafka event contracts, topics, `EventPublisher`, and consumer deduplication schemas defined in `hearth-common`. |
+| CareGraph in Neo4j | **In progress** | Graph derived in the browser from family records; backend graph state schema prepared. |
+| CI Pipeline | **Active & Green** | GitHub Actions (`.github/workflows/ci.yml`) runs on every push and PR to `main` and `develop` for both JDK 21 backend verification and Node 20 frontend build. |
 
 ---
 
@@ -45,7 +46,7 @@ This table says what is in the repository today, so the README and the code agre
 ```
 React frontend (Vite, port 3000)
   pages  ->  hooks/providers  ->  services  ->  mock store (localStorage)      [demo mode, default]
-                                           \->  apiRequest() -> API gateway   [written, backend pending]
+                                           \->  apiRequest() -> API gateway   [connected mode]
 ```
 
 - **Frontend:** React 18, TypeScript (strict), Vite 5, Tailwind CSS 3, React Router 6
@@ -58,28 +59,30 @@ See [`frontend/README.md`](frontend/README.md) for the frontend's structure, rou
 state and design system, and [`frontend/src/services/README.md`](frontend/src/services/README.md)
 for the data layer.
 
-### Backend scaffold
+### Backend architecture
 
-Spring Boot 3.3.4 on Java 21, as a multi-module Maven project.
+Spring Boot 3.3.4 on Java 21, organized as a multi-module Maven reactor project:
 
 | Module | Port | Database | Responsibility |
 | --- | --- | --- | --- |
-| `api-gateway` | 8080 | none | Spring Cloud Gateway: routing and CORS |
-| `family-service` | 8081 | `hearth_family` | Families, members, roles, availability |
-| `task-service` | 8082 | `hearth_task` | Tasks, assignment, conflicts |
-| `decision-service` | 8083 | `hearth_decision` | Priority and suitability calculators |
-| `care-service` | 8084 | `hearth_care` | Patients, appointments, nutrition goals, groceries |
-| `notification-service` | 8085 | `hearth_notification` | Notifications and audit log |
+| `api-gateway` | 8080 | *none* | Spring Cloud Gateway: intelligent routing, path rewriting and CORS |
+| `hearth-common` | *library* | *none* | Shared event contracts, topics, `EventPublisher`, security context, `ApiException`, and family helpers |
+| `family-service` | 8081 | `hearth_family` | Authentication (JWT, refresh rotation, JWKS), families, members, roles, availability |
+| `task-service` | 8082 | `hearth_task` | Task management, assignment, schedule conflicts, private/shared visibility |
+| `decision-service` | 8083 | `hearth_decision` | Task Priority and Candidate Suitability decision calculators |
+| `care-service` | 8084 | `hearth_care` | Appointments, preparation checklists (`PrepItem`), document metadata (`CareDocument`), and local file storage |
+| `notification-service` | 8085 | `hearth_notification` | Notification state tracking per member, channel reads, chat messages, comments |
+| `audit-service` | 8086 | `hearth_audit` | Append-only activity log entity (`AuditEvent`), repository, and family-scoped activity views |
 
-Each service owns its own PostgreSQL 16 database (database per service).
+Each service owns its own logical PostgreSQL 16 database (database-per-service pattern), managed through Flyway database migrations (`ddl-auto: validate`).
 
 ### Target architecture
 
 The SRS and `docs/architecture/ARCHITECTURE.md` describe where the project is
 heading: an event-driven design with bounded contexts, Kafka for domain events
 (for example `TaskReassigned`, `AvailabilityChanged`), JWT authentication at the
-gateway, and a Neo4j-backed CareGraph. Those parts are not implemented yet; see
-**Current status** above.
+gateway, and a Neo4j-backed CareGraph. Those parts are active in the Sprint 4-5 roadmap;
+see **Current status** above.
 
 ---
 
@@ -131,16 +134,18 @@ Hearth/
 │   ├── src/                           # app, features, components, hooks, services, lib, types
 │   └── tools/verify/                  # Playwright checks (demo mode and connected mode with a stub API)
 ├── backend/
-│   ├── pom.xml                        # Parent multi-module Maven POM
+│   ├── pom.xml                        # Parent multi-module Maven POM (Spring Boot 3.3.4, Java 21)
 │   ├── api-gateway/                   # Spring Cloud Gateway (port 8080)
+│   ├── hearth-common/                 # Shared module: event contracts, security, family context
 │   └── services/
-│       ├── family-service/            # Port 8081 (DB: hearth_family)
-│       ├── task-service/              # Port 8082 (DB: hearth_task)
-│       ├── decision-service/          # Port 8083 (DB: hearth_decision)
-│       ├── care-service/              # Port 8084 (DB: hearth_care)
-│       └── notification-service/      # Port 8085 (DB: hearth_notification)
+│       ├── family-service/            # Port 8081 (DB: hearth_family) - Auth, JWT, JWKS, members
+│       ├── task-service/              # Port 8082 (DB: hearth_task) - Tasks, assignment, visibility
+│       ├── decision-service/          # Port 8083 (DB: hearth_decision) - Priority & suitability engine
+│       ├── care-service/              # Port 8084 (DB: hearth_care) - Appointments, prep, documents
+│       ├── notification-service/      # Port 8085 (DB: hearth_notification) - Notifications, chat messages
+│       └── audit-service/             # Port 8086 (DB: hearth_audit) - Append-only activity log
 ├── infrastructure/
-│   └── init-db/                       # 01-init-databases.sql (creates the five databases)
+│   └── init-db/                       # 01-init-databases.sql (creates all 6 service databases)
 ├── design-reference/
 │   └── figma/                         # Approved Figma UI/UX screens & specifications
 ├── docs/
@@ -185,31 +190,27 @@ Other frontend scripts:
 | `npm run format:check` | Prettier check |
 | `npm run check` | Type-check, lint, format check and build |
 
-### Build the backend scaffold (optional)
+### Build the backend services
 
 Prerequisites: Java 21 JDK, Maven 3.9+, Docker with Docker Compose.
 
 ```bash
-# 1. Start PostgreSQL and Redis
+# 1. Start PostgreSQL (all 6 service databases) and Redis
 docker compose up -d postgres redis
 
-# 2. Build all modules
+# 2. Build and verify all modules
 cd backend
-mvn clean install -DskipTests
+mvn clean verify -DskipTests=false
 ```
 
-Run a service from your IDE through its `com.hearth.*Application` class. The
-frontend does not need these services, and is not yet connected to them.
+Run any service directly from your IDE through its `com.hearth.*Application` class.
 
 ---
 
 ## Branching and CI
 
-- **Branches:** work is committed to `feature/frontend`, merged into `develop` by
-  pull request, then merged from `develop` into `main` by a second pull request.
-- **CI:** `.github/workflows/ci.yml` runs on every push to `main` or `develop` and on
-  every pull request targeting them. Two jobs run in parallel:
-  - `backend-build`: JDK 21, `mvn clean verify` in `backend/`
+- **Branching strategy:** Work is developed on topic branches (`feature/<topic>` or `feature/backend-<topic>`), integrated into `develop` through Pull Requests, and released to `main` with complete commit history preserved.
+- **CI:** `.github/workflows/ci.yml` runs on every push to `main` or `develop` and on every pull request targeting them. Two jobs run in parallel:
+  - `backend-build`: JDK 21, `mvn clean verify -DskipTests=false` in `backend/`
   - `frontend-build`: Node 20, `npm ci` and `npm run build` in `frontend/`
-- CI checks that both halves build. It does not run the linters or the Playwright
-  scripts, and it does not deploy.
+- Every merge to `develop` and `main` is gated by these passing checks.
