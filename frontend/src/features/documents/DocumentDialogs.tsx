@@ -82,7 +82,7 @@ export function UploadDialog({ onClose, initialFile, onUploaded }: { onClose: ()
                 setFile(f);
                 if (f && !title) setTitle(nameFromFile(f));
               }}
-              className="block w-full rounded-xl border border-dashed border-line-strong bg-surface-muted p-3 text-sm text-ink-muted file:mr-3 file:rounded-lg file:border-0 file:bg-primary-600 file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-white"
+              className="block w-full rounded-xl border border-dashed border-line-strong bg-surface-muted p-3 text-sm text-ink-muted file:mr-3 file:rounded-lg file:border-0 file:bg-solid-primary file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-white"
             />
           )}
         </FormField>

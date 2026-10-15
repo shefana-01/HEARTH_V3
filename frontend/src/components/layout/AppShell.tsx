@@ -13,13 +13,13 @@ import { chatService } from '@/services/chat/chatService';
 import { useReminders } from '@/hooks/useReminders';
 import { plural } from '@/lib/format';
 import { cn } from '@/lib/cn';
-import { Avatar, ButtonLink, IconButton, Menu } from '@/components/ui';
+import { Avatar, ButtonLink, IconButton, Menu, ThemeToggle } from '@/components/ui';
 import { Logo } from './Logo';
 import { ShellContext, type ShellContextValue } from './ShellContext';
 
 function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
   return (
-    <nav aria-label="Main" className="flex-1 space-y-6 overflow-y-auto px-3 pb-4">
+    <nav aria-label="Main" className="scrollbar-thin flex-1 space-y-6 overflow-y-auto overscroll-contain px-3 pb-4 [@media(max-height:900px)]:space-y-3">
       {NAV_SECTIONS.map((section) => (
         <div key={section.title}>
           <p className="eyebrow px-3 pb-2">{section.title}</p>
@@ -31,7 +31,7 @@ function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
                   onClick={onNavigate}
                   className={({ isActive }) =>
                     cn(
-                      'flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-colors',
+                      'flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-colors [@media(max-height:900px)]:py-1.5',
                       isActive ? 'bg-primary-100 text-primary-800' : 'text-ink-muted hover:bg-surface-sunken hover:text-ink',
                     )
                   }
@@ -63,7 +63,7 @@ function SidebarFooter({ onNavigate }: { onNavigate?: () => void }) {
         Settings
       </NavLink>
       {family && (
-        <div className="rounded-xl bg-mint-50 px-3 py-2.5">
+        <div className="rounded-xl bg-mint-50 px-3 py-2.5 [@media(max-height:760px)]:hidden">
           <p className="truncate text-[0.8125rem] font-semibold text-mint-800">{family.name}</p>
           <p className="truncate text-xs text-mint-700">{plural(people.length, 'person', 'people')}</p>
         </div>
@@ -94,7 +94,7 @@ function useUnreadChat() {
   return count;
 }
 
-const countBadge = 'absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[0.625rem] font-bold text-white';
+const countBadge = 'absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-solid-rose px-1 text-[0.625rem] font-bold text-white';
 
 /** Metadata of the deepest matched route that declares itself a detail screen. */
 function useRouteMeta() {
@@ -143,6 +143,7 @@ function Topbar({ meta }: { meta: ReturnType<typeof useRouteMeta> }) {
           <ButtonLink to="/tasks/new" size="sm" leftIcon={<Plus aria-hidden="true" className="h-4 w-4" />} className="hidden lg:inline-flex">
             New task
           </ButtonLink>
+          <ThemeToggle className="text-ink-muted hover:text-ink" />
           <NavLink
             to="/chat"
             aria-label={unreadChat ? `Family chat, ${unreadChat} unread` : 'Family chat'}
@@ -262,7 +263,7 @@ function MoreSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
         onClose();
       }}
       onClick={(e) => e.target === ref.current && onClose()}
-      className="m-0 mt-auto max-h-[85vh] w-full max-w-none rounded-t-3xl border-0 bg-surface p-0 text-ink shadow-overlay backdrop:bg-ink/30 open:flex open:animate-slide-up open:flex-col lg:hidden"
+      className="m-0 mt-auto max-h-[85vh] w-full max-w-none rounded-t-3xl border-0 bg-surface p-0 text-ink shadow-overlay backdrop:bg-black/40 open:flex open:animate-slide-up open:flex-col lg:hidden"
     >
       <div className="flex items-center justify-between px-5 pb-2 pt-3">
         <span aria-hidden="true" className="absolute left-1/2 top-2 h-1 w-10 -translate-x-1/2 rounded-full bg-line-strong" />
@@ -312,7 +313,7 @@ export function AppShell() {
         </a>
 
         <aside className="fixed inset-y-0 left-0 z-40 hidden w-64 flex-col border-r border-line bg-surface-muted/70 lg:flex">
-          <div className="px-5 pb-5 pt-5">
+          <div className="px-5 pb-5 pt-5 [@media(max-height:900px)]:pb-3 [@media(max-height:900px)]:pt-4">
             <Logo to="/today" subtitle="Your day, your family" />
           </div>
           <SidebarNav />

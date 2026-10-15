@@ -25,7 +25,7 @@ export function DayTimeline({ days, events, selected, onSelect }: { days: Date[]
               onClick={() => onSelect(d)}
               className={cn(
                 'flex min-h-[3.5rem] flex-col items-center rounded-2xl border py-2 transition-colors',
-                active ? 'border-primary-600 bg-primary-600 text-white' : today ? 'border-primary-200 bg-primary-50 text-ink' : 'border-line bg-surface text-ink hover:border-primary-200',
+                active ? 'border-solid-primary bg-solid-primary text-white' : today ? 'border-primary-200 bg-primary-50 text-ink' : 'border-line bg-surface text-ink hover:border-primary-200',
               )}
             >
               <span className={cn('text-[0.6875rem] font-semibold uppercase', active ? 'text-primary-100' : 'text-ink-subtle')}>{formatWeekdayShort(d).slice(0, 2)}</span>

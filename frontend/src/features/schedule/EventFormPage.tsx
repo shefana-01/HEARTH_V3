@@ -72,7 +72,7 @@ function EventForm({ existing }: { existing?: PersonalEvent }) {
           <FormError message={save.error ?? remove.error} />
 
           <FormField label="Name" required error={errors.title}>
-            {(p) => <Input {...p} value={form.title} onChange={(e) => set('title', e.target.value)} placeholder="Software Engineering lecture" maxLength={100} />}
+            {(p) => <Input {...p} voice value={form.title} onChange={(e) => set('title', e.target.value)} placeholder="Software Engineering lecture" maxLength={100} />}
           </FormField>
 
           <fieldset>

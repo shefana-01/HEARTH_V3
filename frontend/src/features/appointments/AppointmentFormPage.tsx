@@ -83,7 +83,7 @@ function AppointmentForm({ existing }: { existing?: Appointment }) {
           <FormError message={save.error} />
           <div className="grid gap-4 sm:grid-cols-2">
             <FormField label="What is the visit?" required error={errors.title} className="sm:col-span-2">
-              {(p) => <Input {...p} value={form.title} onChange={(e) => set('title', e.target.value)} placeholder="e.g. Follow-up with the heart specialist" />}
+              {(p) => <Input {...p} voice value={form.title} onChange={(e) => set('title', e.target.value)} placeholder="e.g. Follow-up with the heart specialist" />}
             </FormField>
             <PersonSelect label="Who is it for?" value={form.forId} onChange={setForId} required className="sm:col-span-2" />
             <FormField label="Type or specialty" aside="Optional">
@@ -132,7 +132,7 @@ function AppointmentForm({ existing }: { existing?: Appointment }) {
               </FormField>
             )}
             <FormField label="Note for the family" aside="Optional" error={errors.note} className="sm:col-span-2">
-              {(p) => <Textarea {...p} value={form.note} onChange={(e) => set('note', e.target.value)} />}
+              {(p) => <Textarea {...p} voice value={form.note} onChange={(e) => set('note', e.target.value)} />}
             </FormField>
             <div className="sm:col-span-2">
               <VisibilityField name="visibility" value={form.visibility} onChange={(v) => set('visibility', v)} what="appointment" />

@@ -52,7 +52,7 @@ export function TaskComments({ taskId }: { taskId: string }) {
         <label htmlFor="comment-text" className="sr-only">
           Write a comment
         </label>
-        <Textarea id="comment-text" rows={2} value={text} maxLength={MAX_MESSAGE_LENGTH} onChange={(e) => setText(e.target.value)} placeholder="Write a comment…" />
+        <Textarea id="comment-text" voice rows={2} value={text} maxLength={MAX_MESSAGE_LENGTH} onChange={(e) => setText(e.target.value)} placeholder="Write a comment…" />
         <div className="flex items-center justify-between gap-3">
           <span className="text-xs text-ink-subtle">
             {text.length}/{MAX_MESSAGE_LENGTH}

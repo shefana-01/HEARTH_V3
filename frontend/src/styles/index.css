@@ -7,21 +7,158 @@
 @tailwind utilities;
 
 @layer base {
+  /*
+   * Colour tokens (space-separated RGB so Tailwind opacity modifiers like bg-surface/80 work).
+   * tailwind.config.ts maps every colour utility onto these variables, so a theme is just a
+   * different set of values: the light theme is below, the dark one under [data-theme='dark'].
+   * Do not edit one theme without checking the other (contrast is verified for both).
+   */
   :root {
-    --ink: 29 42 48;
-    --ink-muted: 71 88 96;
-    --ink-subtle: 94 111 119;
-    --line: 221 231 227;
-    --line-strong: 198 214 208;
+    color-scheme: light;
+    --c-canvas: 247 250 249;
+    --c-surface: 255 255 255;
+    --c-surface-muted: 242 247 245;
+    --c-surface-sunken: 233 241 238;
+    --c-ink: 29 42 48;
+    --c-ink-muted: 71 88 96;
+    --c-ink-subtle: 94 111 119;
+    --c-line: 221 231 227;
+    --c-line-strong: 198 214 208;
+    --c-field: 118 144 154;
+    --c-primary-50: 241 247 252;
+    --c-primary-100: 225 238 248;
+    --c-primary-200: 197 222 240;
+    --c-primary-300: 156 198 227;
+    --c-primary-400: 111 168 207;
+    --c-primary-500: 79 140 184;
+    --c-primary-600: 60 115 156;
+    --c-primary-700: 49 94 128;
+    --c-primary-800: 40 76 104;
+    --c-primary-900: 32 61 83;
+    --c-rose-50: 253 243 245;
+    --c-rose-100: 250 228 233;
+    --c-rose-200: 244 200 210;
+    --c-rose-300: 234 163 179;
+    --c-rose-400: 219 125 147;
+    --c-rose-500: 197 92 118;
+    --c-rose-600: 166 71 95;
+    --c-rose-700: 134 57 77;
+    --c-mint-50: 239 248 243;
+    --c-mint-100: 220 240 229;
+    --c-mint-200: 190 227 207;
+    --c-mint-300: 149 206 176;
+    --c-mint-400: 106 181 145;
+    --c-mint-500: 75 151 117;
+    --c-mint-600: 58 122 94;
+    --c-mint-700: 47 98 76;
+    --c-mint-800: 38 79 62;
+    --c-amber-50: 254 247 232;
+    --c-amber-100: 252 235 198;
+    --c-amber-200: 248 216 146;
+    --c-amber-500: 192 132 27;
+    --c-amber-600: 154 105 18;
+    --c-amber-700: 120 82 14;
+    --c-red-50: 253 241 240;
+    --c-red-100: 250 219 216;
+    --c-red-200: 243 182 177;
+    --c-red-300: 233 146 140;
+    --c-red-400: 217 106 98;
+    --c-red-500: 200 69 61;
+    --c-red-600: 167 53 47;
+    --c-red-700: 133 42 37;
+    --c-red-800: 106 32 28;
+    --c-solid-primary: 60 115 156;
+    --c-solid-primary-hover: 49 94 128;
+    --c-solid-primary-active: 40 76 104;
+    --c-solid-rose: 166 71 95;
+    --c-solid-rose-hover: 134 57 77;
+    --c-solid-red: 167 53 47;
+    --c-solid-red-hover: 133 42 37;
+    --c-solid-mint: 58 122 94;
+  }
+
+  /* Dark theme (Settings → Display, or the sun/moon button). Set on <html> by src/lib/prefs.ts. */
+  html[data-theme='dark'] {
+    color-scheme: dark;
+    --c-canvas: 14 24 29;
+    --c-surface: 22 34 39;
+    --c-surface-muted: 27 41 48;
+    --c-surface-sunken: 35 53 64;
+    --c-ink: 232 240 243;
+    --c-ink-muted: 178 194 201;
+    --c-ink-subtle: 140 158 167;
+    --c-line: 42 58 66;
+    --c-line-strong: 62 84 94;
+    --c-field: 101 127 140;
+    --c-primary-50: 20 34 43;
+    --c-primary-100: 25 48 64;
+    --c-primary-200: 35 67 89;
+    --c-primary-300: 52 104 140;
+    --c-primary-400: 85 148 191;
+    --c-primary-500: 111 168 207;
+    --c-primary-600: 140 190 224;
+    --c-primary-700: 168 208 234;
+    --c-primary-800: 196 222 241;
+    --c-primary-900: 224 238 248;
+    --c-rose-50: 43 22 28;
+    --c-rose-100: 58 29 38;
+    --c-rose-200: 84 42 57;
+    --c-rose-300: 122 60 82;
+    --c-rose-400: 217 116 141;
+    --c-rose-500: 224 136 157;
+    --c-rose-600: 237 163 180;
+    --c-rose-700: 243 188 200;
+    --c-mint-50: 18 36 29;
+    --c-mint-100: 23 51 42;
+    --c-mint-200: 31 70 56;
+    --c-mint-300: 47 106 83;
+    --c-mint-400: 79 163 127;
+    --c-mint-500: 98 181 146;
+    --c-mint-600: 130 199 168;
+    --c-mint-700: 160 214 189;
+    --c-mint-800: 191 229 211;
+    --c-amber-50: 42 33 16;
+    --c-amber-100: 58 45 20;
+    --c-amber-200: 84 65 26;
+    --c-amber-500: 224 162 58;
+    --c-amber-600: 235 184 95;
+    --c-amber-700: 242 203 133;
+    --c-red-50: 45 23 21;
+    --c-red-100: 62 29 26;
+    --c-red-200: 94 43 39;
+    --c-red-300: 138 60 54;
+    --c-red-400: 216 100 93;
+    --c-red-500: 229 122 114;
+    --c-red-600: 240 154 147;
+    --c-red-700: 246 181 176;
+    --c-red-800: 249 203 199;
+    --c-solid-primary: 51 105 143;
+    --c-solid-primary-hover: 60 115 156;
+    --c-solid-primary-active: 69 128 169;
+    --c-solid-rose: 178 79 105;
+    --c-solid-rose-hover: 194 91 117;
+    --c-solid-red: 181 61 54;
+    --c-solid-red-hover: 196 72 63;
+    --c-solid-mint: 58 122 94;
   }
 
   /* Stronger contrast (Settings → Display): darker text, clearer borders. */
   html[data-contrast='high'] {
-    --ink: 8 16 20;
-    --ink-muted: 34 46 52;
-    --ink-subtle: 48 61 68;
-    --line: 150 170 162;
-    --line-strong: 110 132 124;
+    --c-ink: 8 16 20;
+    --c-ink-muted: 34 46 52;
+    --c-ink-subtle: 48 61 68;
+    --c-line: 150 170 162;
+    --c-line-strong: 110 132 124;
+    --c-field: 92 114 107;
+  }
+
+  html[data-theme='dark'][data-contrast='high'] {
+    --c-ink: 255 255 255;
+    --c-ink-muted: 220 232 238;
+    --c-ink-subtle: 200 214 221;
+    --c-line: 110 135 146;
+    --c-line-strong: 150 175 186;
+    --c-field: 150 175 186;
   }
 
   html {

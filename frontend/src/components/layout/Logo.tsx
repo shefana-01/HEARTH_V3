@@ -19,7 +19,8 @@ export function Logo({ to = '/', subtitle, className }: { to?: string; subtitle?
       <LogoMark />
       <span className="flex flex-col leading-none">
         <span className="font-display text-xl font-semibold tracking-tight text-ink">Hearth</span>
-        {subtitle && <span className="mt-1 text-[0.6875rem] font-medium text-ink-subtle">{subtitle}</span>}
+        {/* Hidden on very narrow phones, where the header also holds the theme, sign-up and menu buttons. */}
+        {subtitle && <span className="mt-1 hidden whitespace-nowrap text-[0.6875rem] font-medium text-ink-subtle min-[420px]:block">{subtitle}</span>}
       </span>
     </Link>
   );

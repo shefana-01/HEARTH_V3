@@ -132,7 +132,7 @@ export default function AvailabilityPage() {
                     onClick={() => setDraft({ ...draft, days: draft.days.map((v, j) => (j === i ? !v : v)) })}
                     className={cn(
                       'h-11 w-12 rounded-xl border text-sm font-semibold transition-colors',
-                      draft.days[i] ? 'border-primary-500 bg-primary-600 text-white' : 'border-line bg-surface text-ink-muted hover:border-primary-300',
+                      draft.days[i] ? 'border-solid-primary bg-solid-primary text-white' : 'border-line bg-surface text-ink-muted hover:border-primary-300',
                     )}
                   >
                     {d}

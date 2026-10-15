@@ -5,6 +5,23 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="description" content="Hearth brings your own schedule, your family’s shared tasks, chat, health notes and papers into one place, and helps decide what to do first." />
     <meta name="theme-color" content="#3C739C" />
+    <meta name="color-scheme" content="light dark" />
+    <!-- Set the saved theme, contrast and text size before the first paint so a dark-theme user never sees a white flash. Keep in step with src/lib/prefs.ts. -->
+    <script>
+      (function () {
+        try {
+          var p = JSON.parse(localStorage.getItem('hearth.display') || '{}');
+          var t = p.theme === 'light' || p.theme === 'dark' ? p.theme : 'system';
+          var dark = t === 'dark' || (t === 'system' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+          var r = document.documentElement;
+          r.dataset.theme = dark ? 'dark' : 'light';
+          r.dataset.contrast = p.highContrast ? 'high' : 'normal';
+          r.dataset.textSize = p.textSize || 'standard';
+          var m = document.querySelector('meta[name="theme-color"]');
+          if (m) m.setAttribute('content', dark ? '#0E181D' : '#3C739C');
+        } catch (e) {}
+      })();
+    </script>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <title>Hearth — your day and your family, in one place</title>
   </head>

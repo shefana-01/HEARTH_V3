@@ -213,7 +213,7 @@ function DayChips({ days, label, onChange }: { days: boolean[]; label: string; o
           onClick={() => onChange(days.map((on, j) => (j === i ? !on : on)))}
           className={cn(
             'h-11 w-14 rounded-xl border text-sm font-semibold transition-colors',
-            days[i] ? 'border-primary-500 bg-primary-600 text-white' : 'border-line bg-surface text-ink-muted hover:border-primary-300',
+            days[i] ? 'border-solid-primary bg-solid-primary text-white' : 'border-line bg-surface text-ink-muted hover:border-primary-300',
           )}
         >
           {d}

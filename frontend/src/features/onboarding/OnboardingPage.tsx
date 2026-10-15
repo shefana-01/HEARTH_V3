@@ -220,7 +220,7 @@ export default function OnboardingPage() {
                         <span
                           className={cn(
                             'flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold',
-                            done ? 'bg-mint-100 text-mint-700' : active ? 'bg-rose-500 text-white' : 'bg-surface-sunken text-ink-subtle',
+                            done ? 'bg-mint-100 text-mint-700' : active ? 'bg-solid-rose text-white' : 'bg-surface-sunken text-ink-subtle',
                           )}
                         >
                           {done ? <Check aria-hidden="true" className="h-3.5 w-3.5" strokeWidth={3} /> : i + 1}

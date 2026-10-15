@@ -44,7 +44,7 @@ function GoalEditor({ goal, error, onChange, onRemove }: { goal: HealthGoal; err
     <div className="rounded-2xl border border-line p-4">
       <div className="grid gap-3 sm:grid-cols-2">
         <FormField label="Goal" required error={error.title}>
-          {(p) => <Input {...p} value={goal.title} onChange={(e) => onChange({ title: e.target.value })} placeholder="For example, less salt" />}
+          {(p) => <Input {...p} voice value={goal.title} onChange={(e) => onChange({ title: e.target.value })} placeholder="For example, less salt" />}
         </FormField>
         <FormField label="Target" aside="Optional">
           {(p) => <Input {...p} value={goal.target} onChange={(e) => onChange({ target: e.target.value })} placeholder="Under one teaspoon of salt a day" />}
@@ -167,7 +167,7 @@ function ProfileForm({ person, profile, isMine }: { person: Person; profile: Hea
 
       <Section id="notes-heading" title="Notes">
         <FormField label="Anything else worth remembering" aside="Optional" hint="For example, what the doctor said.">
-          {(p) => <Textarea {...p} value={draft.notes} onChange={(e) => set('notes', e.target.value)} />}
+          {(p) => <Textarea {...p} voice value={draft.notes} onChange={(e) => set('notes', e.target.value)} />}
         </FormField>
       </Section>
 
