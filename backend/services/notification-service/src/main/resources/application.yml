@@ -10,6 +10,7 @@ spring:
     password: ${SPRING_DATASOURCE_PASSWORD:hearth_password}
     driver-class-name: org.postgresql.Driver
   jpa:
+    open-in-view: false
     hibernate:
       ddl-auto: validate
     show-sql: false
@@ -17,6 +18,25 @@ spring:
       hibernate:
         format_sql: true
         dialect: org.hibernate.dialect.PostgreSQLDialect
+
+  flyway:
+    enabled: true
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    consumer:
+      auto-offset-reset: earliest
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          jwk-set-uri: ${JWKS_URI:http://localhost:8081/.well-known/jwks.json}
+
+hearth:
+  services:
+    family: ${FAMILY_SERVICE_URL:http://localhost:8081}
+  notifications:
+    # People are not notified about their own actions. Set to true when demoing with a single account.
+    include-own-actions: ${NOTIFY_OWN_ACTIONS:false}
 
 springdoc:
   api-docs:
