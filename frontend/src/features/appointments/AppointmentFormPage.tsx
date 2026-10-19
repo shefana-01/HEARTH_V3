@@ -8,12 +8,13 @@ import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { combineDateTime, toDateInputValue } from '@/lib/dates';
 import { maxLength, required, validate } from '@/lib/validation';
 import { ActionBar, Button, Card, ErrorState, FormError, FormField, Input, PageHeader, PageSkeleton, Select, Textarea, useToast } from '@/components/ui';
-import type { Appointment } from '@/types/domain';
+import { PersonSelect, VisibilityField } from '@/components/domain/People';
+import type { Appointment, Visibility } from '@/types/domain';
 
 const DURATIONS = [15, 30, 45, 60, 90, 120];
 
 function AppointmentForm({ existing }: { existing?: Appointment }) {
-  const { members, firstNameOf } = useFamily();
+  const { members, me, firstNameOf } = useFamily();
   const navigate = useNavigate();
   const { toast } = useToast();
   const start = existing ? new Date(existing.start) : undefined;
@@ -25,7 +26,9 @@ function AppointmentForm({ existing }: { existing?: Appointment }) {
     durationMin: existing?.durationMin ?? 60,
     provider: existing?.provider ?? '',
     location: existing?.location ?? '',
+    forId: existing?.forId ?? me?.id ?? '',
     escortId: existing?.escortId ?? '',
+    visibility: (existing?.visibility ?? 'family') as Visibility,
     note: existing?.note ?? '',
     prep: '',
   });
@@ -38,12 +41,17 @@ function AppointmentForm({ existing }: { existing?: Appointment }) {
       durationMin: form.durationMin,
       provider: form.provider.trim(),
       location: form.location.trim(),
+      forId: form.forId,
       escortId: form.escortId || null,
+      visibility: form.visibility,
       note: form.note.trim(),
     };
     return existing ? appointmentService.update(existing.id, payload) : appointmentService.create({ ...payload, prep: form.prep.split('\n') });
   });
   const set = <K extends keyof typeof form>(k: K, v: (typeof form)[K]) => setForm((f) => ({ ...f, [k]: v }));
+  // Whoever the visit is for does not need to be asked to go along with themselves.
+  const setForId = (forId: string) => setForm((f) => ({ ...f, forId, escortId: f.escortId === forId ? '' : f.escortId }));
+  const companions = members.filter((m) => m.status === 'active' && m.role !== 'observer' && m.id !== form.forId);
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -58,7 +66,7 @@ function AppointmentForm({ existing }: { existing?: Appointment }) {
     if (Object.values(next).some(Boolean)) return;
     const saved = await save.run();
     if (saved) {
-      toast({ title: existing ? 'Appointment updated' : 'Appointment added', description: saved.escortId ? `${firstNameOf(saved.escortId)} will accompany.` : 'No escort chosen yet.' });
+      toast({ title: existing ? 'Appointment updated' : 'Appointment added', description: saved.escortId ? `${firstNameOf(saved.escortId)} is going along.` : 'Nobody is going along yet.' });
       navigate(`/appointments/${saved.id}`);
     }
   };
@@ -68,7 +76,7 @@ function AppointmentForm({ existing }: { existing?: Appointment }) {
       <PageHeader
         breadcrumbs={[{ label: 'Appointments', to: '/appointments' }, { label: existing ? 'Edit appointment' : 'New appointment' }]}
         title={existing ? 'Edit appointment' : 'Add an appointment'}
-        description="Share visit details so the circle knows who is going and what to bring."
+        description="Share visit details so the family knows who it is for, who is going along and what to bring."
       />
       <Card padding="lg" className="max-w-3xl">
         <form onSubmit={onSubmit} noValidate className="space-y-5">
@@ -77,10 +85,11 @@ function AppointmentForm({ existing }: { existing?: Appointment }) {
             <FormField label="What is the visit?" required error={errors.title} className="sm:col-span-2">
               {(p) => <Input {...p} value={form.title} onChange={(e) => set('title', e.target.value)} placeholder="e.g. Follow-up with the heart specialist" />}
             </FormField>
+            <PersonSelect label="Who is it for?" value={form.forId} onChange={setForId} required className="sm:col-span-2" />
             <FormField label="Type or specialty" aside="Optional">
               {(p) => <Input {...p} value={form.specialty} onChange={(e) => set('specialty', e.target.value)} placeholder="e.g. Cardiology, Dentist, GP" />}
             </FormField>
-            <FormField label="With" required error={errors.provider} hint="Doctor, clinic or service.">
+            <FormField label="Doctor or clinic" required error={errors.provider} hint="Or whoever the visit is with.">
               {(p) => <Input {...p} value={form.provider} onChange={(e) => set('provider', e.target.value)} />}
             </FormField>
             <FormField label="Date" required error={errors.date}>
@@ -105,17 +114,15 @@ function AppointmentForm({ existing }: { existing?: Appointment }) {
             <FormField label="Location" aside="Optional" className="sm:col-span-2">
               {(p) => <Input {...p} value={form.location} onChange={(e) => set('location', e.target.value)} placeholder="Address, building or room" />}
             </FormField>
-            <FormField label="Who will go with them?" hint="They’ll be notified and the visit counts in their schedule.">
+            <FormField label="Who is going along?" hint="They’ll be asked and the visit counts in their schedule." className="sm:col-span-2">
               {(p) => (
                 <Select {...p} value={form.escortId} onChange={(e) => set('escortId', e.target.value)}>
-                  <option value="">Decide later</option>
-                  {members
-                    .filter((m) => m.status === 'active' && m.role !== 'observer')
-                    .map((m) => (
-                      <option key={m.id} value={m.id}>
-                        {m.name}
-                      </option>
-                    ))}
+                  <option value="">Nobody</option>
+                  {companions.map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {m.name}
+                    </option>
+                  ))}
                 </Select>
               )}
             </FormField>
@@ -127,12 +134,15 @@ function AppointmentForm({ existing }: { existing?: Appointment }) {
             <FormField label="Note for the family" aside="Optional" error={errors.note} className="sm:col-span-2">
               {(p) => <Textarea {...p} value={form.note} onChange={(e) => set('note', e.target.value)} />}
             </FormField>
+            <div className="sm:col-span-2">
+              <VisibilityField name="visibility" value={form.visibility} onChange={(v) => set('visibility', v)} what="appointment" />
+            </div>
           </div>
           <ActionBar className="flex-row lg:justify-end lg:border-t lg:border-line lg:pt-5">
-            <Button variant="secondary" onClick={() => navigate(-1)}>
+            <Button variant="secondary" size="lg" onClick={() => navigate(-1)}>
               Cancel
             </Button>
-            <Button type="submit" className="flex-1 sm:flex-none" loading={save.pending}>
+            <Button type="submit" size="lg" className="flex-1 sm:flex-none" loading={save.pending}>
               {existing ? 'Save changes' : 'Add appointment'}
             </Button>
           </ActionBar>

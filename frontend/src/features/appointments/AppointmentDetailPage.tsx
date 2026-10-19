@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { CalendarCheck2, Car, Check, FileText, Heart, MapPin, Pencil, Plus, Share2, StickyNote, Trash2, X } from 'lucide-react';
+import { CalendarCheck2, Check, FileText, Lock, MapPin, Pencil, Plus, Share2, StickyNote, Trash2, UserRound, Users, X } from 'lucide-react';
 import { useFamily } from '@/app/FamilyProvider';
 import { appointmentService } from '@/services/care/appointmentService';
 import { taskService } from '@/services/tasks/taskService';
@@ -11,12 +11,13 @@ import { formatDayTime, formatDuration, formatTime } from '@/lib/dates';
 import { downloadIcs } from '@/lib/ics';
 import { cn } from '@/lib/cn';
 import { Avatar, Badge, Button, ButtonLink, Card, CardHeader, ConfirmDialog, ErrorState, IconButton, Input, PageHeader, PageSkeleton, useToast } from '@/components/ui';
+import { PrivateBadge } from '@/components/domain/People';
 
 export default function AppointmentDetailPage() {
   const { appointmentId = '' } = useParams();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { family, memberById, nameOf } = useFamily();
+  const { memberById, nameOf, personName } = useFamily();
   const data = useAsync(async () => {
     const [appt, tasks, docs] = await Promise.all([appointmentService.get(appointmentId), taskService.listTasks(), documentService.list()]);
     return { appt, tasks: tasks.filter((t) => t.appointmentId === appointmentId), docs: docs.filter((d) => d.appointmentId === appointmentId) };
@@ -54,7 +55,7 @@ export default function AppointmentDetailPage() {
   };
 
   const share = async () => {
-    const text = `${appt.title} — ${formatDayTime(appt.start)}\n${appt.provider}, ${appt.location}\nEscort: ${escort?.name ?? 'not assigned'}`;
+    const text = `${appt.title} for ${personName(appt.forId)} — ${formatDayTime(appt.start)}\n${appt.provider}, ${appt.location}\nGoing along: ${escort?.name ?? 'nobody yet'}`;
     try {
       if (navigator.share) await navigator.share({ title: appt.title, text });
       else {
@@ -72,7 +73,7 @@ export default function AppointmentDetailPage() {
         back={{ to: '/appointments', label: 'Back to appointments' }}
         eyebrow={
           <Badge tone={past ? 'neutral' : 'primary'} dot>
-            {past ? 'Past visit' : 'Scheduled visit'}
+            {past ? 'Past visit' : 'Coming up'}
           </Badge>
         }
         title={appt.title}
@@ -80,8 +81,9 @@ export default function AppointmentDetailPage() {
         meta={
           <>
             <Badge tone="rose" size="md" className="gap-1">
-              <Heart aria-hidden="true" className="h-3 w-3" /> {family?.recipient.name}
+              <UserRound aria-hidden="true" className="h-3 w-3" /> For {personName(appt.forId)}
             </Badge>
+            {appt.visibility === 'private' && <PrivateBadge />}
             <span className="inline-flex items-center gap-1 text-sm text-ink-muted">
               <MapPin aria-hidden="true" className="h-4 w-4" /> {appt.provider} · {appt.location}
             </span>
@@ -102,7 +104,7 @@ export default function AppointmentDetailPage() {
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_20rem]">
         <div className="space-y-6">
           <Card>
-            <CardHeader title="Caregiver in charge" icon={<Car aria-hidden="true" className="h-5 w-5" />} />
+            <CardHeader title="Going along" icon={<Users aria-hidden="true" className="h-5 w-5" />} />
             <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-surface-muted p-4">
               <div className="flex items-center gap-3">
                 {escort ? (
@@ -111,13 +113,13 @@ export default function AppointmentDetailPage() {
                   <span className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-dashed border-line-strong text-ink-subtle">?</span>
                 )}
                 <div>
-                  <p className="font-semibold text-ink">{escort?.name ?? 'Nobody assigned yet'}</p>
-                  <p className="text-[13px] text-ink-subtle">Accompaniment & transport</p>
+                  <p className="font-semibold text-ink">{escort?.name ?? 'Nobody is going along yet'}</p>
+                  <p className="text-[0.8125rem] text-ink-subtle">{escort ? 'Goes along and helps with getting there' : 'You can ask someone to come along.'}</p>
                 </div>
               </div>
               {escort ? (
                 <Badge tone="mint" dot size="md">
-                  Assigned
+                  Told about it
                 </Badge>
               ) : (
                 <ButtonLink to={`/appointments/${appt.id}/edit`} size="sm">
@@ -131,7 +133,7 @@ export default function AppointmentDetailPage() {
             <CardHeader
               title="What to bring & prepare"
               action={
-                <span className="text-[13px] font-semibold text-ink-muted">
+                <span className="text-[0.8125rem] font-semibold text-ink-muted">
                   {ready} of {appt.prep.length} ready
                 </span>
               }
@@ -175,7 +177,7 @@ export default function AppointmentDetailPage() {
                   aria-describedby={prepError ? 'prep-error' : undefined}
                 />
                 {prepError && (
-                  <p id="prep-error" className="mt-1.5 text-[13px] font-medium text-red-600">
+                  <p id="prep-error" className="mt-1.5 text-[0.8125rem] font-medium text-red-600">
                     {prepError}
                   </p>
                 )}
@@ -204,7 +206,7 @@ export default function AppointmentDetailPage() {
                     <Link to={`/tasks/${t.id}`} className="block rounded-xl bg-surface-muted px-3 py-2.5 hover:bg-surface-sunken">
                       <span className="block text-sm font-semibold text-ink">{t.title}</span>
                       <span className="block text-xs text-ink-subtle">
-                        {formatDayTime(t.start)} · {nameOf(t.assigneeId)}
+                        {formatDayTime(t.start)} · {t.assigneeId ? nameOf(t.assigneeId) : 'Needs someone'}
                       </span>
                     </Link>
                   </li>
@@ -229,7 +231,13 @@ export default function AppointmentDetailPage() {
               <ul className="space-y-2">
                 {docs.map((d) => (
                   <li key={d.id} className="flex items-center gap-2 text-sm text-ink">
-                    <FileText aria-hidden="true" className="h-4 w-4 text-primary-600" /> {d.title}
+                    <FileText aria-hidden="true" className="h-4 w-4 shrink-0 text-primary-600" /> {d.title}
+                    {d.access === 'restricted' && (
+                      <>
+                        <Lock aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-ink-subtle" />
+                        <span className="sr-only">Restricted</span>
+                      </>
+                    )}
                   </li>
                 ))}
               </ul>

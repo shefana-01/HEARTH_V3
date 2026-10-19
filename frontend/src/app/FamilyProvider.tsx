@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useAuth } from './AuthProvider';
 import { familyService } from '@/services/family/familyService';
-import type { Family, FamilyMember } from '@/types/domain';
+import type { Family, FamilyMember, Person } from '@/types/domain';
 
 interface FamilyContextValue {
   status: 'loading' | 'ready' | 'error';
@@ -9,17 +9,24 @@ interface FamilyContextValue {
   members: FamilyMember[];
   /** The signed-in person's member record. */
   me: FamilyMember | undefined;
+  /** The signed-in person organises this family space. */
   isLead: boolean;
+  /** May open other people's shared health notes (the organiser always can). */
+  canSeeMedical: boolean;
   memberById: (id: string | null | undefined) => FamilyMember | undefined;
   /** Display name for any member id, with a friendly fallback. */
   nameOf: (id: string | null | undefined) => string;
   firstNameOf: (id: string | null | undefined) => string;
+  /** Everyone a task, appointment, document or health note can be about: active members, then the people the family looks after. */
+  people: Person[];
+  /** Name of a member or a dependant. */
+  personName: (id: string | null | undefined) => string;
   refresh: () => Promise<void>;
 }
 
 const FamilyContext = createContext<FamilyContextValue | null>(null);
 
-/** Shared family + member data so every page can resolve names without refetching. */
+/** Shared family, member and dependant data so every page can resolve names without refetching. */
 export function FamilyProvider({ children }: { children: ReactNode }) {
   const { session } = useAuth();
   const accountId = session?.account.id ?? null;
@@ -63,15 +70,23 @@ export function FamilyProvider({ children }: { children: ReactNode }) {
     const memberById = (id: string | null | undefined) => (id ? byId.get(id) : undefined);
     const nameOf = (id: string | null | undefined) => memberById(id)?.name ?? (id ? 'Former member' : 'Unassigned');
     const me = session ? byId.get(session.account.memberId) : undefined;
+    const people: Person[] = [
+      ...members.filter((m) => m.status === 'active').map((m) => ({ id: m.id, kind: 'member' as const, name: m.name, relation: m.relation })),
+      ...(family?.dependants ?? []).map((d) => ({ id: d.id, kind: 'dependant' as const, name: d.name, relation: d.relation })),
+    ];
+    const personById = new Map(people.map((p) => [p.id, p]));
     return {
       status,
       family,
       members,
       me,
       isLead: me?.role === 'lead',
+      canSeeMedical: me?.role === 'lead' || Boolean(me?.access.medical),
       memberById,
       nameOf,
       firstNameOf: (id) => nameOf(id).split(' ')[0],
+      people,
+      personName: (id) => (id ? (personById.get(id)?.name ?? byId.get(id)?.name ?? 'Someone') : 'Nobody in particular'),
       refresh,
     };
   }, [status, family, members, session, refresh]);

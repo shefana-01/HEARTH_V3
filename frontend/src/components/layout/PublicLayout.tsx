@@ -8,8 +8,8 @@ import { Logo } from './Logo';
 const LINKS = [
   { href: '#problem', label: 'The problem' },
   { href: '#how-it-works', label: 'How it works' },
-  { href: '#decisions', label: 'Smart coordination' },
-  { href: '#circle', label: 'For families' },
+  { href: '#decisions', label: 'Handing over' },
+  { href: '#family', label: 'For families' },
   { href: '#privacy', label: 'Privacy' },
 ];
 
@@ -19,7 +19,7 @@ export function PublicHeader({ sectionLinks = true }: { sectionLinks?: boolean }
   return (
     <header className="sticky top-0 z-40 border-b border-line/70 bg-canvas/85 backdrop-blur-md">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
-        <Logo subtitle="Family care coordination" />
+        <Logo subtitle="Your day and your family" />
         {sectionLinks && (
           <nav aria-label="Page sections" className="hidden items-center gap-1 rounded-full border border-line bg-surface/80 p-1 lg:flex">
             {LINKS.map((l) => (
@@ -31,7 +31,7 @@ export function PublicHeader({ sectionLinks = true }: { sectionLinks?: boolean }
         )}
         <div className="flex items-center gap-2">
           {session ? (
-            <ButtonLink to="/dashboard" size="sm">
+            <ButtonLink to="/today" size="sm">
               Open Hearth
             </ButtonLink>
           ) : (
@@ -81,7 +81,7 @@ export function PublicFooter() {
       <div className="mx-auto grid max-w-6xl gap-8 px-4 py-12 sm:px-6 md:grid-cols-4">
         <div className="md:col-span-2">
           <Logo />
-          <p className="mt-3 max-w-sm text-sm text-ink-muted">Calm, shared coordination for the people who care for someone they love.</p>
+          <p className="mt-3 max-w-sm text-sm text-ink-muted">Your day, and your family’s, in one place.</p>
         </div>
         <div>
           <h2 className="text-sm font-semibold text-ink">Product</h2>
@@ -93,7 +93,7 @@ export function PublicFooter() {
             </li>
             <li>
               <a href="#decisions" className="hover:text-ink">
-                Smart coordination
+                Handing over
               </a>
             </li>
             <li>
@@ -125,7 +125,7 @@ export function PublicFooter() {
         </div>
       </div>
       <div className="border-t border-line">
-        <p className="mx-auto max-w-6xl px-4 py-5 text-xs text-ink-subtle sm:px-6">© {new Date().getFullYear()} Hearth. Hearth supports family coordination and does not provide medical advice.</p>
+        <p className="mx-auto max-w-6xl px-4 py-5 text-xs text-ink-subtle sm:px-6">© {new Date().getFullYear()} Hearth. Hearth helps you plan and does not give medical advice.</p>
       </div>
     </footer>
   );

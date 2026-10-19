@@ -17,9 +17,9 @@ export const buttonVariants: Record<ButtonVariant, string> = {
 };
 
 const sizes: Record<ButtonSize, string> = {
-  sm: 'h-8 px-3 text-[13px]',
+  sm: 'h-8 px-3 text-[0.8125rem]',
   md: 'h-10 px-4 text-sm',
-  lg: 'h-12 px-5 text-[15px]',
+  lg: 'h-12 px-5 text-[0.9375rem]',
 };
 
 /** Class names for button-like elements (Button, ButtonLink, and plain links styled as buttons). */

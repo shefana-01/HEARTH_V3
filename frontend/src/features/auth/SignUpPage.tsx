@@ -52,10 +52,10 @@ export default function SignUpPage() {
       <Card padding="lg" className="shadow-raised">
         <div className="mb-6 text-center">
           <Badge tone="mint" size="md" className="mb-3 gap-1.5">
-            <Heart aria-hidden="true" className="h-3 w-3" /> A calm place for family care
+            <Heart aria-hidden="true" className="h-3 w-3" /> Your day, and your family’s
           </Badge>
           <h1 className="font-display text-3xl">Create your account</h1>
-          <p className="mt-2 text-sm text-ink-muted">Set up in minutes. You’ll create or join a family circle next.</p>
+          <p className="mt-2 text-sm text-ink-muted">Set up in minutes. You’ll create or join a family space next.</p>
         </div>
 
         <form onSubmit={onSubmit} noValidate className="space-y-4">
@@ -73,7 +73,7 @@ export default function SignUpPage() {
             {PASSWORD_RULES.map((rule) => {
               const ok = rule.test(form.password);
               return (
-                <li key={rule.id} className={cn('flex items-center gap-1.5 text-[13px]', ok ? 'font-semibold text-mint-700' : 'text-ink-subtle')}>
+                <li key={rule.id} className={cn('flex items-center gap-1.5 text-[0.8125rem]', ok ? 'font-semibold text-mint-700' : 'text-ink-subtle')}>
                   {ok ? <CircleCheck aria-hidden="true" className="h-4 w-4" /> : <Circle aria-hidden="true" className="h-4 w-4" />}
                   {rule.label}
                   <span className="sr-only">{ok ? '(met)' : '(not met)'}</span>
@@ -86,13 +86,13 @@ export default function SignUpPage() {
           </FormField>
           <div>
             <Checkbox label="I agree to the Terms of Use and Privacy Notice" checked={form.terms} onChange={(e) => set('terms', e.target.checked)} aria-invalid={errors.terms ? true : undefined} />
-            {errors.terms && <p className="mt-1.5 text-[13px] font-medium text-red-600">{errors.terms}</p>}
+            {errors.terms && <p className="mt-1.5 text-[0.8125rem] font-medium text-red-600">{errors.terms}</p>}
           </div>
           <Button type="submit" size="lg" block loading={pending} rightIcon={<ArrowRight aria-hidden="true" className="h-4 w-4" />}>
             Create account
           </Button>
-          <Callout tone="rose" className="text-[13px]">
-            No medical or schedule details are needed right now — we’ll set those up together after you join.
+          <Callout tone="rose" className="text-[0.8125rem]">
+            You only need a name and an email today. You can add your week and invite family once you’re in.
           </Callout>
         </form>
       </Card>

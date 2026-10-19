@@ -26,7 +26,7 @@ export function AuthLayout({ children, footer }: { children: ReactNode; footer?:
       </main>
 
       <footer className="relative z-10 mx-auto flex w-full max-w-6xl flex-col items-center justify-between gap-2 px-4 pb-6 text-xs text-ink-subtle sm:flex-row sm:px-6">
-        <p>© {new Date().getFullYear()} Hearth. Designed with quiet warmth.</p>
+        <p>© {new Date().getFullYear()} Hearth. Your day, and your family’s, in one place.</p>
         <Link to="/" className="font-medium hover:text-ink">
           About Hearth
         </Link>

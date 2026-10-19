@@ -7,13 +7,42 @@
 @tailwind utilities;
 
 @layer base {
+  :root {
+    --ink: 29 42 48;
+    --ink-muted: 71 88 96;
+    --ink-subtle: 94 111 119;
+    --line: 221 231 227;
+    --line-strong: 198 214 208;
+  }
+
+  /* Stronger contrast (Settings → Display): darker text, clearer borders. */
+  html[data-contrast='high'] {
+    --ink: 8 16 20;
+    --ink-muted: 34 46 52;
+    --ink-subtle: 48 61 68;
+    --line: 150 170 162;
+    --line-strong: 110 132 124;
+  }
+
   html {
     -webkit-text-size-adjust: 100%;
     text-rendering: optimizeLegibility;
   }
 
+  /*
+   * Text size (Settings → Display). Every size in the app is in rem, so
+   * changing the root size scales text, buttons and spacing together.
+   */
+  html[data-text-size='large'] {
+    font-size: 112.5%;
+  }
+
+  html[data-text-size='larger'] {
+    font-size: 125%;
+  }
+
   body {
-    @apply bg-canvas font-sans text-[15px] leading-relaxed text-ink antialiased;
+    @apply bg-canvas font-sans text-[0.9375rem] leading-relaxed text-ink antialiased;
   }
 
   h1,

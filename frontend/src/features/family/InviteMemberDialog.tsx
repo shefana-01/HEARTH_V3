@@ -4,13 +4,14 @@ import { familyService, type InviteInput } from '@/services/family/familyService
 import { useMutation } from '@/hooks/useAsync';
 import { email, required, validate } from '@/lib/validation';
 import { RELATION_SUGGESTIONS, ROLES } from '@/constants/labels';
+import { isDemoMode } from '@/services/config';
 import { Button, Callout, Dialog, FormError, FormField, Input, RadioCards } from '@/components/ui';
 import type { FamilyMember } from '@/types/domain';
 
 type Errors = Partial<Record<'name' | 'email', string>>;
 const EMPTY: InviteInput = { name: '', email: '', relation: '', role: 'contributor' };
 
-/** Invite a new person to the circle. Leads only. */
+/** Invite a new person to the family. Organisers only. */
 export function InviteMemberDialog({ open, onClose, onInvited }: { open: boolean; onClose: () => void; onInvited: (member: FamilyMember) => void }) {
   const [form, setForm] = useState<InviteInput>(EMPTY);
   const [errors, setErrors] = useState<Errors>({});
@@ -41,8 +42,8 @@ export function InviteMemberDialog({ open, onClose, onInvited }: { open: boolean
     <Dialog
       open={open}
       onClose={close}
-      title="Invite someone to the circle"
-      description="They’ll appear as invited until they join with your family code."
+      title="Invite someone to your family"
+      description="They’ll show as invited until they join with your family code."
       footer={
         <>
           <Button variant="ghost" onClick={close}>
@@ -62,7 +63,7 @@ export function InviteMemberDialog({ open, onClose, onInvited }: { open: boolean
         <FormField label="Email" required error={errors.email}>
           {(p) => <Input {...p} type="email" autoComplete="off" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />}
         </FormField>
-        <FormField label="Relationship" hint="How they’re related to the family, e.g. Daughter or Neighbour.">
+        <FormField label="Relationship" hint="How they’re related to you, for example Daughter or Neighbour.">
           {(p) => (
             <>
               <Input {...p} list="invite-relations" value={form.relation} onChange={(e) => setForm({ ...form, relation: e.target.value })} />
@@ -76,15 +77,17 @@ export function InviteMemberDialog({ open, onClose, onInvited }: { open: boolean
         </FormField>
         <RadioCards
           name="invite-role"
-          legend="Role"
+          legend="How will they take part?"
           columns={2}
           value={form.role}
           onChange={(role) => setForm({ ...form, role })}
           options={(['contributor', 'observer'] as const).map((r) => ({ value: r, label: ROLES[r].label, description: ROLES[r].description }))}
         />
-        <Callout tone="neutral" icon={<Info aria-hidden="true" />}>
-          Preview: invitations are recorded here but no email is sent until Hearth’s servers are connected.
-        </Callout>
+        {isDemoMode && (
+          <Callout tone="neutral" icon={<Info aria-hidden="true" />}>
+            In the demo the invitation is only saved here. No email is sent.
+          </Callout>
+        )}
       </form>
     </Dialog>
   );

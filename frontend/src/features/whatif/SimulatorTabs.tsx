@@ -4,7 +4,7 @@ import { cn } from '@/lib/cn';
 export type SimulatorView = 'current' | 'proposed' | 'impact';
 
 /**
- * Phone & tablet navigation between the three simulator views. On desktop the
+ * Phone & tablet navigation between the three planner views. On desktop the
  * current and proposed states sit side by side, so this is hidden from `lg` up.
  */
 export function SimulatorTabs({ active, query, hasChange }: { active: SimulatorView; query: string; hasChange: boolean }) {
@@ -21,7 +21,7 @@ export function SimulatorTabs({ active, query, hasChange }: { active: SimulatorV
     { id: 'impact', label: 'Impact', to: `/what-if/impact?${base.toString()}`, disabled: !hasChange },
   ];
   return (
-    <nav aria-label="Simulator views" className="mb-4 lg:hidden">
+    <nav aria-label="Planner views" className="mb-4 lg:hidden">
       <ul className="grid grid-cols-3 gap-1 rounded-2xl bg-surface-sunken p-1">
         {tabs.map((t) => (
           <li key={t.id}>

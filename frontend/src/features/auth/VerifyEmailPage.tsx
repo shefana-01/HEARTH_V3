@@ -52,7 +52,7 @@ export default function VerifyEmailPage() {
             <div className="mt-5 text-left">
               <EmailConfirmNotice />
             </div>
-            <ButtonLink to={session ? '/dashboard' : '/sign-in'} variant="secondary" className="mt-5">
+            <ButtonLink to={session ? '/today' : '/sign-in'} variant="secondary" className="mt-5">
               {session ? 'Back to Hearth' : 'Sign in'}
             </ButtonLink>
           </>
@@ -70,7 +70,7 @@ export default function VerifyEmailPage() {
             </span>
             <h1 className="font-display text-2xl">Your email is confirmed</h1>
             <p className="mt-2 text-ink-muted">Thank you. You can now join a family you were invited to.</p>
-            <ButtonLink to={session ? '/dashboard' : '/sign-in'} className="mt-5">
+            <ButtonLink to={session ? '/today' : '/sign-in'} className="mt-5">
               {session ? 'Continue to Hearth' : 'Sign in'}
             </ButtonLink>
             {session && (
