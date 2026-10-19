@@ -7,6 +7,9 @@ import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
+import jakarta.validation.ConstraintViolationException;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.validation.FieldError;
@@ -64,6 +67,19 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(MaxUploadSizeExceededException.class)
     public ResponseEntity<ProblemDetail> handleTooLarge(MaxUploadSizeExceededException ex) {
         return problem(HttpStatus.PAYLOAD_TOO_LARGE, "That file is too large.");
+    }
+
+    @ExceptionHandler(ConstraintViolationException.class)
+    public ResponseEntity<ProblemDetail> handleConstraint(ConstraintViolationException ex) {
+        String first = ex.getConstraintViolations().stream().map(v -> v.getMessage()).findFirst().orElse("Some of the details are not valid.");
+        return problem(HttpStatus.BAD_REQUEST, first);
+    }
+
+    /** Two people changed the same thing at once, or a unique value was taken in between. */
+    @ExceptionHandler({DataIntegrityViolationException.class, OptimisticLockingFailureException.class})
+    public ResponseEntity<ProblemDetail> handleConcurrentChange(Exception ex) {
+        log.warn("Rejected a conflicting change: {}", ex.getMessage());
+        return problem(HttpStatus.CONFLICT, "Someone changed this at the same time. Refresh and try again.");
     }
 
     @ExceptionHandler(Exception.class)

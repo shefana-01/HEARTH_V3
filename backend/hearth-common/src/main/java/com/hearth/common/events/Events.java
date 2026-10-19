@@ -1,9 +1,11 @@
 package com.hearth.common.events;
 
 import com.hearth.common.events.DomainEvent.AuditInfo;
+import com.hearth.common.events.DomainEvent.ChatInfo;
 import com.hearth.common.events.DomainEvent.NotificationInfo;
 import com.hearth.common.family.FamilyContext;
 import java.time.Instant;
+import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -16,6 +18,7 @@ public final class Events {
     private final UUID actorMemberId;
     private AuditInfo audit;
     private NotificationInfo notification;
+    private ChatInfo chat;
     private final Map<String, Object> data = new LinkedHashMap<>();
 
     private Events(String type, UUID familyId, UUID actorMemberId) {
@@ -41,28 +44,41 @@ public final class Events {
         return this;
     }
 
+    /** A notification for the whole family, except whoever caused it. */
     public Events notify(String type, String message, String href) {
-        this.notification = new NotificationInfo(type, message, href);
+        this.notification = new NotificationInfo(type, message, href, null);
         return this;
     }
 
+    /** A notification only one member sees. */
     public Events notifyMember(UUID memberId, String type, String message, String href) {
-        this.notification = new NotificationInfo(type, message, href);
-        if (memberId != null) {
-            data("recipientId", memberId);
-        }
+        this.notification = new NotificationInfo(type, message, href, memberId);
         return this;
     }
 
-    /** Values are stored as text or plain JSON values. Null values are left out. */
+    /** A line Hearth adds to the family chat itself, e.g. when a task changes hands. */
+    public Events systemMessage(String text) {
+        this.chat = new ChatInfo("family", "system", text, null);
+        return this;
+    }
+
+    /** Someone's new status line, shown in the family chat. */
+    public Events statusMessage(UUID authorId, String text) {
+        this.chat = new ChatInfo("family", "status", text, authorId);
+        return this;
+    }
+
+    /** Values are stored as text or plain JSON values; collections of ids as arrays of text. Null values are left out. */
     public Events data(String key, Object value) {
-        if (value != null) {
+        if (value instanceof Collection<?> items) {
+            data.put(key, items.stream().map(Object::toString).toList());
+        } else if (value != null) {
             data.put(key, value instanceof UUID || value instanceof Instant ? value.toString() : value);
         }
         return this;
     }
 
     public DomainEvent build() {
-        return new DomainEvent(UUID.randomUUID(), type, Instant.now(), familyId, actorMemberId, audit, notification, data);
+        return new DomainEvent(UUID.randomUUID(), type, Instant.now(), familyId, actorMemberId, audit, notification, chat, data);
     }
 }
