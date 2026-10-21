@@ -1,104 +1,50 @@
 package com.hearth.family.dto;
-import java.util.List;
-import jakarta.validation.constraints.Size;
-import jakarta.validation.constraints.Pattern;
-import jakarta.validation.constraints.NotNull;
-import jakarta.validation.Valid;
-import com.hearth.common.family.Availability;
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.annotation.JsonInclude;
 
-import com.hearth.family.domain.MemberRole;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.hearth.common.family.Availability;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
-import lombok.*;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
+import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
-public class FamilyDtos {
+/** Request and response shapes. They match {@code frontend/src/types/domain.ts} and the family/auth services there. */
+public final class FamilyDtos {
 
-    @Data
-    @NoArgsConstructor
-    @AllArgsConstructor
-    @Builder
-    public static class RegisterRequest {
-        @Email @NotBlank
-        private String email;
-        @NotBlank
-        private String password;
-        @NotBlank
-        private String firstName;
-        @NotBlank
-        private String lastName;
+    private FamilyDtos() {
     }
 
-    @Data
-    @NoArgsConstructor
-    @AllArgsConstructor
-    @Builder
-    public static class LoginRequest {
-        @Email @NotBlank
-        private String email;
-        @NotBlank
-        private String password;
+    /* ───────── sign-in ───────── */
+
+    public record SignUpRequest(
+            @NotBlank(message = "Enter your name.") @Size(max = 80, message = "Names can be up to 80 characters.") String name,
+            @NotBlank(message = "Enter your email address.") @Email(message = "Enter a valid email address, like name@example.com.") @Size(max = 254) String email,
+            @NotBlank(message = "Create a password.") String password) {
     }
 
-    @Data
-    @NoArgsConstructor
-    @AllArgsConstructor
-    @Builder
-    public static class AuthResponse {
-        private String token;
-        private UUID userId;
-        private String email;
-        private String firstName;
-        private String lastName;
+    public record SignInRequest(@NotBlank(message = "Enter your email address.") String email, @NotBlank(message = "Enter your password.") String password) {
     }
 
-    @Data
-    @NoArgsConstructor
-    @AllArgsConstructor
-    @Builder
-    public static class CreateFamilyRequest {
-        @NotBlank
-        private String name;
-        private UUID adminUserId;
+    public record RefreshRequest(@NotBlank String refreshToken) {
     }
 
-    @Data
-    @NoArgsConstructor
-    @AllArgsConstructor
-    @Builder
-    public static class FamilyResponse {
-        private UUID id;
-        private String name;
-        private UUID createdBy;
-        private Instant createdAt;
+    public record TokenRequest(@NotBlank(message = "This link is not complete. Open the link from the email again.") String token) {
     }
 
-    @Data
-    @NoArgsConstructor
-    @AllArgsConstructor
-    @Builder
-    public static class InviteMemberRequest {
-        @Email @NotBlank
-        private String email;
-        private MemberRole role;
+    public record EmailRequest(@NotBlank(message = "Enter your email address.") @Size(max = 254) String email) {
     }
 
-    @Data
-    @NoArgsConstructor
-    @AllArgsConstructor
-    @Builder
-    public static class MemberResponse {
-        private UUID id;
-        private UUID familyId;
-        private UUID userId;
-        private String role;
-        private String status;
-        private Instant joinedAt;
+    public record NewPasswordRequest(@NotBlank(message = "This link is not complete. Open the link from the email again.") String token, @NotBlank(message = "Create a password.") String password) {
     }
 
+    /** {@code memberId} is null until the account has created or joined a family. */
     public record AccountView(
             UUID id,
             UUID memberId,
@@ -107,14 +53,31 @@ public class FamilyDtos {
             @JsonInclude(JsonInclude.Include.NON_NULL) String phone,
             String about,
             @JsonInclude(JsonInclude.Include.NON_NULL) String photo,
-            boolean whatsappAlerts,
-            boolean emailVerified) {
+            boolean emailVerified,
+            boolean whatsappAlerts) {
     }
 
-    public record SessionView(AccountView account, boolean hasFamily, @JsonProperty("isSample") boolean sample) {
+    /** {@code isSample} is always false here: the sample family only exists in the offline demo. */
+    public record SessionView(AccountView account, boolean hasFamily, boolean isSample) {
     }
+
+    public record AuthResponse(String token, String refreshToken, SessionView session) {
+    }
+
+    /** Only the pair: the browser keeps using the session it already has. */
+    public record TokenPair(String token, String refreshToken) {
+    }
+
+    /* ───────── family ───────── */
 
     public record DependantView(UUID id, String name, String relation, @JsonInclude(JsonInclude.Include.NON_NULL) Integer birthYear, String notes) {
+    }
+
+    public record DependantInput(
+            @NotBlank(message = "Enter their name.") @Size(max = 80, message = "Names can be up to 80 characters.") String name,
+            @Size(max = 60) String relation,
+            @Min(value = 1900, message = "Enter a birth year after 1900.") @Max(value = 2100, message = "Enter a valid birth year.") Integer birthYear,
+            @Size(max = 1000, message = "Notes can be up to 1000 characters.") String notes) {
     }
 
     public record FamilyView(
@@ -124,14 +87,32 @@ public class FamilyDtos {
             String timezone,
             Instant createdAt,
             List<DependantView> dependants,
-            @JsonInclude(JsonInclude.Include.NON_NULL) Double weeklyGroceryBudget,
+            @JsonInclude(JsonInclude.Include.NON_NULL) BigDecimal weeklyGroceryBudget,
             String inviteCode) {
     }
+
+    public record InviteInput(
+            @NotBlank(message = "Enter their name.") @Size(max = 80) String name,
+            @NotBlank(message = "Enter their email address.") @Email(message = "Enter a valid email address, like name@example.com.") @Size(max = 254) String email,
+            @Size(max = 60) String relation,
+            @NotNull(message = "Choose a role.") @Pattern(regexp = "contributor|observer", message = "Choose a role.") String role) {
+    }
+
+    public record CreateFamilyRequest(
+            @NotBlank(message = "Give your family space a name.") @Size(max = 80) String name,
+            @Size(max = 120) String location,
+            @Size(max = 60) String myRelation,
+            @Valid List<DependantInput> dependants,
+            @Valid List<InviteInput> invites,
+            Availability availability,
+            @Size(max = 60) String timezone) {
+    }
+
+    /* ───────── members ───────── */
 
     public record AccessView(boolean schedule, boolean medical, boolean documents) {
     }
 
-    /** The "what I'm up to" line. {@code until} is absent when it lasts until it is changed. */
     public record StatusNoteView(String text, @JsonInclude(JsonInclude.Include.NON_NULL) Instant until, Instant updatedAt) {
     }
 
@@ -152,36 +133,7 @@ public class FamilyDtos {
             Instant joinedAt) {
     }
 
-    /**
-     * A blank name is not rejected here: when a family is created, rows left empty are skipped,
-     * while adding or editing one person answers "Enter their name." (see DependantService).
-     */
-    public record DependantInput(
-            @Size(max = 80, message = "Names can be at most 80 characters.") String name,
-            @Size(max = 60, message = "Relationships can be at most 60 characters.") String relation,
-            Integer birthYear,
-            @Size(max = 2000, message = "Notes can be at most 2000 characters.") String notes) {
-    }
-
-    /** An empty text clears the status line. */
-    public record StatusInput(String text, Instant until) {
-    }
-
-    public record InviteInput(
-            @NotBlank(message = "Enter a name.") @Size(max = 80) String name,
-            @NotBlank(message = "Enter an email address.") @Email(message = "Enter a valid email address.") @Size(max = 255) String email,
-            @Size(max = 60) String relation,
-            @NotNull @Pattern(regexp = "contributor|observer", message = "Choose a role.") String role) {
-    }
-
-    public record CreateFamilyRequest(
-            @NotBlank(message = "Enter a family name.") @Size(max = 80) String name,
-            @Size(max = 120) String location,
-            @Size(max = 60) String myRelation,
-            @Size(max = 20, message = "Add up to 20 people the family looks after.") @Valid List<DependantInput> dependants,
-            @Valid List<InviteInput> invites,
-            Availability availability,
-            @Size(max = 60) String timezone) {
+    public record StatusRequest(@Size(max = 200) String text, Instant until) {
     }
 
     public record InviteLookup(FamilyView family, String inviterName, long memberCount, boolean alreadyMember) {

@@ -1,6 +1,6 @@
 package com.hearth.family.repository;
 
-import com.hearth.family.entity.Family;
+import com.hearth.family.domain.Family;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
