@@ -1,46 +1,211 @@
-version: '3.8'
+# Hearth: the whole system with one command.
+#
+#   docker compose up --build        then open http://localhost:8000
+#
+# Also available while it runs:
+#   http://localhost:8080   the API gateway (for `npm run dev` with VITE_USE_MOCKS=false)
+#   http://localhost:8025   Mailpit: every email Hearth sends (sign-up, invitations, password reset) lands here
+#   http://localhost:7474   Neo4j browser: the family map graph (user neo4j)
+#
+# Settings come from a .env file next to this one (copy .env.example). Everything has a working default.
+# Only the infrastructure, for running the services from an IDE:  docker compose up postgres kafka neo4j mailpit
+
+name: hearth
+
+x-service: &service
+  restart: unless-stopped
+  networks: [hearth]
+  depends_on:
+    postgres:
+      condition: service_healthy
+    kafka:
+      condition: service_healthy
+
+x-service-env: &service-env
+  DB_HOST: postgres
+  DB_USER: hearth
+  DB_PASSWORD: ${DB_PASSWORD:-hearth}
+  KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+  JWKS_URI: http://family-service:8081/.well-known/jwks.json
+  FAMILY_SERVICE_URL: http://family-service:8081
+  TASK_SERVICE_URL: http://task-service:8082
+  DECISION_SERVICE_URL: http://decision-service:8083
+  CARE_SERVICE_URL: http://care-service:8084
+  TZ: UTC
 
 services:
-  # Primary Database Engine (hosts logical DBs: hearth_family, hearth_task, hearth_decision, hearth_care, hearth_notification)
+  # ───────────── infrastructure ─────────────
+
   postgres:
     image: postgres:16-alpine
-    container_name: hearth-postgres
     restart: unless-stopped
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: hearth_password
-      POSTGRES_DB: postgres
+      POSTGRES_USER: hearth
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-hearth}
+      POSTGRES_DB: hearth
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
-      - ./infrastructure/init-db:/docker-entrypoint-initdb.d
-    networks:
-      - hearth-network
+      - ./infrastructure/init-db:/docker-entrypoint-initdb.d:ro
+    networks: [hearth]
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+      test: ["CMD-SHELL", "pg_isready -U hearth -d hearth"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
 
-  # Redis Cache (for fast availability and Decision Engine state caching)
-  redis:
-    image: redis:7-alpine
-    container_name: hearth-redis
+  # Event bus between the services (single node, KRaft mode: no ZooKeeper).
+  kafka:
+    image: apache/kafka:3.9.1
+    restart: unless-stopped
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: INTERNAL://:9092,EXTERNAL://:9094,CONTROLLER://:9093
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:9092,EXTERNAL://localhost:9094
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_HEAP_OPTS: "-Xms256m -Xmx512m"
+    ports:
+      - "127.0.0.1:9094:9094"
+    volumes:
+      - kafkadata:/var/lib/kafka/data
+    networks: [hearth]
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092 >/dev/null 2>&1"]
+      interval: 10s
+      timeout: 10s
+      retries: 20
+      start_period: 20s
+
+  # Graph database behind the family map.
+  neo4j:
+    image: neo4j:5-community
+    restart: unless-stopped
+    environment:
+      NEO4J_AUTH: neo4j/${NEO4J_PASSWORD:-hearth-graph}
+      NEO4J_server_memory_heap_max__size: 512m
+      NEO4J_server_memory_pagecache_size: 128m
+    ports:
+      - "127.0.0.1:7474:7474"
+      - "127.0.0.1:7687:7687"
+    volumes:
+      - neo4jdata:/data
+    networks: [hearth]
+
+  # A local inbox: catches every email so nothing real is sent while developing.
+  mailpit:
+    image: axllent/mailpit:v1.27
     restart: unless-stopped
     ports:
-      - "6379:6379"
+      - "127.0.0.1:8025:8025"
+      - "127.0.0.1:1025:1025"
+    networks: [hearth]
+
+  # ───────────── Hearth services ─────────────
+
+  family-service:
+    <<: *service
+    build: { context: ./backend, args: { MODULE: services/family-service, PORT: 8081 } }
+    image: hearth/family-service
+    environment:
+      <<: *service-env
+      DB_NAME: hearth_family
+      MAIL_HOST: mailpit
+      MAIL_PORT: 1025
+      APP_URL: ${APP_URL:-http://localhost:8000}
+
+  task-service:
+    <<: *service
+    build: { context: ./backend, args: { MODULE: services/task-service, PORT: 8082 } }
+    image: hearth/task-service
+    environment:
+      <<: *service-env
+      DB_NAME: hearth_task
+
+  decision-service:
+    <<: *service
+    build: { context: ./backend, args: { MODULE: services/decision-service, PORT: 8083 } }
+    image: hearth/decision-service
+    environment:
+      <<: *service-env
+      DB_NAME: hearth_decision
+
+  care-service:
+    <<: *service
+    build: { context: ./backend, args: { MODULE: services/care-service, PORT: 8084 } }
+    image: hearth/care-service
+    environment:
+      <<: *service-env
+      DB_NAME: hearth_care
+      NEO4J_URI: bolt://neo4j:7687
+      NEO4J_PASSWORD: ${NEO4J_PASSWORD:-hearth-graph}
+      STORAGE_DIR: /data/documents
     volumes:
-      - redisdata:/data
-    networks:
-      - hearth-network
+      - documents:/data
+
+  notification-service:
+    <<: *service
+    build: { context: ./backend, args: { MODULE: services/notification-service, PORT: 8085 } }
+    image: hearth/notification-service
+    environment:
+      <<: *service-env
+      DB_NAME: hearth_notification
+      NOTIFY_OWN_ACTIONS: ${NOTIFY_OWN_ACTIONS:-false}
+
+  audit-service:
+    <<: *service
+    build: { context: ./backend, args: { MODULE: services/audit-service, PORT: 8086 } }
+    image: hearth/audit-service
+    environment:
+      <<: *service-env
+      DB_NAME: hearth_audit
+
+  gateway:
+    build: { context: ./backend, args: { MODULE: api-gateway, PORT: 8080 } }
+    image: hearth/api-gateway
+    restart: unless-stopped
+    environment:
+      FAMILY_SERVICE_URL: http://family-service:8081
+      TASK_SERVICE_URL: http://task-service:8082
+      DECISION_SERVICE_URL: http://decision-service:8083
+      CARE_SERVICE_URL: http://care-service:8084
+      NOTIFICATION_SERVICE_URL: http://notification-service:8085
+      AUDIT_SERVICE_URL: http://audit-service:8086
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:3000,http://127.0.0.1:3000,http://localhost:5173}
+    ports:
+      - "127.0.0.1:8080:8080"
+    networks: [hearth]
+    depends_on:
+      family-service: { condition: service_healthy }
+      task-service: { condition: service_healthy }
+      decision-service: { condition: service_healthy }
+      care-service: { condition: service_healthy }
+      notification-service: { condition: service_healthy }
+      audit-service: { condition: service_healthy }
+
+  web:
+    build: { context: ./frontend }
+    image: hearth/web
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8000:80"
+    networks: [hearth]
+    depends_on:
+      gateway: { condition: service_healthy }
 
 networks:
-  hearth-network:
-    driver: bridge
+  hearth:
 
 volumes:
   pgdata:
-    driver: local
-  redisdata:
-    driver: local
+  kafkadata:
+  neo4jdata:
+  documents:
