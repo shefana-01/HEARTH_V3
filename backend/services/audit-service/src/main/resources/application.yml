@@ -1,15 +1,49 @@
 server:
-  port: 8086
+  port: ${PORT:8086}
+  shutdown: graceful
 
 spring:
   application:
     name: audit-service
   datasource:
-    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/hearth_audit
-    username: ${DB_USER:postgres}
-    password: ${DB_PASSWORD:postgres}
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:hearth_audit}
+    username: ${DB_USER:hearth}
+    password: ${DB_PASSWORD:hearth}
   jpa:
+    open-in-view: false
     hibernate:
       ddl-auto: validate
   flyway:
     enabled: true
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    consumer:
+      group-id: audit-service
+      auto-offset-reset: earliest
+    listener:
+      missing-topics-fatal: false
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+
+logging:
+  pattern:
+    level: "%5p [${spring.application.name},%X{requestId:-}]"
+
+hearth:
+  security:
+    jwks-uri: ${JWKS_URI:http://localhost:8081/.well-known/jwks.json}
+    issuer: ${JWT_ISSUER:hearth}
+  outbox:
+    enabled: false
+  consumer:
+    enabled: ${KAFKA_CONSUMERS:true}
+  services:
+    family: ${FAMILY_SERVICE_URL:http://localhost:8081}

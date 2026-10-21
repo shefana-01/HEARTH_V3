@@ -3,7 +3,8 @@ package com.hearth.task;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
-@SpringBootApplication
+/** Tasks, personal events, time away and task reminders. */
+@SpringBootApplication(scanBasePackages = "com.hearth")
 public class TaskServiceApplication {
 
     public static void main(String[] args) {

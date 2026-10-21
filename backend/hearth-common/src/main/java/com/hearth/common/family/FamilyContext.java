@@ -43,17 +43,17 @@ public record FamilyContext(
 
     public void requireLead() {
         if (!isLead()) {
-            throw ApiException.forbidden("Only the lead caregiver can do this.");
+            throw ApiException.forbidden("Only the organiser can do this.");
         }
     }
 
-    /** May open health notes that people share, and those of people the family looks after. The lead always can. */
+    /** May open health notes that people share, and those of people the family looks after. The organiser always can. */
     @JsonIgnore
     public boolean canSeeMedical() {
         return isLead() || medicalAccess;
     }
 
-    /** May open family documents. The lead always can. */
+    /** May open family documents. The organiser always can. */
     @JsonIgnore
     public boolean canSeeDocuments() {
         return isLead() || documentsAccess;

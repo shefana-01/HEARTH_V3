@@ -28,4 +28,9 @@ public interface MessageRepository extends JpaRepository<Message, UUID> {
             + "where m.familyId = :familyId and m.kind = 'text' and m.channel like 'task:%' "
             + "group by m.channel")
     List<Object[]> countTextMessagesPerTaskChannel(@Param("familyId") UUID familyId);
+
+    /** Unread in a channel for one member: messages and status lines by other people since they last looked. */
+    @Query("select count(m) from Message m where m.familyId = :familyId and m.channel = :channel and m.kind <> 'system'"
+            + " and (m.authorId is null or m.authorId <> :memberId) and m.createdAt > :since")
+    long countUnread(@Param("familyId") UUID familyId, @Param("channel") String channel, @Param("memberId") UUID memberId, @Param("since") Instant since);
 }

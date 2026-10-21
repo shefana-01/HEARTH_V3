@@ -1,6 +1,7 @@
 package com.hearth.common.security;
 
 import com.hearth.common.error.ApiException;
+import java.util.UUID;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -20,15 +21,18 @@ public final class CurrentUser {
         throw ApiException.unauthorized("Sign in first.");
     }
 
-    /** The caller's subject, or null when the request carries no token (public endpoints). */
-    public static String subjectOrNull() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        return authentication instanceof JwtAuthenticationToken token ? token.getToken().getSubject() : null;
+    /** True when the current request carries a validated token. */
+    public static boolean isSignedIn() {
+        return SecurityContextHolder.getContext().getAuthentication() instanceof JwtAuthenticationToken;
     }
 
-    /** The identity provider's id for this user (the JWT "sub" claim). */
-    public static String subject() {
-        return jwt().getSubject();
+    /** The account id (the JWT "sub" claim, issued by family-service). */
+    public static UUID accountId() {
+        try {
+            return UUID.fromString(jwt().getSubject());
+        } catch (IllegalArgumentException ex) {
+            throw ApiException.unauthorized("Sign in first.");
+        }
     }
 
     /** {@code Authorization} header value used to call another service as the same user. */
