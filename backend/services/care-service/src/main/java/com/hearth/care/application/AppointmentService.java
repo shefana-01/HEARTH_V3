@@ -7,6 +7,7 @@ import com.hearth.care.domain.CareDocument;
 import com.hearth.care.dto.CareDtos.AppointmentInput;
 import com.hearth.care.dto.CareDtos.AppointmentView;
 import com.hearth.care.dto.CareDtos.PrepItemView;
+import com.hearth.care.graph.CareGraphService;
 import com.hearth.care.infrastructure.repository.AppointmentRepository;
 import com.hearth.care.infrastructure.repository.CareDocumentRepository;
 import com.hearth.common.error.ApiException;
@@ -41,12 +42,14 @@ public class AppointmentService {
     private final AppointmentRepository appointments;
     private final CareDocumentRepository documents;
     private final EventPublisher events;
+    private final CareGraphService graph;
 
-    public AppointmentService(FamilyDirectory directory, AppointmentRepository appointments, CareDocumentRepository documents, EventPublisher events) {
+    public AppointmentService(FamilyDirectory directory, AppointmentRepository appointments, CareDocumentRepository documents, EventPublisher events, CareGraphService graph) {
         this.directory = directory;
         this.appointments = appointments;
         this.documents = documents;
         this.events = events;
+        this.graph = graph;
     }
 
     @Transactional(readOnly = true)
@@ -100,6 +103,8 @@ public class AppointmentService {
         }
         askToGoAlong(event, context, appointment);
         events.publish(Topics.CARE, event.build());
+        // The family map is in this service: mark it out of date now rather than when our own event comes back.
+        graph.markChanged(context.familyId());
         return view(appointment);
     }
 
@@ -127,6 +132,7 @@ public class AppointmentService {
             askToGoAlong(event, context, appointment);
         }
         events.publish(Topics.CARE, event.build());
+        graph.markChanged(context.familyId());
         return view(appointment);
     }
 
@@ -142,6 +148,7 @@ public class AppointmentService {
             event.audit("care", "Removed an appointment", appointment.getTitle());
         }
         events.publish(Topics.CARE, event.build());
+        graph.markChanged(context.familyId());
     }
 
     @Transactional
