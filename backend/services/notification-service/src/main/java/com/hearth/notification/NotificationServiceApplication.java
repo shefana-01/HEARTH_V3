@@ -3,7 +3,8 @@ package com.hearth.notification;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
-@SpringBootApplication(scanBasePackages = {"com.hearth.common", "com.hearth.notification"})
+/** In-app notifications and the family chat, built from the events the other services publish. */
+@SpringBootApplication(scanBasePackages = "com.hearth")
 public class NotificationServiceApplication {
 
     public static void main(String[] args) {

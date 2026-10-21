@@ -1,18 +1,24 @@
 package com.hearth.family.api;
 
-import com.hearth.family.application.JwksService;
-import lombok.RequiredArgsConstructor;
+import com.hearth.family.security.SigningKeys;
+import java.util.Map;
+import org.springframework.http.CacheControl;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
-import java.util.Map;
 
+/** The public key other services use to check that a token was signed by family-service. */
 @RestController
-@RequiredArgsConstructor
 public class JwksController {
-    private final JwksService jwksService;
+
+    private final SigningKeys keys;
+
+    public JwksController(SigningKeys keys) {
+        this.keys = keys;
+    }
 
     @GetMapping("/.well-known/jwks.json")
-    public Map<String, Object> getJwks() {
-        return jwksService.getPublicJwks();
+    public ResponseEntity<Map<String, Object>> jwks() {
+        return ResponseEntity.ok().cacheControl(CacheControl.maxAge(java.time.Duration.ofMinutes(5))).body(keys.publicJwks());
     }
 }

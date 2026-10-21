@@ -1,25 +1,70 @@
 server:
-  port: 8081
+  port: ${PORT:8081}
+  shutdown: graceful
 
 spring:
   application:
     name: family-service
   datasource:
-    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/hearth_family}
-    username: ${SPRING_DATASOURCE_USERNAME:postgres}
-    password: ${SPRING_DATASOURCE_PASSWORD:hearth_password}
-    driver-class-name: org.postgresql.Driver
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:hearth_family}
+    username: ${DB_USER:hearth}
+    password: ${DB_PASSWORD:hearth}
   jpa:
+    open-in-view: false
     hibernate:
       ddl-auto: validate
-    show-sql: false
+  flyway:
+    enabled: true
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      acks: all
+      properties:
+        # If Kafka is down, give up after 5 s and retry on the next run instead of blocking for a minute.
+        max.block.ms: 5000
+  mail:
+    host: ${MAIL_HOST:localhost}
+    port: ${MAIL_PORT:1025}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
     properties:
-      hibernate:
-        format_sql: true
-        dialect: org.hibernate.dialect.PostgreSQLDialect
+      mail.smtp.auth: ${MAIL_AUTH:false}
+      mail.smtp.starttls.enable: ${MAIL_STARTTLS:false}
+      mail.smtp.connectiontimeout: 5000
+      mail.smtp.timeout: 5000
+      mail.smtp.writetimeout: 5000
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  health:
+    mail:
+      # The mail relay retries; the service is healthy even when the mail server is not.
+      enabled: false
 
 springdoc:
-  api-docs:
-    path: /v3/api-docs
   swagger-ui:
     path: /swagger-ui.html
+
+logging:
+  pattern:
+    level: "%5p [${spring.application.name},%X{requestId:-}]"
+
+hearth:
+  security:
+    issuer: ${JWT_ISSUER:hearth}
+    # Sign-in and the links from emails work without a token.
+    public-paths: /api/v1/auth/sign-up,/api/v1/auth/sign-in,/api/v1/auth/refresh,/api/v1/auth/sign-out,/api/v1/auth/verify-email,/api/v1/auth/password-reset,/api/v1/auth/password-reset/confirm,/.well-known/jwks.json
+  auth:
+    access-token-minutes: ${ACCESS_TOKEN_MINUTES:15}
+    refresh-token-days: ${REFRESH_TOKEN_DAYS:30}
+  outbox:
+    enabled: true
+  mail:
+    from: ${MAIL_FROM:Hearth <no-reply@hearth.local>}
+    # Where the links in emails point: the address people open Hearth at.
+    app-url: ${APP_URL:http://localhost:3000}
+  services:
+    care: ${CARE_SERVICE_URL:http://localhost:8084}

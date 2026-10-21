@@ -1,45 +1,54 @@
 server:
-  port: 8085
+  port: ${PORT:8085}
+  shutdown: graceful
 
 spring:
   application:
     name: notification-service
   datasource:
-    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/hearth_notification}
-    username: ${SPRING_DATASOURCE_USERNAME:postgres}
-    password: ${SPRING_DATASOURCE_PASSWORD:hearth_password}
-    driver-class-name: org.postgresql.Driver
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:hearth_notification}
+    username: ${DB_USER:hearth}
+    password: ${DB_PASSWORD:hearth}
   jpa:
     open-in-view: false
     hibernate:
       ddl-auto: validate
-    show-sql: false
-    properties:
-      hibernate:
-        format_sql: true
-        dialect: org.hibernate.dialect.PostgreSQLDialect
-
   flyway:
     enabled: true
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
     consumer:
+      group-id: notification-service
       auto-offset-reset: earliest
-  security:
-    oauth2:
-      resourceserver:
-        jwt:
-          jwk-set-uri: ${JWKS_URI:http://localhost:8081/.well-known/jwks.json}
+    listener:
+      missing-topics-fatal: false
 
-hearth:
-  services:
-    family: ${FAMILY_SERVICE_URL:http://localhost:8081}
-  notifications:
-    # People are not notified about their own actions. Set to true when demoing with a single account.
-    include-own-actions: ${NOTIFY_OWN_ACTIONS:false}
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
 
 springdoc:
-  api-docs:
-    path: /v3/api-docs
   swagger-ui:
     path: /swagger-ui.html
+
+logging:
+  pattern:
+    level: "%5p [${spring.application.name},%X{requestId:-}]"
+
+hearth:
+  security:
+    jwks-uri: ${JWKS_URI:http://localhost:8081/.well-known/jwks.json}
+    issuer: ${JWT_ISSUER:hearth}
+  # This service only reads events; it publishes none.
+  outbox:
+    enabled: false
+  consumer:
+    enabled: ${KAFKA_CONSUMERS:true}
+  notifications:
+    # true: people also see family-wide notifications about what they did themselves (handy when testing alone).
+    include-own-actions: ${NOTIFY_OWN_ACTIONS:false}
+  services:
+    family: ${FAMILY_SERVICE_URL:http://localhost:8081}
+    task: ${TASK_SERVICE_URL:http://localhost:8082}
