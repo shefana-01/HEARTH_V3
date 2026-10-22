@@ -15,3 +15,5 @@ export * from './PageHeader';
 export * from './ActionBar';
 export * from './CollapsibleCard';
 export * from './Fab';
+export * from './ThemeToggle';
+export * from './VoiceTyping';

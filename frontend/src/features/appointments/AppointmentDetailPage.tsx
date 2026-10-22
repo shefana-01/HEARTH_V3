@@ -150,7 +150,7 @@ export default function AppointmentDetailPage() {
                     onClick={async () => updateAppt(await toggle.run(p.id))}
                     className={cn(
                       'flex h-6 w-6 shrink-0 items-center justify-center rounded-md border-2',
-                      p.done ? 'border-mint-600 bg-mint-600 text-white' : 'border-line-strong bg-surface hover:border-mint-400',
+                      p.done ? 'border-solid-mint bg-solid-mint text-white' : 'border-line-strong bg-surface hover:border-mint-400',
                     )}
                   >
                     {p.done && <Check aria-hidden="true" className="h-4 w-4" strokeWidth={3} />}

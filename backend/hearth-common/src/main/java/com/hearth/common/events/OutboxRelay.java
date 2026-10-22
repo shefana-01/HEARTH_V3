@@ -5,7 +5,7 @@ import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -13,15 +13,14 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Transactional outbox, delivery side. Every second it sends the events that
- * are waiting to Kafka and marks them as published.
+ * Transactional outbox, delivery side. Every second it sends the events that are waiting to Kafka and
+ * marks them as published.
  *
- * If Kafka is down the events simply wait. If the service stops between
- * sending and marking, the event is sent again later, so consumers must be
- * idempotent ({@link ProcessedEvents}).
+ * If Kafka is down the events simply wait. If the service stops between sending and marking, the event
+ * is sent again later, so consumers must be idempotent ({@link ProcessedEvents}).
  */
 @Component
-@ConditionalOnProperty(name = "hearth.outbox.enabled", havingValue = "true")
+@ConditionalOnExpression("${hearth.outbox.enabled:false} and ${hearth.outbox.relay:true}")
 public class OutboxRelay {
 
     private static final Logger log = LoggerFactory.getLogger(OutboxRelay.class);
@@ -55,6 +54,15 @@ public class OutboxRelay {
                 return;
             }
             jdbc.update("update outbox_event set published_at = now() where id = ?", event.id());
+        }
+    }
+
+    /** Delivered events are kept a week for troubleshooting, then removed so the table stays small. */
+    @Scheduled(fixedDelayString = "PT1H", initialDelayString = "PT5M")
+    public void removeDelivered() {
+        int removed = jdbc.update("delete from outbox_event where published_at < now() - interval '7 days'");
+        if (removed > 0) {
+            log.info("Removed {} delivered outbox event(s)", removed);
         }
     }
 }

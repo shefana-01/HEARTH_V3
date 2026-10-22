@@ -125,8 +125,9 @@ export default function PromoPage() {
             aria-hidden="true"
             className="pointer-events-none absolute -top-24 left-1/2 h-[28rem] w-[48rem] -translate-x-1/2 rounded-full bg-gradient-to-tr from-rose-100 via-primary-100 to-mint-100 opacity-70 blur-3xl"
           />
-          <div className="relative mx-auto grid max-w-6xl items-center gap-12 px-4 py-16 sm:px-6 lg:grid-cols-2 lg:py-24">
-            <div>
+          <div className="relative mx-auto grid max-w-6xl items-center gap-12 px-4 py-16 sm:px-6 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] lg:py-24">
+            {/* min-w-0 lets this column shrink instead of pushing its buttons underneath the preview card. */}
+            <div className="min-w-0">
               <Badge tone="mint" size="md" className="mb-5">
                 Personal and family life organiser
               </Badge>
@@ -135,14 +136,17 @@ export default function PromoPage() {
                 Hearth brings your own schedule, your family’s shared tasks, a family chat, health notes that feed the shopping list, and your important papers into one place — and helps decide what
                 to do first and who can step in.
               </p>
-              <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-                <ButtonLink to="/sign-up" size="lg" rightIcon={<ArrowRight aria-hidden="true" className="h-4 w-4" />}>
-                  Create your account
-                </ButtonLink>
-                <SampleButton size="lg" />
-                <ButtonLink to="/sign-in" size="lg" variant="ghost">
-                  Sign in
-                </ButtonLink>
+              <div className="mt-8 flex flex-col gap-3">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                  <ButtonLink to="/sign-up" size="lg" rightIcon={<ArrowRight aria-hidden="true" className="h-4 w-4" />}>
+                    Create your account
+                  </ButtonLink>
+                  <ButtonLink to="/sign-in" size="lg" variant="ghost">
+                    Sign in
+                  </ButtonLink>
+                </div>
+                {/* Only rendered in the offline demo. On its own row so the three buttons can never run into the preview card. */}
+                <SampleButton size="lg" className="sm:self-start" />
               </div>
               <ul className="mt-6 flex flex-wrap gap-x-5 gap-y-2 text-sm text-ink-muted">
                 {['Use it alone, or with your family', 'Works on phone, tablet and desktop', 'Large text option and plain words'].map((t) => (

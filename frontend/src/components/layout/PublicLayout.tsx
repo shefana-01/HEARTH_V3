@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Menu as MenuIcon, X } from 'lucide-react';
 import { useAuth } from '@/app/AuthProvider';
-import { ButtonLink, IconButton } from '@/components/ui';
+import { ButtonLink, IconButton, ThemeToggle } from '@/components/ui';
 import { Logo } from './Logo';
 
 const LINKS = [
@@ -21,22 +21,23 @@ export function PublicHeader({ sectionLinks = true }: { sectionLinks?: boolean }
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
         <Logo subtitle="Your day and your family" />
         {sectionLinks && (
-          <nav aria-label="Page sections" className="hidden items-center gap-1 rounded-full border border-line bg-surface/80 p-1 lg:flex">
+          <nav aria-label="Page sections" className="hidden items-center gap-1 rounded-full border border-line bg-surface/80 p-1 xl:flex">
             {LINKS.map((l) => (
-              <a key={l.href} href={l.href} className="rounded-full px-3.5 py-1.5 text-sm font-medium text-ink-muted hover:bg-surface-sunken hover:text-ink">
+              <a key={l.href} href={l.href} className="whitespace-nowrap rounded-full px-3.5 py-1.5 text-sm font-medium text-ink-muted hover:bg-surface-sunken hover:text-ink">
                 {l.label}
               </a>
             ))}
           </nav>
         )}
         <div className="flex items-center gap-2">
+          <ThemeToggle />
           {session ? (
             <ButtonLink to="/today" size="sm">
               Open Hearth
             </ButtonLink>
           ) : (
             <>
-              <Link to="/sign-in" className="hidden rounded-lg px-3 py-2 text-sm font-semibold text-ink-muted hover:text-ink sm:inline-block">
+              <Link to="/sign-in" className="hidden whitespace-nowrap rounded-lg px-3 py-2 text-sm font-semibold text-ink-muted hover:text-ink sm:inline-block">
                 Sign in
               </Link>
               <ButtonLink to="/sign-up" size="sm">
@@ -45,14 +46,14 @@ export function PublicHeader({ sectionLinks = true }: { sectionLinks?: boolean }
             </>
           )}
           {sectionLinks && (
-            <IconButton label={open ? 'Close menu' : 'Open menu'} aria-expanded={open} onClick={() => setOpen((o) => !o)} className="lg:hidden">
+            <IconButton label={open ? 'Close menu' : 'Open menu'} aria-expanded={open} onClick={() => setOpen((o) => !o)} className="xl:hidden">
               {open ? <X aria-hidden="true" className="h-5 w-5" /> : <MenuIcon aria-hidden="true" className="h-5 w-5" />}
             </IconButton>
           )}
         </div>
       </div>
       {sectionLinks && open && (
-        <nav aria-label="Page sections" className="border-t border-line bg-surface px-4 py-3 lg:hidden">
+        <nav aria-label="Page sections" className="border-t border-line bg-surface px-4 py-3 xl:hidden">
           <ul className="grid gap-1">
             {LINKS.map((l) => (
               <li key={l.href}>

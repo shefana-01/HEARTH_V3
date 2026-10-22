@@ -44,7 +44,7 @@ function OverlapTimeline({ task, others }: { task: { title: string; start: strin
         ))}
         <div className="relative h-8 rounded-lg bg-surface/70">
           <span
-            className="absolute inset-y-1 flex items-center overflow-hidden rounded-md bg-rose-400 px-2 text-[0.6875rem] font-semibold text-white"
+            className="absolute inset-y-1 flex items-center overflow-hidden rounded-md bg-solid-rose px-2 text-[0.6875rem] font-semibold text-white"
             style={{ left: `${pct(task.start)}%`, width: `${pct(task.end) - pct(task.start)}%` }}
           >
             <span className="truncate">{task.title}</span>
@@ -202,7 +202,7 @@ export default function ConflictPage() {
             <>
               {best ? (
                 <Card tone="primary" className="relative overflow-hidden">
-                  <span className="absolute right-0 top-0 inline-flex items-center gap-1 rounded-bl-xl bg-mint-600 px-3 py-1 text-2xs font-semibold uppercase tracking-wide text-white">
+                  <span className="absolute right-0 top-0 inline-flex items-center gap-1 rounded-bl-xl bg-solid-mint px-3 py-1 text-2xs font-semibold uppercase tracking-wide text-white">
                     <Star aria-hidden="true" className="h-3 w-3" /> Suggested
                   </span>
                   <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">

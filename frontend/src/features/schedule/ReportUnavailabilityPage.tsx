@@ -164,7 +164,7 @@ export default function ReportUnavailabilityPage() {
             </fieldset>
 
             <FormField label="3. A note for your family" aside="Optional" error={errors.note} hint="Only your family can see this.">
-              {(p) => <Textarea {...p} value={note} onChange={(e) => setNote(e.target.value)} placeholder="Anything that would help whoever takes over…" />}
+              {(p) => <Textarea {...p} voice value={note} onChange={(e) => setNote(e.target.value)} placeholder="Anything that would help whoever takes over…" />}
             </FormField>
 
             <ActionBar className="flex-row lg:justify-end lg:border-t lg:border-line lg:pt-5">

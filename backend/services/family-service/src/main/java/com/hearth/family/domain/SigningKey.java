@@ -1,32 +1,47 @@
 package com.hearth.family.domain;
 
-import jakarta.persistence.*;
-import lombok.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
 import java.time.Instant;
-import java.util.UUID;
 
+/** The RSA key pair that signs access tokens (keys are Base64 PKCS#8 / X.509 DER). */
 @Entity
-@Table(name = "signing_keys")
-@Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
+@Table(name = "signing_key")
 public class SigningKey {
+
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
-    private UUID id;
+    private String kid;
 
-    @Column(name = "key_id", nullable = false, unique = true)
-    private String keyId;
-
-    @Column(name = "public_key", columnDefinition = "TEXT", nullable = false)
-    private String publicKey;
-
-    @Column(name = "private_key", columnDefinition = "TEXT", nullable = false)
+    @Column(name = "private_key", nullable = false)
     private String privateKey;
 
-    @Column(nullable = false)
-    @Builder.Default
-    private boolean active = true;
+    @Column(name = "public_key", nullable = false)
+    private String publicKey;
 
-    @Column(name = "created_at", nullable = false, updatable = false)
-    @Builder.Default
-    private Instant createdAt = Instant.now();
+    @Column(name = "created_at", nullable = false)
+    private Instant createdAt;
+
+    protected SigningKey() {
+    }
+
+    public SigningKey(String kid, String privateKey, String publicKey) {
+        this.kid = kid;
+        this.privateKey = privateKey;
+        this.publicKey = publicKey;
+        this.createdAt = Instant.now();
+    }
+
+    public String getKid() {
+        return kid;
+    }
+
+    public String getPrivateKey() {
+        return privateKey;
+    }
+
+    public String getPublicKey() {
+        return publicKey;
+    }
 }

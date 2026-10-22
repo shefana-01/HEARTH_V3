@@ -7,12 +7,12 @@ const base =
   'inline-flex select-none items-center justify-center gap-2 whitespace-nowrap rounded-xl font-semibold transition-colors duration-150 disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50';
 
 export const buttonVariants: Record<ButtonVariant, string> = {
-  primary: 'bg-primary-600 text-white shadow-sm hover:bg-primary-700 active:bg-primary-800',
+  primary: 'bg-solid-primary text-white shadow-sm hover:bg-solid-primary-hover active:bg-solid-primary-active',
   secondary: 'border border-line-strong bg-surface text-ink hover:bg-surface-muted active:bg-surface-sunken',
   soft: 'bg-primary-50 text-primary-700 hover:bg-primary-100 active:bg-primary-200',
-  accent: 'bg-rose-600 text-white shadow-sm hover:bg-rose-700',
+  accent: 'bg-solid-rose text-white shadow-sm hover:bg-solid-rose-hover',
   ghost: 'text-ink-muted hover:bg-surface-sunken hover:text-ink',
-  danger: 'bg-red-600 text-white shadow-sm hover:bg-red-700',
+  danger: 'bg-solid-red text-white shadow-sm hover:bg-solid-red-hover',
   'danger-ghost': 'text-red-600 hover:bg-red-50',
 };
 

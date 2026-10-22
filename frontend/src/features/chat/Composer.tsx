@@ -59,6 +59,7 @@ export function Composer({
           </label>
           <Textarea
             id="chat-message"
+            voice
             ref={inputRef}
             rows={1}
             value={value}

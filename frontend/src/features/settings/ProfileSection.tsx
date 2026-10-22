@@ -116,7 +116,7 @@ export function ProfileSection() {
             {(p) => <Input {...p} type="email" autoComplete="email" value={draft.email} onChange={(e) => set({ email: e.target.value })} />}
           </FormField>
           <FormField label="About you" hint="A line your family will see on your profile." error={errors.about} aside={`${draft.about.length}/${ABOUT_MAX}`}>
-            {(p) => <Textarea {...p} rows={3} maxLength={ABOUT_MAX + 20} value={draft.about} onChange={(e) => set({ about: e.target.value })} />}
+            {(p) => <Textarea {...p} voice rows={3} maxLength={ABOUT_MAX + 20} value={draft.about} onChange={(e) => set({ about: e.target.value })} />}
           </FormField>
           <div className="flex flex-wrap justify-end gap-2 border-t border-line pt-4">
             <Button
