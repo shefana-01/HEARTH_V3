@@ -55,11 +55,11 @@ export function Tabs<T extends string>({
             onKeyDown={(e) => onKeyDown(e, i)}
             className={cn(
               'inline-flex shrink-0 items-center gap-2 rounded-full px-3.5 py-1.5 text-sm font-semibold transition-colors',
-              selected ? 'bg-primary-600 text-white' : 'bg-surface text-ink-muted ring-1 ring-inset ring-line hover:text-ink hover:ring-primary-300',
+              selected ? 'bg-solid-primary text-white' : 'bg-surface text-ink-muted ring-1 ring-inset ring-line hover:text-ink hover:ring-primary-300',
             )}
           >
             {item.label}
-            {item.count !== undefined && <span className={cn('rounded-full px-1.5 text-[0.6875rem] tabular-nums', selected ? 'bg-white/20' : 'bg-surface-sunken')}>{item.count}</span>}
+            {item.count !== undefined && <span className={cn('rounded-full px-1.5 text-[0.6875rem] tabular-nums', selected ? 'bg-black/25' : 'bg-surface-sunken')}>{item.count}</span>}
           </button>
         );
       })}

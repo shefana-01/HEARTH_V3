@@ -9,80 +9,51 @@ import type { Config } from 'tailwindcss';
  *  - amber / red               → warning / critical
  *  - canvas / surface / ink    → soft near-white paper with cool slate text
  *
- * The pastel steps (50–200) are for backgrounds and tints. Text and filled
- * buttons use the deeper steps (600+) so everything meets WCAG AA contrast.
+ * Every colour is a CSS variable (values live in src/styles/index.css) so the same class
+ * names work in the light and dark themes and in high-contrast mode. Steps 50–200 are tints
+ * for backgrounds, 300–500 are mid tones for borders and small marks, and 600–900 are text
+ * colours that stay readable on those tints. Anything that carries white text or a white icon
+ * (buttons, selected tabs, checked boxes, count badges) uses `solid-*` instead, because a
+ * step that is a good text colour in dark mode is too light to hold white text.
  */
+const v = (name: string) => `rgb(var(--c-${name}) / <alpha-value>)`;
+const scale = (name: string, steps: number[]) => Object.fromEntries(steps.map((step) => [step, v(`${name}-${step}`)]));
+
 const config: Config = {
   content: ['./index.html', './src/**/*.{ts,tsx}'],
+  // The dark theme is switched by <html data-theme="dark"> (see src/lib/prefs.ts), not by the OS alone.
+  darkMode: ['selector', '[data-theme="dark"]'],
   theme: {
     extend: {
       colors: {
-        canvas: '#F7FAF9',
+        canvas: v('canvas'),
         surface: {
-          DEFAULT: '#FFFFFF',
-          muted: '#F2F7F5',
-          sunken: '#E9F1EE',
+          DEFAULT: v('surface'),
+          muted: v('surface-muted'),
+          sunken: v('surface-sunken'),
         },
-        // Text and border colours are CSS variables (src/styles/index.css) so the
-        // high-contrast display setting can darken them in one place.
         line: {
-          DEFAULT: 'rgb(var(--line) / <alpha-value>)',
-          strong: 'rgb(var(--line-strong) / <alpha-value>)',
+          DEFAULT: v('line'),
+          strong: v('line-strong'),
         },
+        /** Borders of inputs and other controls: at least 3:1 against the page (WCAG 1.4.11). */
+        field: v('field'),
         ink: {
-          DEFAULT: 'rgb(var(--ink) / <alpha-value>)',
-          muted: 'rgb(var(--ink-muted) / <alpha-value>)',
-          subtle: 'rgb(var(--ink-subtle) / <alpha-value>)',
+          DEFAULT: v('ink'),
+          muted: v('ink-muted'),
+          subtle: v('ink-subtle'),
           inverse: '#FFFFFF',
         },
-        primary: {
-          50: '#F1F7FC',
-          100: '#E1EEF8',
-          200: '#C5DEF0',
-          300: '#9CC6E3',
-          400: '#6FA8CF',
-          500: '#4F8CB8',
-          600: '#3C739C',
-          700: '#315E80',
-          800: '#284C68',
-          900: '#203D53',
-        },
-        rose: {
-          50: '#FDF3F5',
-          100: '#FAE4E9',
-          200: '#F4C8D2',
-          300: '#EAA3B3',
-          400: '#DB7D93',
-          500: '#C55C76',
-          600: '#A6475F',
-          700: '#86394D',
-        },
-        mint: {
-          50: '#EFF8F3',
-          100: '#DCF0E5',
-          200: '#BEE3CF',
-          300: '#95CEB0',
-          400: '#6AB591',
-          500: '#4B9775',
-          600: '#3A7A5E',
-          700: '#2F624C',
-          800: '#264F3E',
-        },
-        amber: {
-          50: '#FEF7E8',
-          100: '#FCEBC6',
-          200: '#F8D892',
-          500: '#C0841B',
-          600: '#9A6912',
-          700: '#78520E',
-        },
-        red: {
-          50: '#FDF1F0',
-          100: '#FADBD8',
-          200: '#F3B6B1',
-          500: '#C8453D',
-          600: '#A7352F',
-          700: '#852A25',
+        primary: scale('primary', [50, 100, 200, 300, 400, 500, 600, 700, 800, 900]),
+        rose: scale('rose', [50, 100, 200, 300, 400, 500, 600, 700]),
+        mint: scale('mint', [50, 100, 200, 300, 400, 500, 600, 700, 800]),
+        amber: scale('amber', [50, 100, 200, 500, 600, 700]),
+        red: scale('red', [50, 100, 200, 300, 400, 500, 600, 700, 800]),
+        solid: {
+          primary: { DEFAULT: v('solid-primary'), hover: v('solid-primary-hover'), active: v('solid-primary-active') },
+          rose: { DEFAULT: v('solid-rose'), hover: v('solid-rose-hover') },
+          red: { DEFAULT: v('solid-red'), hover: v('solid-red-hover') },
+          mint: { DEFAULT: v('solid-mint') },
         },
       },
       fontFamily: {

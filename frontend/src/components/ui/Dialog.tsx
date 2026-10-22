@@ -46,7 +46,7 @@ export function Dialog({ open, onClose, title, description, children, footer, si
         if (dismissible && e.target === ref.current) onClose();
       }}
       className={cn(
-        'm-auto w-[calc(100%-2rem)] rounded-2xl border border-line bg-surface p-0 text-ink shadow-overlay backdrop:bg-ink/30 backdrop:backdrop-blur-[2px] open:animate-scale-in',
+        'm-auto w-[calc(100%-2rem)] rounded-2xl border border-line bg-surface p-0 text-ink shadow-overlay backdrop:bg-black/40 backdrop:backdrop-blur-[2px] open:animate-scale-in',
         size === 'sm' ? 'max-w-md' : size === 'lg' ? 'max-w-2xl' : 'max-w-lg',
       )}
     >

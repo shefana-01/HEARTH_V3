@@ -26,7 +26,7 @@ export default function LandingPage() {
 
       <main className="relative z-10 flex flex-1 items-center justify-center px-4 pb-16">
         <div className="relative flex aspect-square w-full max-w-[36rem] items-center justify-center">
-          <div aria-hidden="true" className="absolute inset-0 rounded-full bg-[#F6EDE3] shadow-[0_20px_60px_-20px_rgba(120,100,80,0.25)]" />
+          <div aria-hidden="true" className="absolute inset-0 rounded-full bg-rose-100/60 shadow-[0_20px_60px_-20px_rgba(120,100,80,0.25)]" />
           <div className="relative z-10 flex flex-col items-center px-8 text-center">
             <LogoMark className="mb-6 h-16 w-16 gap-1.5 rounded-2xl p-3.5 [&>span]:h-3.5 [&>span]:w-3.5" />
             <h1 className="font-sans text-4xl font-extrabold leading-[1.1] tracking-tight text-ink sm:text-5xl">Your day, and your family’s, in one place.</h1>
@@ -47,14 +47,14 @@ export default function LandingPage() {
           <div className="absolute left-[6%] top-[6%] w-60 -rotate-3 rounded-2xl border border-rose-200/60 bg-rose-100 p-5 shadow-raised">
             <span className="absolute -top-2 left-1/2 h-4 w-4 -translate-x-1/2 rounded-full bg-primary-300 shadow" />
             <p className="font-serif text-lg italic leading-snug text-rose-700">Say when you’re busy, and Hearth shows who in the family can step in.</p>
-            <span className="absolute -bottom-8 -left-6 flex h-20 w-20 -rotate-12 items-center justify-center rounded-3xl border border-white bg-white/80 shadow-raised backdrop-blur">
-              <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary-500 text-white">
+            <span className="absolute -bottom-8 -left-6 flex h-20 w-20 -rotate-12 items-center justify-center rounded-3xl border border-line bg-surface/80 shadow-raised backdrop-blur">
+              <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-solid-primary text-white">
                 <Check className="h-6 w-6" strokeWidth={3} />
               </span>
             </span>
           </div>
 
-          <div className="absolute right-[6%] top-[8%] w-64 rotate-6 rounded-3xl border border-white bg-surface p-5 shadow-raised">
+          <div className="absolute right-[6%] top-[8%] w-64 rotate-6 rounded-3xl border border-line bg-surface p-5 shadow-raised">
             <span className="absolute -left-8 top-3 flex h-12 w-12 -rotate-6 items-center justify-center rounded-2xl bg-surface shadow-raised">
               <Timer className="h-6 w-6 text-ink" />
             </span>
@@ -71,7 +71,7 @@ export default function LandingPage() {
             </div>
           </div>
 
-          <div className="absolute bottom-[8%] left-[6%] w-72 -rotate-3 rounded-3xl border border-white bg-surface p-5 shadow-raised">
+          <div className="absolute bottom-[8%] left-[6%] w-72 -rotate-3 rounded-3xl border border-line bg-surface p-5 shadow-raised">
             <p className="mb-4 font-bold text-ink">My day</p>
             <div className="mb-3 flex items-center justify-between gap-2 rounded-2xl bg-rose-50 p-3">
               <p className="flex items-center gap-2 text-[0.8125rem] font-semibold text-ink">
@@ -87,7 +87,7 @@ export default function LandingPage() {
             </div>
           </div>
 
-          <div className="absolute bottom-[10%] right-[6%] w-64 rotate-3 rounded-3xl border border-white bg-surface p-5 shadow-raised">
+          <div className="absolute bottom-[10%] right-[6%] w-64 rotate-3 rounded-3xl border border-line bg-surface p-5 shadow-raised">
             <p className="mb-4 font-bold text-ink">Your family</p>
             <AvatarGroup
               size="md"

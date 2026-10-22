@@ -1,0 +1,7 @@
+# Store text as LF in the repository; check out with the platform's own line endings.
+* text=auto
+*.sh text eol=lf
+*.png binary
+*.jpg binary
+*.pdf binary
+*.zip binary
