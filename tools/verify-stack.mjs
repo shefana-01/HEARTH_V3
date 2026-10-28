@@ -1,4 +1,8 @@
 #!/usr/bin/env node
+/**
+ * Hearth Multi-Container Docker Stack Verification
+ * Validates all 12 services, multi-stage Dockerfiles, and database init scripts.
+ */
 import { readFileSync, existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 

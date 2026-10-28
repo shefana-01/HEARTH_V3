@@ -2,6 +2,9 @@
 #
 #   docker compose up --build        then open http://localhost:8000
 #
+# Stack verification:
+#   node tools/verify-stack.mjs
+#
 # Also available while it runs:
 #   http://localhost:8080   the API gateway (for `npm run dev` with VITE_USE_MOCKS=false)
 #   http://localhost:8025   Mailpit: every email Hearth sends (sign-up, invitations, password reset) lands here
