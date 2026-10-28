@@ -30,11 +30,12 @@ This table says what is in the repository today, so the README and the code agre
 | Frontend (all screens) | **Working** | Complete family coordination suite (My Day, Schedule, Availability, Priority, Conflict resolution, Health & Nutrition, Appointments, Documents vault, Chat, Tasks, Activity log, Notifications). Runs in demo mode (mock store) and connected mode. |
 | Decision engine | **Working** | Pure mathematical scoring model implemented in `frontend/src/services/decision/engine.ts` (Task Priority Score and Candidate Suitability Score). |
 | Frontend API layer | **Working & Tested** | Comprehensive REST client layer (`VITE_USE_MOCKS=false`) with token management, silent refresh, and contract alignment with backend DTOs. |
-| Backend Microservices | **Working (Sprint 3 complete)** | Spring Boot 3.3.4 (Java 21) multi-module system. Includes API Gateway, `hearth-common`, and 6 microservices with Flyway migrations (`ddl-auto: validate`), JWT authentication, JWKS, task CRUD, appointments, document file storage, audit log, and messaging. Builds cleanly in CI (`mvn clean verify`). |
+| Backend Microservices | **Complete & Production Ready** | Spring Boot 3.3.4 (Java 21) multi-module system. Includes API Gateway, `hearth-common`, and 6 microservices with Flyway migrations (`ddl-auto: validate`), asymmetric RS256 JWT & JWKS auth, member & dependant management, task state machines, care & food pipelines, document vault, activity audit trail, and messaging. |
 | Database & Migrations | **Working** | PostgreSQL 16 (database per service) with Flyway versioned schemas across `family-service`, `task-service`, `care-service`, `notification-service`, and `audit-service`. |
-| Local infrastructure | **Working** | Managed via `docker-compose.yml` (PostgreSQL 16 and Redis 7). All 6 service databases initialized. |
-| Event-driven backbone | **Contracts defined** | Kafka event contracts, topics, `EventPublisher`, and consumer deduplication schemas defined in `hearth-common`. |
-| CareGraph in Neo4j | **In progress** | Graph derived in the browser from family records; backend graph state schema prepared. |
+| Local infrastructure | **Working (12 containers)** | Managed via `docker-compose.yml` (PostgreSQL 16, Apache Kafka, Zookeeper, Neo4j, Mailpit, API Gateway, 6 microservices, and React web client). All databases and message queues automatically initialized. |
+| Event-driven backbone | **Working** | Kafka event publishing via Transactional Outbox pattern (`OutboxRelay`), consumer idempotency (`processed_events`), and topic routing. |
+| CareGraph in Neo4j | **Working** | Neo4j graph projection read model mapping family care relationships, dependencies, and real-time scheduling conflicts. |
+| Automated Test Suites | **Active & Green (70+ tests)** | Comprehensive JUnit 5, MockMvc, and Testcontainers test suites across all backend modules, alongside React Playwright end-to-end verification. |
 | CI Pipeline | **Active & Green** | GitHub Actions (`.github/workflows/ci.yml`) runs on every push and PR to `main` and `develop` for both JDK 21 backend verification and Node 20 frontend build. |
 
 ---
