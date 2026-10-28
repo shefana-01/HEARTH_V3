@@ -38,7 +38,8 @@ Hearth is built around explicit bounded contexts, combining direct REST APIs for
 | **task-service** | 8082 | `hearth_task` | Task CRUD, assignment, scheduling, conflict detection logic |
 | **decision-service**| 8083 | `hearth_decision` | Deterministic Priority Engine & Reassignment Suitability Engine |
 | **care-service** | 8084 | `hearth_care` | Health profiles, appointments, documents, nutrition goals to grocery |
-| **notification-service**| 8085 | `hearth_notification`| User notifications, event listeners, system audit log |
+| **notification-service**| 8085 | `hearth_notification`| In-app user notifications, chat channels, task comment threads |
+| **audit-service** | 8086 | `hearth_audit` | Family activity log, security audit trail, category/actor filtering |
 
 ## 3. Decision Engine Technical Specification
 

@@ -18,10 +18,11 @@ sample family").
 
 ```bash
 npm install
-npm run dev          # http://localhost:3000
+npm run dev          # http://localhost:3000 (demo mode by default, or live mode with VITE_USE_MOCKS=false)
 ```
 
-Node 18.18+ (tested on Node 22).
+Node 18.18+ (tested on Node 22). For live mode, ensure the API Gateway runs on `http://localhost:8080`.
+
 
 | Script | What it does |
 | --- | --- |
