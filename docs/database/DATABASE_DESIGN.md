@@ -9,6 +9,7 @@ In alignment with bounded-context microservice principles, each service has its 
 3. `hearth_decision`
 4. `hearth_care`
 5. `hearth_notification`
+6. `hearth_audit`
 
 ---
 
@@ -39,5 +40,10 @@ In alignment with bounded-context microservice principles, each service has its 
 - **`grocery_items`**: `id` (UUID PK), `nutrition_goal_id` (UUID FK), `item_name`, `quantity`, `estimated_cost`, `converted_to_task_id` (UUID NULLABLE)
 
 ### 2.5 `hearth_notification`
-- **`notifications`**: `id` (UUID PK), `user_id` (UUID), `family_id` (UUID), `title`, `message`, `type` (`TASK_ASSIGNED`, `REASSIGNMENT_REQUEST`, `CONFLICT_DETECTED`, `APPOINTMENT_REMINDER`), `is_read` (BOOLEAN), `created_at`
-- **`audit_logs`**: `id` (UUID PK), `family_id` (UUID), `actor_user_id` (UUID), `action`, `resource_type`, `resource_id`, `before_state_json` (JSONB), `after_state_json` (JSONB), `timestamp`
+- **`notification`**: `id` (UUID PK), `family_id` (UUID), `type` (VARCHAR), `message` (VARCHAR), `href` (VARCHAR), `actor_member_id` (UUID), `recipient_member_id` (UUID), `created_at` (TIMESTAMPTZ), `event_id` (UUID UNIQUE)
+- **`notification_state`**: `id` (UUID PK), `notification_id` (UUID FK), `member_id` (UUID), `marked_read` (BOOLEAN), `dismissed` (BOOLEAN)
+- **`message`**: `id` (UUID PK), `family_id` (UUID), `channel` (VARCHAR), `sender_member_id` (UUID), `text` (VARCHAR), `created_at` (TIMESTAMPTZ)
+- **`processed_event`**: `event_id` (UUID PK), `processed_at` (TIMESTAMPTZ)
+
+### 2.6 `hearth_audit`
+- **`audit_event`**: `id` (UUID PK), `family_id` (UUID), `actor_id` (UUID), `category` (VARCHAR(20)), `action` (VARCHAR(120)), `subject` (VARCHAR(300)), `before_value` (VARCHAR(500)), `after_value` (VARCHAR(500)), `occurred_at` (TIMESTAMPTZ), `event_type` (VARCHAR(100)), `event_id` (UUID UNIQUE)
