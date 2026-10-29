@@ -14,6 +14,7 @@ import { useReminders } from '@/hooks/useReminders';
 import { plural } from '@/lib/format';
 import { cn } from '@/lib/cn';
 import { Avatar, ButtonLink, IconButton, Menu, ThemeToggle } from '@/components/ui';
+import { LanguageToggle } from './LanguageToggle';
 import { Logo } from './Logo';
 import { ShellContext, type ShellContextValue } from './ShellContext';
 
@@ -143,6 +144,7 @@ function Topbar({ meta }: { meta: ReturnType<typeof useRouteMeta> }) {
           <ButtonLink to="/tasks/new" size="sm" leftIcon={<Plus aria-hidden="true" className="h-4 w-4" />} className="hidden lg:inline-flex">
             New task
           </ButtonLink>
+          <LanguageToggle />
           <ThemeToggle className="text-ink-muted hover:text-ink" />
           <NavLink
             to="/chat"

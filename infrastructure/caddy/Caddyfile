@@ -1,0 +1,46 @@
+{
+    # Global options
+    email admin@hearth.local
+    admin off
+}
+
+hearth.local, localhost {
+    # Security Headers
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "DENY"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        Permissions-Policy "camera=(), microphone=(), geolocation=()"
+        -Server
+    }
+
+    # API Gateway reverse proxy
+    handle /api/* {
+        reverse_proxy gateway:8080 {
+            header_up Host {host}
+            header_up X-Real-IP {remote_host}
+            header_up X-Forwarded-For {remote_host}
+            header_up X-Forwarded-Proto {scheme}
+        }
+    }
+
+    # Actuator health endpoint
+    handle /actuator/* {
+        reverse_proxy gateway:8080
+    }
+
+    # Frontend Single Page Application (SPA)
+    handle {
+        reverse_proxy web:80
+    }
+
+    # Gzip and Zstandard compression
+    encode gzip zstd
+
+    # Logging
+    log {
+        output stdout
+        format console
+    }
+}
