@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { CircleCheckBig, Clock, ListChecks, Plus, Search } from 'lucide-react';
 import { useFamily } from '@/app/FamilyProvider';
+import { useTranslation } from '@/i18n';
 import { taskService } from '@/services/tasks/taskService';
 import { decisionService } from '@/services/decision/decisionService';
 import { useAsync, useMutation } from '@/hooks/useAsync';
@@ -19,7 +20,8 @@ const PRIORITY_RANK = { urgent: 0, important: 1, routine: 2 };
 const endOf = (t: Task) => new Date(t.start).getTime() + t.durationMin * 60_000;
 
 export default function TasksPage() {
-  useDocumentTitle('Tasks');
+  const { t } = useTranslation();
+  useDocumentTitle(t.tasks.title);
   const { me } = useFamily();
   const { toast } = useToast();
   const [filter, setFilter] = useState<Filter>('all');
@@ -75,22 +77,22 @@ export default function TasksPage() {
   };
 
   const tabs = [
-    { id: 'all' as const, label: 'Open', count: buckets.all.length },
-    { id: 'today' as const, label: 'Today', count: buckets.today.length },
-    { id: 'upcoming' as const, label: 'Upcoming', count: buckets.upcoming.length },
-    { id: 'attention' as const, label: 'Needs sorting out', count: buckets.attention.length },
-    { id: 'completed' as const, label: 'Completed', count: buckets.completed.length },
+    { id: 'all' as const, label: t.tasks.openTab, count: buckets.all.length },
+    { id: 'today' as const, label: t.tasks.todayTab, count: buckets.today.length },
+    { id: 'upcoming' as const, label: t.tasks.upcomingTab, count: buckets.upcoming.length },
+    { id: 'attention' as const, label: t.tasks.attentionTab, count: buckets.attention.length },
+    { id: 'completed' as const, label: t.tasks.completedTab, count: buckets.completed.length },
   ];
 
   return (
     <>
       <PageHeader
-        eyebrow="Tasks"
-        title={scope === 'mine' ? 'My tasks' : 'Family tasks'}
+        eyebrow={t.tasks.title}
+        title={scope === 'mine' ? t.tasks.myTasks : t.tasks.familyTasks}
         description={data.data ? `${plural(buckets.today.length, 'task')} today${scope === 'mine' ? ' for you' : ' across the family'}.` : undefined}
         actions={
           <ButtonLink to="/tasks/new" className="hidden lg:inline-flex" leftIcon={<Plus aria-hidden="true" className="h-4 w-4" />}>
-            New task
+            {t.tasks.newTask}
           </ButtonLink>
         }
       />
@@ -98,9 +100,9 @@ export default function TasksPage() {
       <div className="mb-5 flex flex-col gap-3 lg:flex-row lg:items-center">
         <div className="flex-1">
           <label htmlFor="task-search" className="sr-only">
-            Search tasks
+            {t.common.search}
           </label>
-          <Input id="task-search" type="search" leftIcon={<Search />} placeholder="Search tasks or notes…" value={query} onChange={(e) => setQuery(e.target.value)} />
+          <Input id="task-search" type="search" leftIcon={<Search />} placeholder={t.common.search} value={query} onChange={(e) => setQuery(e.target.value)} />
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <SegmentedControl

@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { Link, NavLink, Outlet, useLocation, useMatches, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Bell, CalendarDays, CalendarX2, CircleCheckBig, Ellipsis, LogOut, MessagesSquare, Plus, Settings, Sparkles, Sun, UserRound, Users, X } from 'lucide-react';
-import { NAV_SECTIONS, type NavItem } from '@/constants/navigation';
+import { getNavSections, type NavItem } from '@/constants/navigation';
 import { ROLES } from '@/constants/labels';
 import { isRouteMeta } from '@/app/routeMeta';
 import { useMinWidth } from '@/hooks/useMediaQuery';
 import { useAuth } from '@/app/AuthProvider';
 import { useFamily } from '@/app/FamilyProvider';
+import { useTranslation } from '@/i18n';
 import { EmailConfirmNotice } from '@/components/domain/EmailConfirmNotice';
 import { notificationService } from '@/services/notifications/notificationService';
 import { chatService } from '@/services/chat/chatService';
@@ -19,9 +20,12 @@ import { Logo } from './Logo';
 import { ShellContext, type ShellContextValue } from './ShellContext';
 
 function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
+  const { t } = useTranslation();
+  const sections = useMemo(() => getNavSections(t), [t]);
+
   return (
     <nav aria-label="Main" className="scrollbar-thin flex-1 space-y-6 overflow-y-auto overscroll-contain px-3 pb-4 [@media(max-height:900px)]:space-y-3">
-      {NAV_SECTIONS.map((section) => (
+      {sections.map((section) => (
         <div key={section.title}>
           <p className="eyebrow px-3 pb-2">{section.title}</p>
           <ul className="space-y-0.5">
@@ -51,6 +55,7 @@ function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
 
 function SidebarFooter({ onNavigate }: { onNavigate?: () => void }) {
   const { family, people } = useFamily();
+  const { t, language } = useTranslation();
   return (
     <div className="space-y-2 border-t border-line p-3">
       <NavLink
@@ -61,12 +66,12 @@ function SidebarFooter({ onNavigate }: { onNavigate?: () => void }) {
         }
       >
         <Settings aria-hidden="true" className="h-[18px] w-[18px]" />
-        Settings
+        {t.nav.settings}
       </NavLink>
       {family && (
         <div className="rounded-xl bg-mint-50 px-3 py-2.5 [@media(max-height:760px)]:hidden">
           <p className="truncate text-[0.8125rem] font-semibold text-mint-800">{family.name}</p>
-          <p className="truncate text-xs text-mint-700">{plural(people.length, 'person', 'people')}</p>
+          <p className="truncate text-xs text-mint-700">{language === 'bn' ? `${people.length} জন সদস্য` : plural(people.length, 'person', 'people')}</p>
         </div>
       )}
     </div>
@@ -109,6 +114,7 @@ function useRouteMeta() {
 function Topbar({ meta }: { meta: ReturnType<typeof useRouteMeta> }) {
   const { session, signOut } = useAuth();
   const { me } = useFamily();
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const unread = useUnreadCount();
   const unreadChat = useUnreadChat();
@@ -135,14 +141,14 @@ function Topbar({ meta }: { meta: ReturnType<typeof useRouteMeta> }) {
           {session?.isSample && (
             <span className="hidden items-center gap-1.5 rounded-full bg-rose-100 px-3 py-1 text-xs font-semibold text-rose-700 md:inline-flex">
               <Sparkles aria-hidden="true" className="h-3.5 w-3.5" />
-              Sample data
+              {t.common.sampleData}
             </span>
           )}
           <ButtonLink to="/schedule/unavailable" variant="ghost" size="sm" className="hidden xl:inline-flex" leftIcon={<CalendarX2 aria-hidden="true" className="h-4 w-4" />}>
-            I can’t make it
+            {t.schedule.timeAway}
           </ButtonLink>
           <ButtonLink to="/tasks/new" size="sm" leftIcon={<Plus aria-hidden="true" className="h-4 w-4" />} className="hidden lg:inline-flex">
-            New task
+            {t.tasks.newTask}
           </ButtonLink>
           <LanguageToggle />
           <ThemeToggle className="text-ink-muted hover:text-ink" />
@@ -172,9 +178,9 @@ function Topbar({ meta }: { meta: ReturnType<typeof useRouteMeta> }) {
           </NavLink>
           <Menu
             items={[
-              { label: 'Profile & settings', icon: <UserRound aria-hidden="true" />, onSelect: () => navigate('/settings') },
+              { label: t.common.profileAndSettings, icon: <UserRound aria-hidden="true" />, onSelect: () => navigate('/settings') },
               {
-                label: 'Sign out',
+                label: t.common.signOut,
                 icon: <LogOut aria-hidden="true" />,
                 onSelect: async () => {
                   await signOut();
@@ -198,22 +204,26 @@ function Topbar({ meta }: { meta: ReturnType<typeof useRouteMeta> }) {
   );
 }
 
-const TABS: NavItem[] = [
-  { to: '/today', label: 'My day', icon: Sun },
-  { to: '/tasks', label: 'Tasks', icon: CircleCheckBig },
-  { to: '/schedule', label: 'Schedule', icon: CalendarDays },
-  { to: '/family', label: 'Family', icon: Users },
-];
-
 /** Phone & tablet primary navigation: four destinations plus "More" for everything else. */
 function TabBar({ onMore, moreOpen }: { onMore: () => void; moreOpen: boolean }) {
   const { pathname } = useLocation();
-  const inTabs = TABS.some((t) => pathname === t.to || pathname.startsWith(`${t.to}/`));
+  const { t } = useTranslation();
+  const tabs = useMemo<NavItem[]>(
+    () => [
+      { to: '/today', label: t.nav.today, icon: Sun },
+      { to: '/tasks', label: t.nav.tasks, icon: CircleCheckBig },
+      { to: '/schedule', label: t.nav.schedule, icon: CalendarDays },
+      { to: '/family', label: t.nav.family, icon: Users },
+    ],
+    [t],
+  );
+
+  const inTabs = tabs.some((tab) => pathname === tab.to || pathname.startsWith(`${tab.to}/`));
   const item = 'flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-xl py-1.5 text-[0.6875rem] font-semibold transition-colors';
   return (
     <nav aria-label="Primary" className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-surface/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-md lg:hidden">
       <ul className="mx-auto flex h-16 max-w-xl items-stretch gap-1 px-2 py-1.5">
-        {TABS.map(({ to, label, icon: Icon }) => (
+        {tabs.map(({ to, label, icon: Icon }) => (
           <li key={to} className="flex flex-1">
             <NavLink to={to} className={({ isActive }) => cn(item, isActive ? 'bg-primary-100 text-primary-800' : 'text-ink-subtle hover:text-ink')}>
               <Icon aria-hidden="true" className="h-5 w-5" />
@@ -231,7 +241,7 @@ function TabBar({ onMore, moreOpen }: { onMore: () => void; moreOpen: boolean })
             className={cn(item, !inTabs || moreOpen ? 'bg-primary-100 text-primary-800' : 'text-ink-subtle hover:text-ink')}
           >
             <Ellipsis aria-hidden="true" className="h-5 w-5" />
-            More
+            {t.common.more}
           </button>
         </li>
       </ul>
@@ -243,6 +253,7 @@ function TabBar({ onMore, moreOpen }: { onMore: () => void; moreOpen: boolean })
 function MoreSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
   const ref = useRef<HTMLDialogElement>(null);
   const desktop = useMinWidth('lg');
+  const { t } = useTranslation();
   // The sheet is a small-screen pattern; close it if the window grows to desktop width.
   useEffect(() => {
     if (desktop && open) onClose();
@@ -269,8 +280,8 @@ function MoreSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
     >
       <div className="flex items-center justify-between px-5 pb-2 pt-3">
         <span aria-hidden="true" className="absolute left-1/2 top-2 h-1 w-10 -translate-x-1/2 rounded-full bg-line-strong" />
-        <p className="pt-3 font-display text-lg">All sections</p>
-        <IconButton label="Close" onClick={onClose} className="mt-2">
+        <p className="pt-3 font-display text-lg">{t.common.allSections}</p>
+        <IconButton label={t.common.close} onClick={onClose} className="mt-2">
           <X aria-hidden="true" className="h-5 w-5" />
         </IconButton>
       </div>

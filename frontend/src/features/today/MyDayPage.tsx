@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { CalendarPlus, CalendarX2, ListChecks, Plus, Sun } from 'lucide-react';
 import { useFamily } from '@/app/FamilyProvider';
+import { useTranslation } from '@/i18n';
 import { taskService } from '@/services/tasks/taskService';
 import { decisionService } from '@/services/decision/decisionService';
 import { useAsync, useMutation } from '@/hooks/useAsync';
@@ -24,7 +25,8 @@ function summarise(ranked: RankedTask[] | undefined): string | undefined {
 }
 
 export default function MyDayPage() {
-  useDocumentTitle('My day');
+  const { t, language } = useTranslation();
+  useDocumentTitle(t.nav.today);
   const { me } = useFamily();
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -69,13 +71,13 @@ export default function MyDayPage() {
         actions={
           <>
             <ButtonLink to="/tasks/new" className="min-h-11" leftIcon={<Plus aria-hidden="true" className="h-4 w-4" />}>
-              New task
+              {t.tasks.newTask}
             </ButtonLink>
             <ButtonLink to="/schedule/events/new" variant="secondary" className="min-h-11" leftIcon={<CalendarPlus aria-hidden="true" className="h-4 w-4" />}>
-              Add to my schedule
+              {t.common.addToSchedule}
             </ButtonLink>
             <ButtonLink to="/schedule/unavailable" variant="soft" className="min-h-11" leftIcon={<CalendarX2 aria-hidden="true" className="h-4 w-4" />}>
-              I can’t make it
+              {t.common.cantMakeIt}
             </ButtonLink>
           </>
         }
@@ -88,7 +90,7 @@ export default function MyDayPage() {
           {todays.length > 0 && (
             <div>
               <p className="mb-2 text-sm font-semibold text-ink">
-                Done today: {doneToday} of {todays.length}
+                {language === 'bn' ? `${t.common.doneToday}: ${doneToday} / ${todays.length}` : `${t.common.doneToday}: ${doneToday} of ${todays.length}`}
               </p>
               <ProgressBar value={doneToday} max={todays.length} tone="mint" label="Tasks done today" />
             </div>
@@ -101,11 +103,11 @@ export default function MyDayPage() {
             <EmptyState
               icon={<ListChecks aria-hidden="true" />}
               tone="mint"
-              title="Nothing to do right now"
-              description="Your list is clear. Add a task and Hearth will tell you when to do it."
+              title={t.common.nothingTodo}
+              description={t.common.nothingTodoDesc}
               action={
                 <ButtonLink to="/tasks/new" leftIcon={<Plus aria-hidden="true" className="h-4 w-4" />}>
-                  Create a task
+                  {t.common.createTask}
                 </ButtonLink>
               }
             />
