@@ -28,7 +28,7 @@ pgdata/
 logs/
 
 # Test coverage
-coverage/
+frontend/coverage/
 .nyc_output/
 
 # Archives & Patches
@@ -41,3 +41,8 @@ build_frontend.ps1
 phase3_backup/
 *.cjs
 design-reference/
+
+# Local incoming & compose bridge artifacts
+_incoming/
+bridge/
+out/

@@ -12,7 +12,7 @@ concurrency:
 
 jobs:
   frontend:
-    name: Frontend (types, lint, format, build)
+    name: Frontend (types, lint, format, unit tests, build)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -27,7 +27,8 @@ jobs:
         working-directory: ./frontend
         run: npm ci
 
-      - name: Typecheck, lint, format check and build
+      # check = typecheck, lint, format check, unit tests (Vitest) and the production build.
+      - name: Typecheck, lint, format, test and build
         working-directory: ./frontend
         run: npm run check
 
@@ -62,10 +63,36 @@ jobs:
           npm ci --prefix frontend
           node tools/engine-fixtures.mjs
 
-      # The *IT tests start PostgreSQL and Neo4j with Testcontainers (Docker is available on the runner).
-      - name: Build and test
+      # The *IT tests start PostgreSQL, Neo4j, Kafka and Redis with Testcontainers (Docker is available on
+      # the runner). verify also enforces line coverage per module with JaCoCo (80%, see backend/pom.xml).
+      - name: Build, test and check coverage
         working-directory: ./backend
         run: mvn -B -ntp clean verify
+
+      - name: Coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: backend/coverage/target/site/jacoco-aggregate/
+          retention-days: 14
+
+      - name: Coverage summary
+        if: success()
+        run: |
+          python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import csv
+          rows = list(csv.DictReader(open('backend/coverage/target/site/jacoco-aggregate/jacoco.csv')))
+          by = {}
+          for r in rows:
+              m = by.setdefault(r['GROUP'], [0, 0])
+              m[0] += int(r['LINE_COVERED']); m[1] += int(r['LINE_COVERED']) + int(r['LINE_MISSED'])
+          print('| Module | Line coverage |\n|---|---|')
+          for g, (c, t) in sorted(by.items()):
+              print(f'| {g} | {100 * c / t:.1f}% |')
+          c = sum(v[0] for v in by.values()); t = sum(v[1] for v in by.values())
+          print(f'| **All** | **{100 * c / t:.1f}%** |')
+          PY
 
       - name: Test reports
         if: failure()
@@ -74,6 +101,28 @@ jobs:
           name: surefire-reports
           path: backend/**/target/surefire-reports/
           retention-days: 7
+
+  deploy-config:
+    name: Deployment files (compose, Kubernetes, Caddy, Prometheus)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Production compose file resolves
+        run: |
+          printf '%s\n' DB_PASSWORD=x NEO4J_PASSWORD=x HEARTH_DOMAIN=hearth.example.com ACME_EMAIL=a@example.com \
+            MAIL_HOST=smtp.example.com MAIL_FROM=a@example.com VAPID_PUBLIC_KEY=x VAPID_PRIVATE_KEY=x > ci.env
+          docker compose --env-file ci.env -f docker-compose.yml -f docker-compose.prod.yml config --quiet
+          docker compose --env-file ci.env -f docker-compose.yml -f docker-compose.monitoring.yml config --quiet
+
+      - name: Kubernetes manifests are valid
+        run: docker run --rm -v "$PWD/k8s:/k8s" ghcr.io/yannh/kubeconform:v0.6.7 -strict -summary -ignore-filename-pattern example /k8s
+
+      - name: Caddyfile is valid
+        run: docker run --rm -v "$PWD/infrastructure/caddy/Caddyfile:/etc/caddy/Caddyfile:ro" -e HEARTH_DOMAIN=hearth.example.com caddy:2.8-alpine caddy validate --config /etc/caddy/Caddyfile
+
+      - name: Prometheus config and alert rules are valid
+        run: docker run --rm --entrypoint promtool -v "$PWD/infrastructure/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro" -v "$PWD/infrastructure/monitoring/alerts.yml:/etc/prometheus/alerts.yml:ro" prom/prometheus:v2.55.1 check config /etc/prometheus/prometheus.yml
 
   e2e:
     name: End-to-end (docker compose)
@@ -92,6 +141,11 @@ jobs:
 
       - name: Smoke test through the web app (nginx -> gateway -> services -> Kafka/Neo4j/Mailpit)
         run: node tools/e2e-smoke.mjs
+
+      # A short load test (10 users for under 3 minutes) so a big slowdown fails the build. The full run is
+      # described in docs/PERFORMANCE.md.
+      - name: Load test (k6, short)
+        run: docker run --rm -i --network host -e PEAK=10 -e FAMILIES=4 grafana/k6:0.54.0 run --quiet - < tools/load/hearth-load.js
 
       - name: Service logs
         if: failure()

@@ -5,3 +5,5 @@
 *.jpg binary
 *.pdf binary
 *.zip binary
+# The inline theme script in index.html is pinned by a CSP hash; CRLF would change the hash.
+frontend/index.html text eol=lf
