@@ -12,6 +12,12 @@
     <name>hearth-common</name>
     <description>Small shared library: security, errors, events (transactional outbox) and service-to-service calls</description>
 
+    <properties>
+        <!-- The shared library is exercised mostly by the services' integration tests (about two thirds of its
+             lines in the combined report); its own unit tests cover the event model and text helpers. -->
+        <coverage.line.minimum>0.15</coverage.line.minimum>
+    </properties>
+
     <dependencies>
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -36,6 +42,11 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+        <!-- Metrics at /actuator/prometheus for Prometheus and Grafana (docker-compose.monitoring.yml). -->
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-registry-prometheus</artifactId>
         </dependency>
         <dependency>
             <groupId>org.springframework.kafka</groupId>

@@ -57,6 +57,16 @@ public final class EventTypes {
     public static final String DOCUMENT_DELETED = "document.deleted";
     public static final String HEALTH_UPDATED = "health.updated";
     public static final String GROCERY_TASK_CREATED = "grocery.task-created";
+    /** data: medicationId, personId. A medicine schedule was added or changed. */
+    public static final String MEDICATION_UPDATED = "medication.updated";
+    public static final String MEDICATION_REMOVED = "medication.removed";
+    /** data: medicationId, scheduledAt. A dose was marked taken or skipped. */
+    public static final String MEDICATION_DOSE_RECORDED = "medication.dose-recorded";
+    /** "Time for your medicine", to the person or their carer. */
+    public static final String MEDICATION_DUE = "medication.due";
+    /** A dose nobody marked within an hour. */
+    public static final String MEDICATION_MISSED = "medication.missed";
+    public static final String EMERGENCY_INFO_UPDATED = "emergency.updated";
 
     private EventTypes() {
     }
