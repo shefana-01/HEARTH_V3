@@ -1,0 +1,221 @@
+services:
+  # Caddy Reverse Proxy with automated HTTPS and TLS certificates
+  caddy:
+    image: caddy:2-alpine
+    container_name: hearth-caddy
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./infrastructure/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - web
+      - gateway
+
+  web:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: hearth-web-prod
+    restart: always
+    environment:
+      - VITE_USE_MOCK_API=false
+    expose:
+      - "80"
+
+  gateway:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+      args:
+        SERVICE_DIR: backend/api-gateway
+        JAR_NAME: api-gateway-1.0.0-SNAPSHOT.jar
+    container_name: hearth-gateway-prod
+    restart: always
+    environment:
+      - SPRING_PROFILES_ACTIVE=prod
+      - FAMILY_SERVICE_URL=http://family-service:8081
+      - TASK_SERVICE_URL=http://task-service:8082
+      - DECISION_SERVICE_URL=http://decision-service:8083
+      - CARE_SERVICE_URL=http://care-service:8084
+      - NOTIFICATION_SERVICE_URL=http://notification-service:8085
+      - AUDIT_SERVICE_URL=http://audit-service:8086
+    expose:
+      - "8080"
+    depends_on:
+      - family-service
+      - task-service
+      - decision-service
+      - care-service
+      - notification-service
+      - audit-service
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: hearth-postgres-prod
+    restart: always
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER:-hearth}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-hearth}
+      - POSTGRES_DB=hearth_family
+    volumes:
+      - postgres_prod_data:/var/lib/postgresql/data
+      - ./infrastructure/init-db:/docker-entrypoint-initdb.d:ro
+    expose:
+      - "5432"
+
+  kafka:
+    image: apache/kafka:3.7.0
+    container_name: hearth-kafka-prod
+    restart: always
+    environment:
+      - KAFKA_NODE_ID=1
+      - KAFKA_PROCESS_ROLES=broker,controller
+      - KAFKA_LISTENERS=PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
+      - KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://kafka:9092
+      - KAFKA_CONTROLLER_LISTENER_NAMES=CONTROLLER
+      - KAFKA_CONTROLLER_QUORUM_VOTERS=1@kafka:9093
+      - KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=1
+      - KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR=1
+      - KAFKA_TRANSACTION_STATE_LOG_MIN_ISR=1
+      - CLUSTER_ID=MkU3OEVBNTcwNTJENDM2Qk
+    volumes:
+      - kafka_prod_data:/var/lib/kafka/data
+    expose:
+      - "9092"
+
+  neo4j:
+    image: neo4j:5.20-community
+    container_name: hearth-neo4j-prod
+    restart: always
+    environment:
+      - NEO4J_AUTH=neo4j/${NEO4J_PASSWORD:-hearthpassword}
+    volumes:
+      - neo4j_prod_data:/data
+    expose:
+      - "7474"
+      - "7687"
+
+  family-service:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+      args:
+        SERVICE_DIR: backend/services/family-service
+        JAR_NAME: family-service-1.0.0-SNAPSHOT.jar
+    container_name: hearth-family-prod
+    restart: always
+    environment:
+      - SPRING_PROFILES_ACTIVE=prod
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/hearth_family
+      - SPRING_DATASOURCE_USERNAME=${POSTGRES_USER:-hearth}
+      - SPRING_DATASOURCE_PASSWORD=${POSTGRES_PASSWORD:-hearth}
+      - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+    depends_on:
+      - postgres
+      - kafka
+
+  task-service:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+      args:
+        SERVICE_DIR: backend/services/task-service
+        JAR_NAME: task-service-1.0.0-SNAPSHOT.jar
+    container_name: hearth-task-prod
+    restart: always
+    environment:
+      - SPRING_PROFILES_ACTIVE=prod
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/hearth_task
+      - SPRING_DATASOURCE_USERNAME=${POSTGRES_USER:-hearth}
+      - SPRING_DATASOURCE_PASSWORD=${POSTGRES_PASSWORD:-hearth}
+      - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+    depends_on:
+      - postgres
+      - kafka
+
+  decision-service:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+      args:
+        SERVICE_DIR: backend/services/decision-service
+        JAR_NAME: decision-service-1.0.0-SNAPSHOT.jar
+    container_name: hearth-decision-prod
+    restart: always
+    environment:
+      - SPRING_PROFILES_ACTIVE=prod
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/hearth_decision
+      - SPRING_DATASOURCE_USERNAME=${POSTGRES_USER:-hearth}
+      - SPRING_DATASOURCE_PASSWORD=${POSTGRES_PASSWORD:-hearth}
+      - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+    depends_on:
+      - postgres
+      - kafka
+
+  care-service:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+      args:
+        SERVICE_DIR: backend/services/care-service
+        JAR_NAME: care-service-1.0.0-SNAPSHOT.jar
+    container_name: hearth-care-prod
+    restart: always
+    environment:
+      - SPRING_PROFILES_ACTIVE=prod
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/hearth_care
+      - SPRING_DATASOURCE_USERNAME=${POSTGRES_USER:-hearth}
+      - SPRING_DATASOURCE_PASSWORD=${POSTGRES_PASSWORD:-hearth}
+      - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+    depends_on:
+      - postgres
+      - kafka
+
+  notification-service:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+      args:
+        SERVICE_DIR: backend/services/notification-service
+        JAR_NAME: notification-service-1.0.0-SNAPSHOT.jar
+    container_name: hearth-notification-prod
+    restart: always
+    environment:
+      - SPRING_PROFILES_ACTIVE=prod
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/hearth_notification
+      - SPRING_DATASOURCE_USERNAME=${POSTGRES_USER:-hearth}
+      - SPRING_DATASOURCE_PASSWORD=${POSTGRES_PASSWORD:-hearth}
+      - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+    depends_on:
+      - postgres
+      - kafka
+
+  audit-service:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+      args:
+        SERVICE_DIR: backend/services/audit-service
+        JAR_NAME: audit-service-1.0.0-SNAPSHOT.jar
+    container_name: hearth-audit-prod
+    restart: always
+    environment:
+      - SPRING_PROFILES_ACTIVE=prod
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/hearth_audit
+      - SPRING_DATASOURCE_USERNAME=${POSTGRES_USER:-hearth}
+      - SPRING_DATASOURCE_PASSWORD=${POSTGRES_PASSWORD:-hearth}
+      - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+    depends_on:
+      - postgres
+      - kafka
+
+volumes:
+  postgres_prod_data:
+  kafka_prod_data:
+  neo4j_prod_data:
+  caddy_data:
+  caddy_config:
