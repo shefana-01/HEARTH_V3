@@ -1,217 +1,239 @@
 # Hearth 🌿
 
-> **Where family, care, and everyday life work as one.**
+> **One place for a family's care, tasks, and week.**
 
-Hearth is a family care coordination platform. It puts a family's care tasks,
-schedules, appointments, documents and nutrition goals in one shared workspace, and
-adds a decision engine that detects schedule conflicts, ranks what needs attention
-and suggests who could step in.
+Hearth is a full-stack, event-driven **microservices** family care coordination platform designed and built by **Afsara Saima Mannan**.
 
----
-
-## Project team and academic information
-
-- **Course:** Software Engineering, Dept. of Computer Science & Engineering, University of Asia Pacific (UAP)
-- **Course instructor:** Ashraful Alam, Lecturer, Dept. of CSE, UAP
-- **Project manager:** Shovon Debnath
-- **Software architect & developer:** Afsara Saima Mannan
-- **QA lead:** Suprio Chakraborty
-- **Report lead:** Chowdhury Fatmi Monzur Neha
-- **SRS version:** 2.0 (`docs/requirements/SRS-v2.0.md`)
+In multi-generational households, caring for children, older relatives, and daily home life is usually scattered across group chats, paper notes, and one person's memory. Hearth brings a family's care tasks, schedules, medical appointments, medicine regimens, emergency cards, health notes, meals, and important documents into one calm, shared workspace. On the backend, **7 independent Spring Boot microservices** (each owning its own isolated PostgreSQL database and communicating asynchronously via a Transactional Outbox and Apache Kafka) power a deterministic mathematical decision engine that ranks what needs attention first, detects schedule clashes before they happen, and recommends the fairest family member to step in—paired with an optional privacy-preserving AI microservice (and a complete offline rule-based engine when AI is switched off).
 
 ---
 
-## Current status
+## What Hearth Does Today
 
-This table says what is in the repository today, so the README and the code agree.
-
-| Part | Status | Notes |
-| --- | --- | --- |
-| Frontend (all screens) | **Working** | Complete family coordination suite (My Day, Schedule, Availability, Priority, Conflict resolution, Health & Nutrition, Appointments, Documents vault, Chat, Tasks, Activity log, Notifications). Runs in demo mode (mock store) and connected mode. |
-| Decision engine | **Working** | Pure mathematical scoring model implemented in `frontend/src/services/decision/engine.ts` (Task Priority Score and Candidate Suitability Score). |
-| Frontend API layer | **Working & Tested** | Comprehensive REST client layer (`VITE_USE_MOCKS=false`) with token management, silent refresh, and contract alignment with backend DTOs. |
-| Backend Microservices | **Complete & Production Ready** | Spring Boot 3.3.4 (Java 21) multi-module system. Includes API Gateway, `hearth-common`, and 6 microservices with Flyway migrations (`ddl-auto: validate`), asymmetric RS256 JWT & JWKS auth, member & dependant management, task state machines, care & food pipelines, document vault, activity audit trail, and messaging. |
-| Database & Migrations | **Working** | PostgreSQL 16 (database per service) with Flyway versioned schemas across `family-service`, `task-service`, `care-service`, `notification-service`, and `audit-service`. |
-| Local infrastructure | **Working (12 containers)** | Managed via `docker-compose.yml` (PostgreSQL 16, Apache Kafka, Zookeeper, Neo4j, Mailpit, API Gateway, 6 microservices, and React web client). All databases and message queues automatically initialized. |
-| Event-driven backbone | **Working** | Kafka event publishing via Transactional Outbox pattern (`OutboxRelay`), consumer idempotency (`processed_events`), and topic routing. |
-| CareGraph in Neo4j | **Working** | Neo4j graph projection read model mapping family care relationships, dependencies, and real-time scheduling conflicts. |
-| Automated Test Suites | **Active & Green (70+ tests)** | Comprehensive JUnit 5, MockMvc, and Testcontainers test suites across all backend modules, alongside React Playwright end-to-end verification. |
-| CI Pipeline | **Active & Green** | GitHub Actions (`.github/workflows/ci.yml`) runs on every push and PR to `main` and `develop` for both JDK 21 backend verification and Node 20 frontend build. |
+| Area | Features |
+| --- | --- |
+| **Family & Roles** | Sign-up with email confirmation, invitations, role-based access (`lead`, `contributor`, `observer`), dependants (children, older relatives), skills, per-person weekly availability & time away |
+| **Tasks** | Create, assign, reassign, complete; `family` (shared) or `private` visibility; discussion comments under each task |
+| **Decision Engine** | Mathematical **Task Priority Score** and **Candidate Suitability Score** (formulas below); automatic overlap/overload conflict detection; what-if simulations; "who could step in" handover recommendations with transparent explanations |
+| **Schedule & Calendar Sync** | Week, agenda, and day views for one person or the whole family; repeating weekly routines; "I can't make it" cover workflow; private per-person iCal feed (`/feeds/<token>.ics`) for Google, Apple, and Outlook calendars |
+| **Care, Health & Food** | Medical appointments with preparation checklists, per-person health profiles, meal planning, nutrition goals, shared shopping list, and a secure document vault |
+| **Medicines** | Per-person medication schedules (dosage, times, days), "taken / skipped" dose tracking, missed-dose alerts to carers, and today's doses on **My Day** |
+| **Emergency Card** | Blood group, allergies, conditions, primary doctor, preferred hospital, emergency contacts, and active medicines—printable and available offline |
+| **AI Help (Optional)** | **Quick add** (natural language in English or Bangla → task drafts), **Plan my week** (validated against the decision engine's what-if simulator before display), and **Message drafts** (handover requests, reminders, weekly summaries). Opt-in per person; family surnames and IDs are stripped into aliases (`m1`, `d1`) before leaving Hearth, private task titles are never sent, and a built-in offline rule-based assistant handles everything when no `AI_API_KEY` is configured |
+| **Notifications & Live Updates** | In-app notifications, transactional email, RFC 8291/8292 Web Push to phones and desktops (even with Hearth closed), and real-time Server-Sent Events (SSE) across open tabs and devices |
+| **Installable PWA & Accessibility** | Installable Progressive Web App (`vite-plugin-pwa` + Workbox offline shell), full English and বাংলা (Bangla) localization, voice typing, and light, dark, and high-contrast themes |
+| **Audit Trail** | Append-only, family-scoped activity log recording every state change across services |
 
 ---
 
-## Architecture
+## Microservices Architecture
 
-### What runs today
+Hearth follows a strict **database-per-service microservices architecture** fronted by a single Spring Cloud API Gateway. Each microservice is an isolated bounded context with its own Flyway-managed PostgreSQL 16 schema, publishing domain events through a transactional outbox to Apache Kafka (KRaft) and consuming events idempotently with dead-letter topic (`<topic>.DLT`) fallback.
 
-```
-React frontend (Vite, port 3000)
-  pages  ->  hooks/providers  ->  services  ->  mock store (localStorage)      [demo mode, default]
-                                           \->  apiRequest() -> API gateway   [connected mode]
+```text
+Browser (React 18 PWA — English & বাংলা, Offline Shell, Web Push, SSE Live Updates)
+   │  HTTPS  (Caddy in production, nginx in the web image)
+   ▼
+API Gateway (Spring Cloud Gateway :8080) ── RS256 JWT verified against family-service JWKS
+   │
+   ├── family-service       (:8081) ── PostgreSQL hearth_family ──────── Redis (shared auth rate limit)
+   ├── task-service         (:8082) ── PostgreSQL hearth_task            (+ private iCal feeds)
+   ├── decision-service     (:8083) ── PostgreSQL hearth_decision
+   ├── care-service         (:8084) ── PostgreSQL hearth_care ────────── Neo4j (CareGraph) + document volume
+   ├── notification-service (:8085) ── PostgreSQL hearth_notification    (+ Web Push RFC 8291/8292, SSE stream)
+   ├── audit-service        (:8086) ── PostgreSQL hearth_audit
+   └── ai-service           (:8087) ── PostgreSQL hearth_ai ──────────── External AI API (optional)
+
+   All 7 microservices publish domain events through a transactional outbox to Apache Kafka (KRaft)
+   and consume them idempotently; failed events route to <topic>.DLT. Metrics: Prometheus + Grafana.
 ```
 
-- **Frontend:** React 18, TypeScript (strict), Vite 5, Tailwind CSS 3, React Router 6
-  (data router, lazy-loaded routes), lucide-react icons, self-hosted variable fonts.
-  HTTP uses the browser's `fetch`; there is no Axios, Redux or UI-kit dependency.
-- **Quality tooling:** ESLint 9 (with `react-hooks` and `jsx-a11y`), Prettier 3,
-  Playwright scripts for route crawls and end-to-end flows.
-
-See [`frontend/README.md`](frontend/README.md) for the frontend's structure, routing,
-state and design system, and [`frontend/src/services/README.md`](frontend/src/services/README.md)
-for the data layer.
-
-### Backend architecture
-
-Spring Boot 3.3.4 on Java 21, organized as a multi-module Maven reactor project:
-
-| Module | Port | Database | Responsibility |
+| Microservice / Module | Port | Database | Bounded Context & Responsibility |
 | --- | --- | --- | --- |
-| `api-gateway` | 8080 | *none* | Spring Cloud Gateway: intelligent routing, path rewriting and CORS |
-| `hearth-common` | *library* | *none* | Shared event contracts, topics, `EventPublisher`, security context, `ApiException`, and family helpers |
-| `family-service` | 8081 | `hearth_family` | Authentication (JWT, refresh rotation, JWKS), families, members, roles, availability |
-| `task-service` | 8082 | `hearth_task` | Task management, assignment, schedule conflicts, private/shared visibility |
-| `decision-service` | 8083 | `hearth_decision` | Task Priority and Candidate Suitability decision calculators |
-| `care-service` | 8084 | `hearth_care` | Appointments, preparation checklists (`PrepItem`), document metadata (`CareDocument`), and local file storage |
-| `notification-service` | 8085 | `hearth_notification` | Notification state tracking per member, channel reads, chat messages, comments |
-| `audit-service` | 8086 | `hearth_audit` | Append-only activity log entity (`AuditEvent`), repository, and family-scoped activity views |
+| `api-gateway` | `8080` | – | Routing, RS256 JWT validation, CORS, SSE streaming pass-through |
+| `hearth-common` | *library* | – | Domain event contracts, transactional outbox, Kafka consumer + DLT config, security context, metrics |
+| `family-service` | `8081` | `hearth_family` | Accounts, RS256 JWT + JWKS, refresh-token rotation, families, members, dependants, availability, rate limiting |
+| `task-service` | `8082` | `hearth_task` | Tasks, assignment state machine, private/shared visibility, schedules, recurring routines, iCal feeds |
+| `decision-service` | `8083` | `hearth_decision` | Task Priority Score, Candidate Suitability Score, conflict detection, what-if simulations |
+| `care-service` | `8084` | `hearth_care` | Appointments, health profiles, food & shopping list, documents, medicine schedules, emergency card, Neo4j CareGraph |
+| `notification-service` | `8085` | `hearth_notification` | In-app notifications, SMTP email, Web Push encryption & delivery, live SSE stream, family chat & task comments |
+| `audit-service` | `8086` | `hearth_audit` | Append-only family activity log with actor, action, and subject filtering |
+| `ai-service` | `8087` | `hearth_ai` | Quick add, weekly plan proposals, message drafts, per-member consent, PII aliasing, and daily/monthly token budgets |
 
-Each service owns its own logical PostgreSQL 16 database (database-per-service pattern), managed through Flyway database migrations (`ddl-auto: validate`).
+**Stack:** Java 21, Spring Boot 3.5, Spring Cloud 2025.0, PostgreSQL 16 (Flyway), Apache Kafka 3.9, Neo4j 5, Redis 7, React 18, TypeScript 5.6 (strict), Vite 5, Tailwind CSS 3, Workbox 7, Docker, Kubernetes, Caddy, Prometheus, Grafana, k6.
 
-### Target architecture
-
-The SRS and `docs/architecture/ARCHITECTURE.md` describe where the project is
-heading: an event-driven design with bounded contexts, Kafka for domain events
-(for example `TaskReassigned`, `AvailabilityChanged`), JWT authentication at the
-gateway, and a Neo4j-backed CareGraph. Those parts are active in the Sprint 4-5 roadmap;
-see **Current status** above.
+Further documentation:
+- [Design Decisions](docs/DESIGN-DECISIONS.md)
+- [System Architecture](docs/architecture/ARCHITECTURE.md)
+- [Transactional Outbox & Kafka Pipeline](docs/architecture/TRANSACTIONAL_OUTBOX_KAFKA_PIPELINE.md)
+- [Database Design](docs/database/DATABASE_DESIGN.md)
 
 ---
 
-## The two decision engine formulas
+## The Decision Engine
 
 ### 1. Task Priority Score
 
-Decides **which task needs attention first**.
+Determines **which task needs attention first**:
 
-$$P = 100 \times (w_D \cdot D + w_C \cdot C + w_I \cdot I + w_R \cdot R + w_S \cdot S)$$
+$$P = 100 \times (0.25D + 0.25C + 0.15I + 0.15R + 0.20S)$$
 
 | Symbol | Factor | Weight |
 | --- | --- | --- |
-| $D$ | Deadline urgency | 0.25 |
-| $C$ | Care criticality | 0.25 |
-| $I$ | Dependency impact | 0.15 |
-| $R$ | Reassignment difficulty | 0.15 |
-| $S$ | Schedule conflict severity | 0.20 |
+| $D$ | Deadline urgency | `0.25` |
+| $C$ | Care criticality | `0.25` |
+| $I$ | Dependency impact | `0.15` |
+| $R$ | Reassignment difficulty | `0.15` |
+| $S$ | Schedule conflict severity | `0.20` |
 
-Each factor is between 0 and 1 and the weights sum to 1, so $P$ is between 0 and 100.
+Each factor is normalized to $[0, 1]$ and the weights sum to `1.00`, yielding $P \in [0, 100]$.
 
 ### 2. Candidate Suitability Score
 
-Decides **which family member should receive the task**.
+Determines **which family member is best suited to take a task**:
 
-$$\text{Score}(m, t) = 100 \times \frac{w_1 \cdot \text{Availability} + w_2 \cdot \text{WorkloadCapacity} + w_3 \cdot \text{SkillEligibility} - w_4 \cdot \text{ConflictCost}}{w_1 + w_2 + w_3}$$
+$$\text{Score}(m,t) = 100 \times \frac{0.35A + 0.20W + 0.25K - 0.30X}{0.80}$$
 
-| Factor | Weight |
-| --- | --- |
-| Availability | $w_1 = 0.35$ |
-| Workload capacity | $w_2 = 0.20$ |
-| Skill eligibility | $w_3 = 0.25$ |
-| Conflict cost | $w_4 = 0.30$ |
+| Symbol | Factor | Weight |
+| --- | --- | --- |
+| $A$ | Availability match | `0.35` |
+| $W$ | Workload capacity | `0.20` |
+| $K$ | Skill eligibility | `0.25` |
+| $X$ | Conflict cost penalty | `0.30` |
 
-The result is clamped to 0–100. Dividing by $w_1 + w_2 + w_3 = 0.80$ means a
-perfect candidate scores exactly 100.
+The score is clamped to $[0, 100]$. Dividing by $0.35 + 0.20 + 0.25 = 0.80$ ensures an ideal conflict-free candidate scores `100`.
 
-These weights are the ones in `frontend/src/services/decision/engine.ts`, which is
-the engine the app runs. The Java calculators in `decision-service` are an earlier
-draft with different weights and will be aligned when the backend is connected.
+The engine exists in both TypeScript (`frontend/src/services/decision/engine.ts`, used offline and in demo mode) and Java (`decision-service`). CI regenerates shared fixtures from the TypeScript engine and verifies that the Java implementation produces identical outputs (`DecisionEngineParityTest`).
 
 ---
 
-## Repository structure
+## Vision & Future Roadmap
 
-```
-Hearth/
-├── frontend/                          # React + TypeScript + Vite + Tailwind CSS (dev server: port 3000)
-│   ├── src/                           # app, features, components, hooks, services, lib, types
-│   └── tools/verify/                  # Playwright checks (demo mode and connected mode with a stub API)
-├── backend/
-│   ├── pom.xml                        # Parent multi-module Maven POM (Spring Boot 3.3.4, Java 21)
-│   ├── api-gateway/                   # Spring Cloud Gateway (port 8080)
-│   ├── hearth-common/                 # Shared module: event contracts, security, family context
-│   └── services/
-│       ├── family-service/            # Port 8081 (DB: hearth_family) - Auth, JWT, JWKS, members
-│       ├── task-service/              # Port 8082 (DB: hearth_task) - Tasks, assignment, visibility
-│       ├── decision-service/          # Port 8083 (DB: hearth_decision) - Priority & suitability engine
-│       ├── care-service/              # Port 8084 (DB: hearth_care) - Appointments, prep, documents
-│       ├── notification-service/      # Port 8085 (DB: hearth_notification) - Notifications, chat messages
-│       └── audit-service/             # Port 8086 (DB: hearth_audit) - Append-only activity log
-├── infrastructure/
-│   └── init-db/                       # 01-init-databases.sql (creates all 6 service databases)
-├── design-reference/
-│   └── figma/                         # Approved Figma UI/UX screens & specifications
-├── docs/
-│   ├── requirements/                  # SRS v2.0
-│   ├── architecture/                  # Target architecture specification
-│   ├── database/                      # Database design
-│   └── diagrams/                      # Architecture diagrams
-├── .agents/
-│   └── rules/                         # Engineering standards & constraints
-├── .github/
-│   └── workflows/ci.yml               # GitHub Actions CI (backend build + frontend build)
-├── docker-compose.yml                 # Local PostgreSQL 16 and Redis 7
-├── .gitignore
-└── README.md
-```
+Hearth is an actively developed long-term project. Planned milestones on the roadmap:
+
+1. **Offline-First Write Queue & Background Sync**
+   - Extend the PWA service worker beyond read-caching to queue task completions, medicine dose logs, and shopping-list ticks while offline, replaying them automatically via Background Sync when connectivity returns.
+2. **Two-Way Calendar & Wearable Integration**
+   - Upgrade one-way iCal feeds to optional two-way CalDAV / Google Calendar sync so external work meetings automatically update member availability, alongside health-kit / wearable hooks for vitals and medication adherence.
+3. **Voice-First Companion Mode for Older Relatives**
+   - A simplified, large-type, voice-driven "Elder View" in Bangla and English where grandparents can hear today's schedule, confirm medicine doses by voice, or trigger a one-tap family check-in without navigating full menus.
+4. **End-to-End Encrypted Document Vault & Prescription OCR**
+   - Client-side WebCrypto encryption for sensitive medical records before upload, paired with on-device or opt-in AI prescription scanning that extracts medicine names, dosages, and frequencies directly into `care-service`.
+5. **Multi-Household Care Circles & Shared Caregiver Burnout Insights**
+   - Support extended families coordinating care across multiple homes (e.g., siblings living in different cities caring for ageing parents), plus longitudinal fairness and caregiver-fatigue trends in `decision-service`.
 
 ---
 
-## Getting started
+## Getting Started
 
-### Run the app (demo mode, no backend needed)
+### 1. Try in the Browser Only (Demo Mode — No Backend Needed)
 
-Prerequisite: Node.js 18.18 or newer, with npm.
+Prerequisite: **Node.js 20+**.
 
 ```bash
 cd frontend
-npm install
+npm ci
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000). Click **Explore with sample
-data** to load a sample family, or create an account to start with an empty one.
-In demo mode all data stays in the browser's `localStorage`.
+Open [http://localhost:3000](http://localhost:3000) and click **Explore with sample data** to load a sample family workspace, or create an account to start fresh. In demo mode, all data persists locally in `localStorage` and the built-in offline assistant handles Quick Add, Plan My Week, and Drafts.
 
-Other frontend scripts:
+### 2. Run the Full System (Docker Compose)
 
-| Script | What it does |
-| --- | --- |
-| `npm run build` | Type-check, then production build to `dist/` |
-| `npm run preview` | Serve the production build on port 4173 |
-| `npm run lint` | ESLint |
-| `npm run format:check` | Prettier check |
-| `npm run check` | Type-check, lint, format check and build |
-
-### Build the backend services
-
-Prerequisites: Java 21 JDK, Maven 3.9+, Docker with Docker Compose.
+Prerequisite: **Docker Desktop** (with Compose v2.24+ and ~4 GB RAM allocated).
 
 ```bash
-# 1. Start PostgreSQL (all 6 service databases) and Redis
-docker compose up -d postgres redis
-
-# 2. Build and verify all modules
-cd backend
-mvn clean verify -DskipTests=false
+cp .env.example .env                        # optional: every setting has a safe local default
+node tools/vapid-keys.mjs >> .env           # optional: generates VAPID keys for Web Push
+docker compose up --build                   # builds and starts all services
 ```
 
-Run any service directly from your IDE through its `com.hearth.*Application` class.
+Once the stack is healthy:
+
+| URL | Service |
+| --- | --- |
+| [http://localhost:8000](http://localhost:8000) | **Hearth Web App** (nginx + PWA) |
+| [http://localhost:8080/api/v1](http://localhost:8080/api/v1) | **API Gateway** |
+| [http://localhost:8025](http://localhost:8025) | **Mailpit** (captures confirmation, invitation, and password-reset emails) |
+| [http://localhost:7474](http://localhost:7474) | **Neo4j Browser** (`neo4j` / password from `NEO4J_PASSWORD`) |
+
+#### Optional: Turning on Cloud AI Help
+Hearth works out of the box without any API key using its offline assistant. To enable cloud AI help, add a free API key from [Google AI Studio](https://aistudio.google.com/apikey) (or any compatible `/chat/completions` endpoint) to `.env`:
+
+```env
+AI_API_KEY=your_api_key_here
+AI_MODEL=gemini-2.5-flash
+```
+
+### 3. Monitoring Stack (Prometheus + Grafana)
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.monitoring.yml up -d
+```
+
+- **Prometheus:** [http://localhost:9090](http://localhost:9090)
+- **Grafana:** [http://localhost:3001](http://localhost:3001) (pre-provisioned with the Hearth service & JVM dashboard)
+
+### 4. Production & Kubernetes Deployment
+
+- **Docker Compose + Caddy (automatic HTTPS):** [`docs/deployment/PRODUCTION.md`](docs/deployment/PRODUCTION.md)
+- **Kubernetes Manifests:** [`k8s/README.md`](k8s/README.md)
+- **Operations & Incident Runbook:** [`docs/operations/RUNBOOK.md`](docs/operations/RUNBOOK.md)
 
 ---
 
-## Branching and CI
+## Quality & Verification
 
-- **Branching strategy:** Work is developed on topic branches (`feature/<topic>` or `feature/backend-<topic>`), integrated into `develop` through Pull Requests, and released to `main` with complete commit history preserved.
-- **CI:** `.github/workflows/ci.yml` runs on every push to `main` or `develop` and on every pull request targeting them. Two jobs run in parallel:
-  - `backend-build`: JDK 21, `mvn clean verify -DskipTests=false` in `backend/`
-  - `frontend-build`: Node 20, `npm ci` and `npm run build` in `frontend/`
-- Every merge to `develop` and `main` is gated by these passing checks.
+| Check | Command / Location | What It Verifies |
+| --- | --- | --- |
+| **Backend Tests** | `cd backend && mvn clean verify` | JUnit 5 unit tests, MockMvc controller tests, and Testcontainers integration tests against real PostgreSQL 16, Kafka, Neo4j, and Redis |
+| **Coverage Gate** | JaCoCo (`backend/pom.xml`) | Enforces $\ge 80\%$ line coverage on every service; aggregate report generated in `backend/coverage` |
+| **Frontend Checks** | `cd frontend && npm run check` | TypeScript strict type-checking, ESLint (`react-hooks`, `jsx-a11y`), Prettier formatting, 27 Vitest unit tests (including CSP script-hash verification), and production PWA build |
+| **End-to-End Suites** | `tools/e2e-smoke.mjs` & `frontend/tools/verify/` | Full-stack API smoke tests (49 checks), Playwright demo flows (26 flows), and `connected/real-account.mjs` (14-step multi-browser real-account journey across desktop and mobile viewports) |
+| **Load Testing** | `tools/load/hearth-load.js` (k6) | Throughput and p95 latency benchmarks ([`docs/PERFORMANCE.md`](docs/PERFORMANCE.md)) |
+| **CI Pipeline** | `.github/workflows/ci.yml` | Runs backend verification, frontend checks, engine parity, and deployment manifest validation (`kubeconform`, Compose, Caddy, Prometheus) on every push and PR |
+
+Release history is tracked in [`CHANGELOG.md`](CHANGELOG.md).
+
+---
+
+## Repository Structure
+
+```text
+Hearth/
+├── backend/
+│   ├── pom.xml                        # Parent Maven reactor POM (Java 21, Spring Boot 3.5, JaCoCo 80% gate)
+│   ├── Dockerfile                     # Multi-stage container build for all backend modules
+│   ├── api-gateway/                   # Spring Cloud Gateway (:8080)
+│   ├── hearth-common/                 # Shared events, transactional outbox, security, HTTP client, test utilities
+│   ├── coverage/                      # Aggregate JaCoCo coverage report module
+│   └── services/
+│       ├── family-service/            # Auth, RS256 JWT/JWKS, families, members, dependants, availability (:8081)
+│       ├── task-service/              # Tasks, assignments, routines, conflicts, iCal feeds (:8082)
+│       ├── decision-service/          # Priority & suitability scoring engine, simulations (:8083)
+│       ├── care-service/              # Appointments, health, meals, shopping, medicines, emergency card, Neo4j (:8084)
+│       ├── notification-service/      # Notifications, email, Web Push, live SSE stream, chat & comments (:8085)
+│       ├── audit-service/             # Append-only family activity log (:8086)
+│       └── ai-service/                # Quick add, weekly planner, message drafts, consent & token guard (:8087)
+├── frontend/
+│   ├── src/                           # React 18 app: app, components, constants, features, hooks, i18n, lib, mocks, services, styles, types
+│   ├── src-sw/                        # Workbox service worker (offline shell + Web Push notification handler)
+│   ├── tools/verify/                  # Playwright verification suites (demo flows, route crawl, real-account E2E)
+│   ├── nginx.conf                     # Production SPA + API/SSE reverse proxy config
+│   └── security-headers.conf          # Strict CSP, HSTS, Permissions-Policy, and frame headers
+├── infrastructure/
+│   ├── init-db/                       # PostgreSQL database initialization & migration scripts
+│   ├── caddy/                         # Production Caddyfile for automatic TLS
+│   ├── monitoring/                    # Prometheus scrape/alert rules and Grafana provisioning + dashboards
+│   └── ops/                           # Automated backup and checksum-verified restore scripts
+├── k8s/                               # Kubernetes namespace, config, secrets, statefulsets, deployments, ingress, HPA, PDB, network policies
+├── tools/                             # Full-stack E2E smoke test, k6 load test, VAPID key generator, engine parity fixtures
+├── docs/                              # Architecture, database design, design decisions, performance, production & runbook guides
+├── .github/workflows/ci.yml           # GitHub Actions CI pipeline
+├── docker-compose.yml                 # Complete local stack (PostgreSQL, Kafka, Neo4j, Redis, Mailpit, 7 services, gateway, web)
+├── docker-compose.monitoring.yml      # Prometheus + Grafana overlay
+├── docker-compose.prod.yml            # Production Caddy HTTPS overlay
+├── .env.example                       # Documented environment variable template
+├── CHANGELOG.md                       # Release changelog
+└── README.md
+```

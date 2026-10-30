@@ -34,7 +34,7 @@ spring:
             - id: task-service
               uri: ${TASK_SERVICE_URL:http://localhost:8082}
               predicates:
-                - Path=/api/v1/tasks/**,/api/v1/events/**,/api/v1/unavailability/**
+                - Path=/api/v1/tasks/**,/api/v1/events/**,/api/v1/unavailability/**,/api/v1/calendar/**
             - id: decision-service
               uri: ${DECISION_SERVICE_URL:http://localhost:8083}
               predicates:
@@ -42,7 +42,14 @@ spring:
             - id: care-service
               uri: ${CARE_SERVICE_URL:http://localhost:8084}
               predicates:
-                - Path=/api/v1/appointments/**,/api/v1/health/**,/api/v1/groceries/**,/api/v1/documents/**,/api/v1/caregraph/**
+                - Path=/api/v1/appointments/**,/api/v1/health/**,/api/v1/groceries/**,/api/v1/documents/**,/api/v1/caregraph/**,/api/v1/medications/**
+            # Live updates are a long-lived stream (server-sent events): no response time limit on this route.
+            - id: notification-stream
+              uri: ${NOTIFICATION_SERVICE_URL:http://localhost:8085}
+              predicates:
+                - Path=/api/v1/notifications/stream
+              metadata:
+                response-timeout: -1
             - id: notification-service
               uri: ${NOTIFICATION_SERVICE_URL:http://localhost:8085}
               predicates:
@@ -51,12 +58,24 @@ spring:
               uri: ${AUDIT_SERVICE_URL:http://localhost:8086}
               predicates:
                 - Path=/api/v1/audit-events/**
+            - id: ai-service
+              uri: ${AI_SERVICE_URL:http://localhost:8087}
+              predicates:
+                - Path=/api/v1/ai/**
 
 management:
+  metrics:
+    tags:
+      # Every metric says which service it came from (Prometheus also adds the instance).
+      application: ${spring.application.name}
+    distribution:
+      # Latency histograms, so Prometheus can compute percentiles across instances (Grafana "95th percentile").
+      percentiles-histogram:
+        http.server.requests: true
   endpoints:
     web:
       exposure:
-        include: health,info
+        include: health,info,prometheus
 
 logging:
   pattern:

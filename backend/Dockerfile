@@ -18,6 +18,8 @@ COPY services/decision-service/pom.xml services/decision-service/
 COPY services/care-service/pom.xml services/care-service/
 COPY services/notification-service/pom.xml services/notification-service/
 COPY services/audit-service/pom.xml services/audit-service/
+COPY services/ai-service/pom.xml services/ai-service/
+COPY coverage/pom.xml coverage/
 COPY . .
 ARG MODULE
 # Optional, for builds behind a company proxy: pass a Maven settings file and a Java truststore as build
@@ -30,11 +32,13 @@ RUN --mount=type=cache,target=/root/.m2/repository \
  && cp "${MODULE}"/target/*-SNAPSHOT.jar /app.jar
 
 FROM eclipse-temurin:21-jre-alpine
-RUN addgroup -S hearth && adduser -S -G hearth hearth \
+# A fixed, numeric user (the ids Alpine gave it before, so existing document volumes stay writable) so
+# Kubernetes can check runAsNonRoot.
+RUN addgroup -S -g 101 hearth && adduser -S -u 100 -G hearth hearth \
  && mkdir -p /data && chown hearth:hearth /data
 WORKDIR /app
 COPY --from=build /app.jar app.jar
-USER hearth
+USER 100:101
 ARG PORT=8080
 ENV PORT=${PORT} \
     # Small heaps: seven services share one machine. Raise these for real traffic.

@@ -31,6 +31,7 @@ import org.springframework.test.web.reactive.server.WebTestClient;
         "CARE_SERVICE_URL=http://localhost:${wiremock.server.port}",
         "NOTIFICATION_SERVICE_URL=http://localhost:${wiremock.server.port}",
         "AUDIT_SERVICE_URL=http://localhost:${wiremock.server.port}",
+        "AI_SERVICE_URL=http://localhost:${wiremock.server.port}",
         "CORS_ALLOWED_ORIGINS=http://localhost:5173"
 })
 @AutoConfigureWireMock(port = 0)
@@ -55,7 +56,8 @@ class GatewayRoutingTest {
             "/api/v1/tasks", "/api/v1/events?memberId=1", "/api/v1/unavailability",
             "/api/v1/decisions/my-day", "/api/v1/reassignment-requests", "/api/v1/schedule/events?from=a&to=b",
             "/api/v1/appointments", "/api/v1/health/profiles", "/api/v1/groceries", "/api/v1/documents", "/api/v1/caregraph",
-            "/api/v1/notifications/unread-count", "/api/v1/messages?channel=family", "/api/v1/audit-events"
+            "/api/v1/notifications/unread-count", "/api/v1/messages?channel=family", "/api/v1/audit-events",
+            "/api/v1/ai/status", "/api/v1/notifications/stream", "/api/v1/notifications/push", "/api/v1/calendar/feed", "/api/v1/medications"
         };
         for (String path : paths) {
             web.get().uri(path).exchange().expectStatus().isOk();
