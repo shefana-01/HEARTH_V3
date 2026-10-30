@@ -13,9 +13,7 @@ export function LanguageToggle() {
       aria-label="Toggle language"
     >
       <Languages className="w-3.5 h-3.5 text-stone-600 dark:text-stone-400" />
-      <span className="font-semibold text-stone-800 dark:text-stone-200">
-        {language === 'en' ? 'EN' : 'বাং'}
-      </span>
+      <span className="font-semibold text-stone-800 dark:text-stone-200">{language === 'en' ? 'EN' : 'বাং'}</span>
     </button>
   );
 }
