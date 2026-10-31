@@ -24,10 +24,18 @@ spring:
       missing-topics-fatal: false
 
 management:
+  metrics:
+    tags:
+      # Every metric says which service it came from (Prometheus also adds the instance).
+      application: ${spring.application.name}
+    distribution:
+      # Latency histograms, so Prometheus can compute percentiles across instances (Grafana "95th percentile").
+      percentiles-histogram:
+        http.server.requests: true
   endpoints:
     web:
       exposure:
-        include: health,info
+        include: health,info,prometheus
 
 springdoc:
   swagger-ui:

@@ -40,7 +40,7 @@ class AuditServiceTest {
         repository = mock(AuditEventRepository.class);
         service = new AuditService(directory, repository);
 
-        when(directory.context()).thenReturn(new FamilyContext(accountId, memberId, "Suprio", familyId, "lead", true, true, true, "UTC"));
+        when(directory.context()).thenReturn(new FamilyContext(accountId, memberId, "Afsara", familyId, "lead", true, true, true, "UTC"));
     }
 
     private AuditEvent sampleEvent(String category, UUID actorId, String action, String subject) {
