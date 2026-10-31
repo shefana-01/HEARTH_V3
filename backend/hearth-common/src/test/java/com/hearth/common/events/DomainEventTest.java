@@ -95,13 +95,13 @@ class DomainEventTest {
     @DisplayName("systemMessage sets chat metadata for family channel")
     void systemMessageSetsChat() {
         DomainEvent event = Events.of("task.handover", familyId, memberId)
-                .systemMessage("Afsara accepted task handover from Shovon")
+                .systemMessage("Afsara accepted task handover from Rafid")
                 .build();
 
         assertThat(event.chat()).isNotNull();
         assertThat(event.chat().channel()).isEqualTo("family");
         assertThat(event.chat().kind()).isEqualTo("system");
-        assertThat(event.chat().text()).isEqualTo("Afsara accepted task handover from Shovon");
+        assertThat(event.chat().text()).isEqualTo("Afsara accepted task handover from Rafid");
         assertThat(event.chat().authorId()).isNull();
     }
 

@@ -37,7 +37,7 @@ public class SecurityConfig {
         http.cors(cors -> cors.disable()); // The gateway answers CORS for the browser.
         http.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
         http.authorizeHttpRequests(auth -> {
-            auth.requestMatchers("/actuator/health/**", "/actuator/info", "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html", "/error").permitAll();
+            auth.requestMatchers("/actuator/health/**", "/actuator/info", "/actuator/prometheus", "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html", "/error").permitAll();
             if (publicPaths.length > 0) {
                 auth.requestMatchers(publicPaths).permitAll();
             }
