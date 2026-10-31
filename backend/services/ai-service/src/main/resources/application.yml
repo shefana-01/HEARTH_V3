@@ -1,0 +1,70 @@
+server:
+  port: ${PORT:8087}
+  shutdown: graceful
+
+spring:
+  application:
+    name: ai-service
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:hearth_ai}
+    username: ${DB_USER:hearth}
+    password: ${DB_PASSWORD:hearth}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+  flyway:
+    enabled: true
+  kafka:
+    # This service neither publishes nor reads events.
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    admin:
+      auto-create: false
+    listener:
+      auto-startup: false
+
+management:
+  metrics:
+    tags:
+      # Every metric says which service it came from (Prometheus also adds the instance).
+      application: ${spring.application.name}
+    distribution:
+      # Latency histograms, so Prometheus can compute percentiles across instances (Grafana "95th percentile").
+      percentiles-histogram:
+        http.server.requests: true
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+
+logging:
+  pattern:
+    level: "%5p [${spring.application.name},%X{requestId:-}]"
+
+hearth:
+  security:
+    jwks-uri: ${JWKS_URI:http://localhost:8081/.well-known/jwks.json}
+    issuer: ${JWT_ISSUER:hearth}
+  outbox:
+    enabled: false
+  consumer:
+    enabled: false
+  services:
+    family: ${FAMILY_SERVICE_URL:http://localhost:8081}
+    task: ${TASK_SERVICE_URL:http://localhost:8082}
+    decision: ${DECISION_SERVICE_URL:http://localhost:8083}
+    audit: ${AUDIT_SERVICE_URL:http://localhost:8086}
+  ai:
+    # Without a key the service still starts and reports AI help as switched off; the app falls back to the normal forms.
+    api-key: ${AI_API_KEY:}
+    base-url: ${AI_BASE_URL:https://generativelanguage.googleapis.com/v1beta/openai}
+    model: ${AI_MODEL:gemini-2.5-flash}
+    max-output-tokens: ${AI_MAX_OUTPUT_TOKENS:1500}
+    timeout: ${AI_TIMEOUT:45s}
+    # Fair use: requests per person per day, and tokens per family per calendar month.
+    daily-requests-per-member: ${AI_DAILY_REQUESTS:40}
+    monthly-tokens-per-family: ${AI_MONTHLY_TOKENS:500000}
