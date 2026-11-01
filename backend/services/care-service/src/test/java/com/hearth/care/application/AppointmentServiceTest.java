@@ -61,10 +61,10 @@ class AppointmentServiceTest {
         service = new AppointmentService(directory, appointments, documents, events, graph);
 
         FamilyContext context = new FamilyContext(
-                UUID.randomUUID(), memberId, "Shovon Debnath", familyId, "lead", true, true, true, "UTC");
+                UUID.randomUUID(), memberId, "Rafid Mannan", familyId, "lead", true, true, true, "UTC");
         when(directory.context()).thenReturn(context);
 
-        MemberRef self = new MemberRef(memberId, "Shovon Debnath", "lead", "active", List.of(), Availability.weekdays());
+        MemberRef self = new MemberRef(memberId, "Rafid Mannan", "lead", "active", List.of(), Availability.weekdays());
         MemberRef other = new MemberRef(otherMemberId, "Afsara Mannan", "contributor", "active", List.of(), Availability.weekdays());
         MemberRef escort = new MemberRef(escortId, "Escort Member", "contributor", "active", List.of(), Availability.weekdays());
 
