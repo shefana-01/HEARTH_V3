@@ -5,6 +5,11 @@ server:
 spring:
   application:
     name: family-service
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      timeout: 500ms
   datasource:
     url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:hearth_family}
     username: ${DB_USER:hearth}
@@ -35,13 +40,24 @@ spring:
       mail.smtp.writetimeout: 5000
 
 management:
+  metrics:
+    tags:
+      # Every metric says which service it came from (Prometheus also adds the instance).
+      application: ${spring.application.name}
+    distribution:
+      # Latency histograms, so Prometheus can compute percentiles across instances (Grafana "95th percentile").
+      percentiles-histogram:
+        http.server.requests: true
   endpoints:
     web:
       exposure:
-        include: health,info
+        include: health,info,prometheus
   health:
     mail:
       # The mail relay retries; the service is healthy even when the mail server is not.
+      enabled: false
+    redis:
+      # Rate limiting falls back to memory while Redis is down, so it does not make the service unhealthy.
       enabled: false
 
 springdoc:
@@ -53,6 +69,9 @@ logging:
     level: "%5p [${spring.application.name},%X{requestId:-}]"
 
 hearth:
+  rate-limit:
+    # memory (one instance) or redis (several instances share one count; set REDIS_HOST).
+    store: ${RATE_LIMIT_STORE:memory}
   security:
     issuer: ${JWT_ISSUER:hearth}
     # Sign-in and the links from emails work without a token.

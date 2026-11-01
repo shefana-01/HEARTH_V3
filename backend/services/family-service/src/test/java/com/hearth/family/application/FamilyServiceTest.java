@@ -62,9 +62,9 @@ class FamilyServiceTest {
 
         service = new FamilyService(caller, families, members, dependants, events, mailer, services, "http://localhost:8083");
 
-        account = new Account("suprio@example.com", "hashed_pwd", "Suprio Chakraborty");
-        family = new Family("Chakraborty Family", "Dhaka", "UTC", "INVITE-12345");
-        member = new Member(family.getId(), "Suprio Chakraborty", "suprio@example.com", "Brother", Member.LEAD, Member.ACTIVE, Availability.weekdays());
+        account = new Account("afsara@example.com", "hashed_pwd", "Afsara Mannan");
+        family = new Family("Mannan Family", "Dhaka", "UTC", "INVITE-12345");
+        member = new Member(family.getId(), "Afsara Mannan", "afsara@example.com", "Brother", Member.LEAD, Member.ACTIVE, Availability.weekdays());
 
         Membership membership = new Membership(account, member, family);
         when(caller.membership()).thenReturn(membership);
