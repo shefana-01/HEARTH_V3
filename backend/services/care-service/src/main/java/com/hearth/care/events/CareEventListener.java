@@ -5,6 +5,8 @@ import com.hearth.care.application.DocumentService;
 import com.hearth.care.application.GroceryService;
 import com.hearth.care.application.HealthService;
 import com.hearth.care.graph.CareGraphService;
+import com.hearth.care.medicine.EmergencyService;
+import com.hearth.care.medicine.MedicationService;
 import com.hearth.common.events.DomainEvent;
 import com.hearth.common.events.EventReader;
 import com.hearth.common.events.EventTypes;
@@ -47,7 +49,13 @@ public class CareEventListener {
     private final GroceryService groceries;
     private final CareGraphService graph;
 
-    public CareEventListener(EventReader reader, ProcessedEvents processed, AppointmentService appointments, DocumentService documents, HealthService health, GroceryService groceries, CareGraphService graph) {
+    private final MedicationService medications;
+    private final EmergencyService emergency;
+
+    public CareEventListener(EventReader reader, ProcessedEvents processed, AppointmentService appointments, DocumentService documents, HealthService health, GroceryService groceries, CareGraphService graph,
+                             MedicationService medications, EmergencyService emergency) {
+        this.medications = medications;
+        this.emergency = emergency;
         this.reader = reader;
         this.processed = processed;
         this.appointments = appointments;
@@ -100,5 +108,7 @@ public class CareEventListener {
         health.personLeft(family, personId);
         documents.personLeft(family, personId);
         groceries.personLeft(family, personId);
+        medications.personLeft(family, personId);
+        emergency.personLeft(family, personId);
     }
 }
