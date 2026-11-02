@@ -6,11 +6,16 @@ import com.hearth.common.events.DomainEvent.NotificationInfo;
 import com.hearth.common.events.EventReader;
 import com.hearth.common.events.ProcessedEvents;
 import com.hearth.common.events.Topics;
+import com.hearth.common.events.EventTypes;
 import com.hearth.common.text.Formats;
+import com.hearth.notification.live.LiveUpdates;
+import com.hearth.notification.live.Scopes;
+import com.hearth.notification.push.PushService;
 import com.hearth.notification.entity.Message;
 import com.hearth.notification.entity.Notification;
 import com.hearth.notification.repository.MessageRepository;
 import com.hearth.notification.repository.NotificationRepository;
+import java.util.Set;
 import java.util.UUID;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -29,12 +34,17 @@ public class NotificationEventListener {
     private final ProcessedEvents processed;
     private final NotificationRepository notifications;
     private final MessageRepository messages;
+    private final PushService push;
+    private final LiveUpdates live;
 
-    public NotificationEventListener(EventReader reader, ProcessedEvents processed, NotificationRepository notifications, MessageRepository messages) {
+    public NotificationEventListener(EventReader reader, ProcessedEvents processed, NotificationRepository notifications, MessageRepository messages,
+                                     PushService push, LiveUpdates live) {
         this.reader = reader;
         this.processed = processed;
         this.notifications = notifications;
         this.messages = messages;
+        this.push = push;
+        this.live = live;
     }
 
     @KafkaListener(topics = {Topics.FAMILY, Topics.TASK, Topics.DECISION, Topics.CARE})
@@ -63,6 +73,12 @@ public class NotificationEventListener {
             n.setCreatedAt(event.occurredAt());
             n.setEventId(event.eventId());
             notifications.save(n);
+            // Same transaction: a push is queued exactly when the notification is saved.
+            push.enqueue(n);
+            live.publishAfterCommit(event.familyId(), Set.of(Scopes.NOTIFICATIONS), info.recipientId());
+        }
+        if (EventTypes.MEMBER_REMOVED.equals(event.type()) && event.uuid("memberId") != null) {
+            push.memberLeft(event.uuid("memberId"));
         }
         ChatInfo chat = event.chat();
         if (chat != null && chat.text() != null && !chat.text().isBlank()) {
@@ -75,6 +91,7 @@ public class NotificationEventListener {
             m.setBody(Formats.clip(chat.text(), 2000));
             m.setCreatedAt(event.occurredAt());
             messages.save(m);
+            live.publishAfterCommit(event.familyId(), Set.of(Scopes.CHAT), null);
         }
     }
 }

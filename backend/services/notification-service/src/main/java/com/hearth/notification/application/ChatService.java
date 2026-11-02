@@ -10,6 +10,8 @@ import com.hearth.notification.entity.ChannelRead;
 import com.hearth.notification.entity.Message;
 import com.hearth.notification.repository.ChannelReadRepository;
 import com.hearth.notification.repository.MessageRepository;
+import com.hearth.notification.live.LiveUpdates;
+import com.hearth.notification.live.Scopes;
 import java.time.Instant;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -29,6 +31,8 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class ChatService {
 
+    private final LiveUpdates live;
+
     public static final int MAX_LENGTH = 1000;
     private static final Pattern TASK_CHANNEL = Pattern.compile("^task:[0-9a-fA-F-]{36}$");
 
@@ -38,7 +42,9 @@ public class ChatService {
     private final ServiceClient services;
     private final String taskServiceUrl;
 
-    public ChatService(FamilyDirectory directory, MessageRepository messages, ChannelReadRepository reads, ServiceClient services, @Value("${hearth.services.task}") String taskServiceUrl) {
+    public ChatService(FamilyDirectory directory, MessageRepository messages, ChannelReadRepository reads, ServiceClient services, @Value("${hearth.services.task}") String taskServiceUrl,
+                       LiveUpdates live) {
+        this.live = live;
         this.directory = directory;
         this.messages = messages;
         this.reads = reads;
@@ -79,6 +85,7 @@ public class ChatService {
         messages.save(message);
         // Your own message means you have seen the conversation up to here.
         markRead(context, channel, message.getCreatedAt());
+        live.publishAfterCommit(context.familyId(), Set.of(Scopes.CHAT), null);
         return view(message);
     }
 
