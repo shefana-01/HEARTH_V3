@@ -24,10 +24,18 @@ spring:
       missing-topics-fatal: false
 
 management:
+  metrics:
+    tags:
+      # Every metric says which service it came from (Prometheus also adds the instance).
+      application: ${spring.application.name}
+    distribution:
+      # Latency histograms, so Prometheus can compute percentiles across instances (Grafana "95th percentile").
+      percentiles-histogram:
+        http.server.requests: true
   endpoints:
     web:
       exposure:
-        include: health,info
+        include: health,info,prometheus
 
 springdoc:
   swagger-ui:
@@ -49,6 +57,13 @@ hearth:
   notifications:
     # true: people also see family-wide notifications about what they did themselves (handy when testing alone).
     include-own-actions: ${NOTIFY_OWN_ACTIONS:false}
+  push:
+    # Web Push (notifications on phones and computers, even with Hearth closed). Generate a key pair once
+    # with `node tools/vapid-keys.mjs`; without keys push is switched off and everything else works.
+    public-key: ${VAPID_PUBLIC_KEY:}
+    private-key: ${VAPID_PRIVATE_KEY:}
+    subject: ${VAPID_SUBJECT:mailto:admin@hearth.local}
+    require-https: true
   services:
     family: ${FAMILY_SERVICE_URL:http://localhost:8081}
     task: ${TASK_SERVICE_URL:http://localhost:8082}
