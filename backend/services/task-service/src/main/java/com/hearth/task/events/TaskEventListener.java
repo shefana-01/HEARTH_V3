@@ -5,6 +5,7 @@ import com.hearth.common.events.EventReader;
 import com.hearth.common.events.EventTypes;
 import com.hearth.common.events.ProcessedEvents;
 import com.hearth.common.events.Topics;
+import com.hearth.task.calendar.CalendarFeedRepository;
 import com.hearth.task.domain.Task;
 import com.hearth.task.repository.PersonalEventRepository;
 import com.hearth.task.repository.TaskRepository;
@@ -35,8 +36,11 @@ public class TaskEventListener {
     private final TaskRepository tasks;
     private final PersonalEventRepository personalEvents;
     private final UnavailabilityRepository unavailability;
+    private final CalendarFeedRepository calendarFeeds;
 
-    public TaskEventListener(EventReader reader, ProcessedEvents processed, TaskRepository tasks, PersonalEventRepository personalEvents, UnavailabilityRepository unavailability) {
+    public TaskEventListener(EventReader reader, ProcessedEvents processed, TaskRepository tasks, PersonalEventRepository personalEvents, UnavailabilityRepository unavailability,
+                             CalendarFeedRepository calendarFeeds) {
+        this.calendarFeeds = calendarFeeds;
         this.reader = reader;
         this.processed = processed;
         this.tasks = tasks;
@@ -77,6 +81,8 @@ public class TaskEventListener {
         if (memberId == null) {
             return;
         }
+        // Their private calendar address stops working.
+        calendarFeeds.deleteById(memberId);
         for (Task task : tasks.findByFamilyIdAndAssigneeId(family, memberId)) {
             if (!task.isShared()) {
                 tasks.delete(task);

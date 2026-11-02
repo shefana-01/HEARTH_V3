@@ -29,10 +29,18 @@ spring:
       missing-topics-fatal: false
 
 management:
+  metrics:
+    tags:
+      # Every metric says which service it came from (Prometheus also adds the instance).
+      application: ${spring.application.name}
+    distribution:
+      # Latency histograms, so Prometheus can compute percentiles across instances (Grafana "95th percentile").
+      percentiles-histogram:
+        http.server.requests: true
   endpoints:
     web:
       exposure:
-        include: health,info
+        include: health,info,prometheus
 
 springdoc:
   swagger-ui:
@@ -43,9 +51,13 @@ logging:
     level: "%5p [${spring.application.name},%X{requestId:-}]"
 
 hearth:
+  # Where people open Hearth; used for links inside calendar events.
+  app-url: ${APP_URL:http://localhost:8000}
   security:
     jwks-uri: ${JWKS_URI:http://localhost:8081/.well-known/jwks.json}
     issuer: ${JWT_ISSUER:hearth}
+    # Calendar apps fetch the private calendar address without signing in; the token in it is the secret.
+    public-paths: /api/v1/calendar/feeds/**
   outbox:
     enabled: true
   consumer:
