@@ -19,8 +19,8 @@ x-service: &service
   restart: unless-stopped
   networks: [hearth]
   depends_on:
-    postgres:
-      condition: service_healthy
+    db-setup:
+      condition: service_completed_successfully
     kafka:
       condition: service_healthy
 
@@ -34,6 +34,7 @@ x-service-env: &service-env
   TASK_SERVICE_URL: http://task-service:8082
   DECISION_SERVICE_URL: http://decision-service:8083
   CARE_SERVICE_URL: http://care-service:8084
+  AUDIT_SERVICE_URL: http://audit-service:8086
   TZ: UTC
 
 services:
@@ -57,6 +58,23 @@ services:
       interval: 5s
       timeout: 3s
       retries: 20
+
+  # Creates any service database that is missing (an existing volume from before a service was added), then exits.
+  db-setup:
+    image: postgres:16-alpine
+    restart: "no"
+    environment:
+      PGHOST: postgres
+      PGUSER: hearth
+      PGPASSWORD: ${DB_PASSWORD:-hearth}
+      PGDATABASE: hearth
+    command: ["psql", "-v", "ON_ERROR_STOP=1", "-f", "/scripts/ensure-databases.sql"]
+    volumes:
+      - ./infrastructure/scripts/ensure-databases.sql:/scripts/ensure-databases.sql:ro
+    networks: [hearth]
+    depends_on:
+      postgres:
+        condition: service_healthy
 
   # Event bus between the services (single node, KRaft mode: no ZooKeeper).
   kafka:
@@ -103,6 +121,18 @@ services:
       - neo4jdata:/data
     networks: [hearth]
 
+  # Shared counters (the sign-in rate limit), so several family-service instances count together.
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--save", "", "--appendonly", "no", "--maxmemory", "64mb", "--maxmemory-policy", "allkeys-lru"]
+    networks: [hearth]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
   # A local inbox: catches every email so nothing real is sent while developing.
   mailpit:
     image: axllent/mailpit:v1.27
@@ -118,9 +148,15 @@ services:
     <<: *service
     build: { context: ./backend, args: { MODULE: services/family-service, PORT: 8081 } }
     image: hearth/family-service
+    depends_on:
+      db-setup: { condition: service_completed_successfully }
+      kafka: { condition: service_healthy }
+      redis: { condition: service_healthy }
     environment:
       <<: *service-env
       DB_NAME: hearth_family
+      REDIS_HOST: redis
+      RATE_LIMIT_STORE: redis
       MAIL_HOST: mailpit
       MAIL_PORT: 1025
       APP_URL: ${APP_URL:-http://localhost:8000}
@@ -132,6 +168,7 @@ services:
     environment:
       <<: *service-env
       DB_NAME: hearth_task
+      APP_URL: ${APP_URL:-http://localhost:8000}
 
   decision-service:
     <<: *service
@@ -162,6 +199,9 @@ services:
       <<: *service-env
       DB_NAME: hearth_notification
       NOTIFY_OWN_ACTIONS: ${NOTIFY_OWN_ACTIONS:-false}
+      VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
+      VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
+      VAPID_SUBJECT: ${VAPID_SUBJECT:-mailto:admin@hearth.local}
 
   audit-service:
     <<: *service
@@ -170,6 +210,20 @@ services:
     environment:
       <<: *service-env
       DB_NAME: hearth_audit
+
+  # AI help (quick add, plan my week, drafts). Without AI_API_KEY it runs and reports AI help as off.
+  ai-service:
+    <<: *service
+    build: { context: ./backend, args: { MODULE: services/ai-service, PORT: 8087 } }
+    image: hearth/ai-service
+    environment:
+      <<: *service-env
+      DB_NAME: hearth_ai
+      AI_API_KEY: ${AI_API_KEY:-}
+      AI_BASE_URL: ${AI_BASE_URL:-https://generativelanguage.googleapis.com/v1beta/openai}
+      AI_MODEL: ${AI_MODEL:-gemini-2.5-flash}
+      AI_DAILY_REQUESTS: ${AI_DAILY_REQUESTS:-40}
+      AI_MONTHLY_TOKENS: ${AI_MONTHLY_TOKENS:-500000}
 
   gateway:
     build: { context: ./backend, args: { MODULE: api-gateway, PORT: 8080 } }
@@ -182,6 +236,7 @@ services:
       CARE_SERVICE_URL: http://care-service:8084
       NOTIFICATION_SERVICE_URL: http://notification-service:8085
       AUDIT_SERVICE_URL: http://audit-service:8086
+      AI_SERVICE_URL: http://ai-service:8087
       CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:3000,http://127.0.0.1:3000,http://localhost:5173}
     ports:
       - "8080:8080"
@@ -193,6 +248,7 @@ services:
       care-service: { condition: service_healthy }
       notification-service: { condition: service_healthy }
       audit-service: { condition: service_healthy }
+      ai-service: { condition: service_healthy }
 
   web:
     build: { context: ./frontend }
