@@ -1,92 +1,84 @@
-# Hearth Production Operations & Deployment Guide
+# Running Hearth in production
 
-This guide describes production deployment, SSL/TLS termination, Kubernetes orchestration, and backup procedures for Hearth.
-
----
-
-## 1. Production Architecture Overview
-
-The production architecture consists of:
-- **Caddy Reverse Proxy**: Handles SSL/TLS termination, automated certificate renewal via Let's Encrypt / ZeroSSL, gzip/zstd compression, and security headers (HSTS, CSP, X-Frame-Options, X-Content-Type-Options).
-- **Client SPA**: High-performance React Vite production build served via NGINX/Caddy.
-- **API Gateway (Port 8080)**: Central routing, CORS enforcement, and request dispatching across microservices.
-- **Backend Microservices**:
-  - `family-service` (8081)
-  - `task-service` (8082)
-  - `decision-service` (8083)
-  - `care-service` (8084)
-  - `notification-service` (8085)
-  - `audit-service` (8086)
-- **Data Stores**:
-  - PostgreSQL 16: Multi-database setup (`hearth_family`, `hearth_task`, `hearth_decision`, `hearth_care`, `hearth_notification`, `hearth_audit`).
-  - Apache Kafka 3.7: Event streaming with transactional outbox pattern.
-  - Neo4j 5.20: CareGraph relationship model.
+Two supported ways: Docker Compose on one server (simplest; fine for hundreds of families), or
+Kubernetes (several machines, autoscaling). Both run the same images.
 
 ---
 
-## 2. Docker Compose Production Deployment
+## Docker Compose on one server
 
-To start the full production stack:
+**Server.** 4 vCPU and 8 GB of memory is comfortable (the load test in
+[PERFORMANCE.md](../PERFORMANCE.md) ran on 2 vCPU / 8 GB). Docker with Compose 2.24 or newer. A domain
+name whose DNS points at the server, with ports 80 and 443 open.
+
 ```bash
-docker compose -f docker-compose.prod.yml up -d --build
+git clone <your repository> hearth && cd hearth
+cp .env.example .env
+node tools/vapid-keys.mjs >> .env       # push notification keys (Node 20); or run it elsewhere and paste
 ```
 
-### Health & Container Verification
+Then edit `.env`:
+
+| Setting | Value |
+| --- | --- |
+| `DB_PASSWORD`, `NEO4J_PASSWORD` | Long random strings (`openssl rand -base64 32`) |
+| `HEARTH_DOMAIN` | e.g. `hearth.example.com` |
+| `ACME_EMAIL` | Your address, for certificate notices and as the push contact |
+| `MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD`, `MAIL_FROM` | Your mail provider's SMTP settings |
+| `AI_API_KEY` | Optional; turns on AI help |
+
+Start:
+
 ```bash
-docker compose -f docker-compose.prod.yml ps
-node tools/verify-stack.mjs
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+docker compose -f docker-compose.yml -f docker-compose.prod.yml ps        # wait for all "healthy"
 ```
+
+Compose refuses to start while a required setting is missing, and names it.
+
+**What the production file changes.** Caddy terminates HTTPS with automatic Let's Encrypt certificates
+and is the only container with published ports. PostgreSQL, Kafka, Neo4j, Redis, the gateway and the
+web container are reachable only inside the Docker network. Mailpit is not started. Logs rotate at
+20 MB × 5 files per container.
+
+**Security headers** (Caddy, and the same in the web image's nginx): HSTS with preload, a strict
+Content-Security-Policy (scripts only from Hearth itself plus one hashed inline script; no third-party
+origins), `X-Frame-Options: DENY`, `nosniff`, a strict referrer policy, and a permissions policy that
+allows only the microphone (voice typing). `/actuator/*` is closed to the internet except
+`/actuator/health`.
+
+**Monitoring** on the same server:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.monitoring.yml up -d
+ssh -L 3001:localhost:3001 -L 9090:localhost:9090 <server>     # then open http://localhost:3001
+```
+
+Prometheus and Grafana bind to 127.0.0.1 only, so reach them over SSH.
+
+**Backups.** Add to the server's crontab (02:30 every night):
+
+```
+30 2 * * * cd /srv/hearth && COMPOSE="docker compose -f docker-compose.yml -f docker-compose.prod.yml" BACKUP_DIR=/srv/hearth-backups infrastructure/scripts/backup.sh >> /var/log/hearth-backup.log 2>&1
+```
+
+and copy `/srv/hearth-backups` to other storage. Restoring: [RUNBOOK.md](../operations/RUNBOOK.md#restore).
 
 ---
 
-## 3. Kubernetes Orchestration (`k8s/`)
+## Kubernetes
 
-For enterprise container orchestration, Hearth includes complete Kubernetes manifests in the `k8s/` directory.
-
-### Deploying to a Kubernetes Cluster:
-```bash
-# 1. Create namespace
-kubectl apply -f k8s/00-namespace.yaml
-
-# 2. Apply config and secrets
-kubectl apply -f k8s/01-configmap-secrets.yaml
-
-# 3. Deploy data infrastructure
-kubectl apply -f k8s/02-postgres.yaml
-kubectl apply -f k8s/03-kafka.yaml
-
-# 4. Deploy backend microservices
-kubectl apply -f k8s/04-backend-microservices.yaml
-
-# 5. Deploy gateway, frontend and ingress
-kubectl apply -f k8s/05-gateway-frontend-ingress.yaml
-```
+See [k8s/README.md](../../k8s/README.md).
 
 ---
 
-## 4. Backup & Disaster Recovery
+## Before going live
 
-Automated database backup and restoration scripts reside in `infrastructure/scripts/`.
-
-### Creating a Snapshot Backup:
-```bash
-./infrastructure/scripts/backup.sh
-```
-Dumps all 6 PostgreSQL logical databases into compressed custom format files (`.dump`) with 14-day automated retention pruning.
-
-### Restoring from Backup:
-```bash
-./infrastructure/scripts/restore.sh /backups/YYYYMMDD_HHMMSS
-```
-
----
-
-## 5. Security Headers & TLS Configuration
-
-Caddy enforces the following headers across all incoming traffic:
-- `Strict-Transport-Security: max-age=31536000; includeSubDomains; preload`
-- `X-Content-Type-Options: nosniff`
-- `X-Frame-Options: DENY`
-- `Referrer-Policy: strict-origin-when-cross-origin`
-- `Permissions-Policy: camera=(), microphone=(), geolocation=()`
-- Removal of `Server` fingerprinting headers.
+- [ ] Every password in `.env` changed from the example; `.env` readable only by the deploy user
+- [ ] `https://<domain>` shows a valid certificate; `http://` redirects to it
+- [ ] Sign-up email arrives (checks the mail settings)
+- [ ] Push: Settings → Notifications → turn on, then "Send a test notification"
+- [ ] Calendar: Settings → Calendar → create a feed and subscribe from a phone
+- [ ] Backup cron has run once, and a restore was tested on another machine
+- [ ] Grafana shows all services up; alerts page is empty
+- [ ] Signed in on two devices, a task added on one appears on the other without reloading

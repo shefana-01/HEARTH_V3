@@ -1,7 +1,6 @@
 # Hearth Architecture: API Table, Port Map & Service Discovery
 
-**Ticket:** HEAR-469  
-**Author:** Neha (FN)  
+**Author:** Afsara Saima Mannan  
 **Status:** Approved & Documented  
 
 ---
