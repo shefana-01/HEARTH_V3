@@ -45,18 +45,22 @@ export function FamilyProvider({ children }: { children: ReactNode }) {
     const forAccount = accountRef.current;
     if (!forAccount) return;
     try {
-      const [f, m] = await Promise.all([familyService.getFamily(), familyService.listMembers()]);
+      // An account that has not created or joined a family yet has no members to list.
+      const f = await familyService.getFamily();
+      const m = f ? await familyService.listMembers() : [];
       if (accountRef.current === forAccount) setLoaded({ accountId: forAccount, status: 'ready', family: f, members: m });
     } catch {
       if (accountRef.current === forAccount) setLoaded((prev) => ({ ...prev, accountId: forAccount, status: 'error' }));
     }
   }, []);
 
-  // Reload only when the signed-in account changes, not on every session refresh.
+  // Reload when the signed-in account changes or when it joins or leaves a family (its member id
+  // changes), not on every session refresh.
+  const memberId = session?.account.memberId || null;
   useEffect(() => {
     if (accountId) void refresh();
     else setLoaded({ accountId: null, status: 'ready', family: null, members: [] });
-  }, [accountId, refresh]);
+  }, [accountId, memberId, refresh]);
 
   // Data is only trusted once it was loaded for the account that is signed in now. Deriving this
   // (instead of setting it in an effect) avoids a render where a fresh session looks family-less.

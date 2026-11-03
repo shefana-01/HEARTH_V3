@@ -44,6 +44,8 @@ export const router = createBrowserRouter([
           { path: '/today', element: page(() => import('@/features/today/MyDayPage')) },
           { path: '/dashboard', element: <Navigate to="/today" replace /> },
 
+          { path: '/plan', element: page(() => import('@/features/ai/PlanPage')) },
+
           { path: '/tasks', element: page(() => import('@/features/tasks/TasksPage')) },
           { path: '/tasks/new', ...detail('New task', '/tasks'), element: page(() => import('@/features/tasks/TaskFormPage')) },
           { path: '/tasks/:taskId', ...detail('Task', '/tasks'), element: page(() => import('@/features/tasks/TaskDetailPage')) },
@@ -58,6 +60,8 @@ export const router = createBrowserRouter([
 
           { path: '/health', element: page(() => import('@/features/health/HealthPage')) },
           { path: '/health/suggestions', ...detail('Food suggestions', '/health'), element: page(() => import('@/features/health/FoodSuggestionsPage')) },
+          { path: '/health/medicines', ...detail('Medicines', '/health'), element: page(() => import('@/features/health/MedicinesPage')) },
+          { path: '/health/:personId/emergency', ...detail('Emergency card', '/health'), element: page(() => import('@/features/health/EmergencyCardPage')) },
           { path: '/health/:personId', ...detail('Health notes', '/health'), element: page(() => import('@/features/health/HealthProfilePage')) },
           { path: '/nutrition/*', element: <Navigate to="/health" replace /> },
 

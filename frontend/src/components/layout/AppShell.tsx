@@ -12,6 +12,8 @@ import { EmailConfirmNotice } from '@/components/domain/EmailConfirmNotice';
 import { notificationService } from '@/services/notifications/notificationService';
 import { chatService } from '@/services/chat/chatService';
 import { useReminders } from '@/hooks/useReminders';
+import { useLiveRefresh } from '@/hooks/useLiveRefresh';
+import { startLiveUpdates } from '@/services/live/liveUpdates';
 import { plural } from '@/lib/format';
 import { cn } from '@/lib/cn';
 import { Avatar, ButtonLink, IconButton, Menu, ThemeToggle } from '@/components/ui';
@@ -29,10 +31,11 @@ function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
         <div key={section.title}>
           <p className="eyebrow px-3 pb-2">{section.title}</p>
           <ul className="space-y-0.5">
-            {section.items.map(({ to, label, icon: Icon }) => (
+            {section.items.map(({ to, label, icon: Icon, end }) => (
               <li key={to}>
                 <NavLink
                   to={to}
+                  end={end}
                   onClick={onNavigate}
                   className={({ isActive }) =>
                     cn(
@@ -307,6 +310,13 @@ export function AppShell() {
   const hasTabBar = !meta;
   const closeMore = useCallback(() => setMoreOpen(false), []);
   useReminders();
+
+  // Live updates while signed in: pages refresh themselves when the family changes something.
+  useEffect(() => startLiveUpdates(), []);
+  useLiveRefresh(['notifications', 'chat'], () => notificationService.refresh(), 300);
+  // Members, roles and the people the family looks after are used on every page.
+  const { refresh: refreshFamily } = useFamily();
+  useLiveRefresh(['family'], refreshFamily);
 
   useEffect(() => {
     setMoreOpen(false);
