@@ -27,4 +27,8 @@ export default tseslint.config(
       'no-console': ['warn', { allow: ['warn', 'error'] }],
     },
   },
+  {
+    files: ['src-sw/**/*.ts'],
+    languageOptions: { globals: globals.serviceworker },
+  },
 );

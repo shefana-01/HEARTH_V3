@@ -1,7 +1,5 @@
 # Hearth — Software Requirements Specification (v2.0)
-**Course:** Software Engineering, Dept. of CSE, University of Asia Pacific  
-**Supervisor:** Ashraful Alam, Lecturer, Dept. of CSE, UAP  
-**Authors:** Afsara Saima Mannan, Shovon Debnath, Suprio Chakraborty, Chowdhury Fatmi Monzur Neha  
+**Author:** Afsara Saima Mannan
 
 ---
 
