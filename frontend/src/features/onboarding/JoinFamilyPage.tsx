@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, CalendarDays, CircleCheck, DoorOpen, Eye, KeyRound, Lock, MailCheck, MapPin, ShieldCheck, Users } from 'lucide-react';
 import { useAuth } from '@/app/AuthProvider';
+import { useFamily } from '@/app/FamilyProvider';
 import { familyService } from '@/services/family/familyService';
 import { isDemoMode } from '@/services/config';
 import { INVITE_CODE, INVITE_CODE_HINT } from '@/constants/invite';
@@ -42,9 +43,13 @@ export default function JoinFamilyPage() {
   useDocumentTitle('Join a family');
   const { code } = useParams();
   const { session, refreshSession } = useAuth();
+  const { refresh } = useFamily();
   const navigate = useNavigate();
   const [declined, setDeclined] = useState(false);
-  const invite = useAsync(() => (code ? familyService.lookupInvite(code) : Promise.resolve(null)), [code]);
+  // With the real backend an invitation can only be opened by a signed-in account (the server checks the
+  // email it was sent to), so someone arriving from the email link is asked to sign up or sign in first.
+  const needsAccount = Boolean(code) && !session && !isDemoMode;
+  const invite = useAsync(() => (code && !needsAccount ? familyService.lookupInvite(code) : Promise.resolve(null)), [code, needsAccount]);
 
   const join = useMutation(familyService.acceptInvite);
 
@@ -54,7 +59,7 @@ export default function JoinFamilyPage() {
     if (!session) return navigate(`/sign-up?invite=${code}`);
     if (invite.data?.alreadyMember) return navigate('/today');
     if (await join.run(code)) {
-      await refreshSession();
+      await Promise.all([refreshSession(), refresh()]);
       navigate('/today');
     }
   };
@@ -77,6 +82,23 @@ export default function JoinFamilyPage() {
             <h1 className="font-display text-3xl">Join a family</h1>
             <p className="mb-6 mt-2 text-ink-muted">Enter the invitation code someone in your family shared with you.</p>
             <CodeForm />
+          </Card>
+        ) : needsAccount ? (
+          <Card padding="lg">
+            <MailCheck aria-hidden="true" className="mb-4 h-10 w-10 text-primary-600" />
+            <h1 className="font-display text-3xl">You’ve been invited to a family on Hearth</h1>
+            <p className="mt-2 text-ink-muted">
+              Create your account with the email address the invitation was sent to, or sign in if you already have one. You’ll see the invitation and can accept it straight after.
+            </p>
+            <p className="mt-4 text-sm text-ink-muted">
+              Invitation code <span className="font-semibold text-ink">{code?.toUpperCase()}</span>
+            </p>
+            <div className="mt-6 flex flex-wrap gap-2">
+              <ButtonLink to={`/sign-up?invite=${encodeURIComponent(code ?? '')}`}>Create my account</ButtonLink>
+              <ButtonLink to={`/sign-in?next=${encodeURIComponent(`/join/${code ?? ''}`)}&invite=${encodeURIComponent(code ?? '')}`} variant="secondary">
+                I already have an account
+              </ButtonLink>
+            </div>
           </Card>
         ) : invite.status === 'loading' ? (
           <Card padding="lg" className="space-y-4" aria-busy="true">
@@ -161,8 +183,11 @@ export default function JoinFamilyPage() {
             </div>
             <p className="mt-3 flex items-start gap-2 rounded-xl bg-surface-muted px-4 py-3 text-[0.8125rem] text-ink-muted">
               <CircleCheck aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-mint-600" />
-              You’ll join as a <span className="font-semibold text-ink">{ROLES.contributor.label.toLowerCase()}</span> or{' '}
-              <span className="font-semibold text-ink">{ROLES.observer.label.toLowerCase()}</span>, as the organiser chose. Members keep their own schedule, take on tasks and can hand them over.
+              {/* One text node for the flex row, so the sentence wraps as a paragraph. */}
+              <span>
+                You’ll join as a <span className="font-semibold text-ink">{ROLES.contributor.label.toLowerCase()}</span> or{' '}
+                <span className="font-semibold text-ink">{ROLES.observer.label.toLowerCase()}</span>, as the organiser chose. Members keep their own schedule, take on tasks and can hand them over.
+              </span>
             </p>
 
             <EmailConfirmNotice className="mt-4" />

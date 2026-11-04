@@ -3,6 +3,7 @@ import { ArrowRight, CircleCheckBig, ListOrdered } from 'lucide-react';
 import { useFamily } from '@/app/FamilyProvider';
 import { decisionService } from '@/services/decision/decisionService';
 import { useAsync } from '@/hooks/useAsync';
+import { useLiveRefresh } from '@/hooks/useLiveRefresh';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { formatDayTime, timeAgo } from '@/lib/dates';
 import { Badge, ButtonLink, Card, Disclosure, EmptyState, ErrorState, ListSkeleton, PageHeader, SectionHeader } from '@/components/ui';
@@ -15,6 +16,7 @@ export default function PriorityCenterPage() {
   useDocumentTitle('Handovers');
   const { nameOf, firstNameOf } = useFamily();
   const data = useAsync(() => Promise.all([decisionService.listAttention(), decisionService.listRequests()]), []);
+  useLiveRefresh(['plan', 'tasks'], data.reload);
   const [attention = [], requests = []] = data.data ?? [];
   const waiting = requests.filter((r) => r.status === 'open' && !attention.some((a) => a.openRequestId === r.id));
   const recent = requests.filter((r) => r.status !== 'open').slice(0, 5);

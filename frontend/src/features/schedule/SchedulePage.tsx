@@ -1,9 +1,10 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { CalendarPlus, CalendarRange, CalendarX2, ChevronLeft, ChevronRight, Clock, User, Users } from 'lucide-react';
+import { CalendarPlus, CalendarRange, CalendarCheck2, CalendarX2, ChevronLeft, ChevronRight, Clock, User, Users } from 'lucide-react';
 import { useFamily } from '@/app/FamilyProvider';
 import { scheduleService } from '@/services/schedule/scheduleService';
 import { useAsync } from '@/hooks/useAsync';
+import { useLiveRefresh } from '@/hooks/useLiveRefresh';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { formatShortDate, formatWeekdayShort, isSameDay, weekDays } from '@/lib/dates';
 import { plural } from '@/lib/format';
@@ -24,6 +25,7 @@ export default function SchedulePage() {
   const days = useMemo(() => weekDays(reference), [reference]);
   const [selectedDay, setSelectedDay] = useState(() => new Date());
   const week = useAsync(() => scheduleService.getWeek(reference), [reference.toDateString()]);
+  useLiveRefresh(['tasks', 'plan', 'care', 'family'], week.reload);
 
   const all = week.data ?? [];
   const ownerId = scope === 'me' ? me?.id : scope;
@@ -59,6 +61,9 @@ export default function SchedulePage() {
         description={`${family ? `${family.name} · ` : ''}week of ${range}`}
         actions={
           <>
+            <ButtonLink to="/settings?section=calendar" variant="ghost" leftIcon={<CalendarCheck2 aria-hidden="true" className="h-4 w-4" />}>
+              Sync to my calendar
+            </ButtonLink>
             <ButtonLink to="/schedule/availability" variant="soft" leftIcon={<Clock aria-hidden="true" className="h-4 w-4" />}>
               When I’m free
             </ButtonLink>

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { BellOff, Check, CheckCheck, X } from 'lucide-react';
 import { notificationService } from '@/services/notifications/notificationService';
 import { useAsync, useMutation } from '@/hooks/useAsync';
+import { useLiveRefresh } from '@/hooks/useLiveRefresh';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { isSameDay, timeAgo } from '@/lib/dates';
 import { cn } from '@/lib/cn';
@@ -25,6 +26,7 @@ export default function NotificationsPage() {
   const navigate = useNavigate();
   const { family } = useFamily();
   const data = useAsync(() => notificationService.list(), []);
+  useLiveRefresh(['notifications'], data.reload);
   const [show, setShow] = useState<'all' | 'unread'>('all');
   const [type, setType] = useState<NotificationType | 'all'>('all');
   const markAll = useMutation(notificationService.markAllRead);
