@@ -1,8 +1,10 @@
 import { useMemo, useState } from 'react';
-import { ArrowRight, Download, History, Search } from 'lucide-react';
+import { ArrowRight, Download, History, Search, Sparkles } from 'lucide-react';
+import { DraftDialog } from '@/features/ai/DraftDialog';
 import { auditService } from '@/services/audit/auditService';
 import { useFamily } from '@/app/FamilyProvider';
 import { useAsync } from '@/hooks/useAsync';
+import { useLiveRefresh } from '@/hooks/useLiveRefresh';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { formatFullDate, formatTime, isSameDay } from '@/lib/dates';
 import { downloadFile, slugify, toCsv } from '@/lib/download';
@@ -30,6 +32,8 @@ export default function ActivityPage() {
   useDocumentTitle('Activity history');
   const { family, members, nameOf } = useFamily();
   const data = useAsync(() => auditService.list(), []);
+  useLiveRefresh(['tasks', 'plan', 'care', 'family'], data.reload);
+  const [summary, setSummary] = useState(false);
   const [category, setCategory] = useState<AuditCategory | 'all'>('all');
   const [actor, setActor] = useState('all');
   const [range, setRange] = useState<Range>('30');
@@ -77,11 +81,17 @@ export default function ActivityPage() {
         title="Activity history"
         description="A record of what changed in your family, who changed it and when."
         actions={
-          <Button variant="secondary" onClick={exportLog} disabled={!filtered.length} leftIcon={<Download aria-hidden="true" className="h-4 w-4" />}>
-            Export CSV
-          </Button>
+          <>
+            <Button variant="soft" onClick={() => setSummary(true)} leftIcon={<Sparkles aria-hidden="true" className="h-4 w-4" />}>
+              Weekly summary
+            </Button>
+            <Button variant="secondary" onClick={exportLog} disabled={!filtered.length} leftIcon={<Download aria-hidden="true" className="h-4 w-4" />}>
+              Export CSV
+            </Button>
+          </>
         }
       />
+      <DraftDialog open={summary} onClose={() => setSummary(false)} kind="weekly-summary" />
 
       <Card as="section" aria-label="Filters" className="mb-6" padding="sm">
         <div className="flex flex-wrap gap-2" role="group" aria-label="Category">

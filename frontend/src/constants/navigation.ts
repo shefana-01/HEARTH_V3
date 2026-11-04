@@ -9,7 +9,9 @@ import {
   ListOrdered,
   MessagesSquare,
   Network,
+  Pill,
   ShoppingBasket,
+  Sparkles,
   Stethoscope,
   Sun,
   Users,
@@ -21,6 +23,8 @@ export interface NavItem {
   to: string;
   label: string;
   icon: LucideIcon;
+  /** Active only on this exact path (not on pages below it that have their own item). */
+  end?: boolean;
 }
 
 export function getNavSections(t: TranslationKeys): { title: string; items: NavItem[] }[] {
@@ -30,8 +34,10 @@ export function getNavSections(t: TranslationKeys): { title: string; items: NavI
       items: [
         { to: '/today', label: t.nav.today, icon: Sun },
         { to: '/tasks', label: t.nav.tasks, icon: CircleCheckBig },
+        { to: '/plan', label: t.nav.plan, icon: Sparkles },
         { to: '/schedule', label: t.nav.schedule, icon: CalendarDays },
-        { to: '/health', label: t.nav.health, icon: HeartPulse },
+        { to: '/health', label: t.nav.health, icon: HeartPulse, end: true },
+        { to: '/health/medicines', label: t.nav.medicines, icon: Pill },
       ],
     },
     {
@@ -67,8 +73,10 @@ export const NAV_SECTIONS: { title: string; items: NavItem[] }[] = [
     items: [
       { to: '/today', label: 'My day', icon: Sun },
       { to: '/tasks', label: 'Tasks', icon: CircleCheckBig },
+      { to: '/plan', label: 'Plan my week', icon: Sparkles },
       { to: '/schedule', label: 'Schedule', icon: CalendarDays },
-      { to: '/health', label: 'Health & food', icon: HeartPulse },
+      { to: '/health', label: 'Health & food', icon: HeartPulse, end: true },
+      { to: '/health/medicines', label: 'Medicines', icon: Pill },
     ],
   },
   {
