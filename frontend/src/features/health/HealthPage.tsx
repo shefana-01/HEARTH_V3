@@ -1,8 +1,9 @@
 import { Link } from 'react-router-dom';
-import { ArrowRight, HeartPulse, Info, Lock, Salad, ShoppingBasket, Users } from 'lucide-react';
+import { ArrowRight, HeartPulse, IdCard, Info, Lock, Pill, Salad, ShoppingBasket, Users } from 'lucide-react';
 import { useFamily } from '@/app/FamilyProvider';
 import { healthService } from '@/services/care/healthService';
 import { useAsync } from '@/hooks/useAsync';
+import { useLiveRefresh } from '@/hooks/useLiveRefresh';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { Avatar, ButtonLink, Callout, Card, CardHeader, EmptyState, ErrorState, PageHeader, PageSkeleton, SectionHeader } from '@/components/ui';
 import { FoodSuggestionCard } from './FoodSuggestionCard';
@@ -51,6 +52,7 @@ export default function HealthPage() {
   useDocumentTitle('Health & food');
   const { family, me, canSeeMedical, personName } = useFamily();
   const data = useAsync(() => Promise.all([healthService.listProfiles(), healthService.getSuggestions()]), []);
+  useLiveRefresh(['care', 'family'], data.reload);
   const list = useAddToList();
 
   const header = (
@@ -58,9 +60,19 @@ export default function HealthPage() {
       title="Health & food"
       description="Keep a few health notes and Hearth will suggest everyday foods for the shopping list."
       actions={
-        <ButtonLink to="/groceries" variant="secondary" leftIcon={<ShoppingBasket aria-hidden="true" className="h-4 w-4" />}>
-          Shopping list
-        </ButtonLink>
+        <>
+          <ButtonLink to="/health/medicines" leftIcon={<Pill aria-hidden="true" className="h-4 w-4" />}>
+            Medicines
+          </ButtonLink>
+          {me && (
+            <ButtonLink to={`/health/${me.id}/emergency`} variant="secondary" leftIcon={<IdCard aria-hidden="true" className="h-4 w-4" />}>
+              My emergency card
+            </ButtonLink>
+          )}
+          <ButtonLink to="/groceries" variant="secondary" leftIcon={<ShoppingBasket aria-hidden="true" className="h-4 w-4" />}>
+            Shopping list
+          </ButtonLink>
+        </>
       }
     />
   );
@@ -109,6 +121,9 @@ export default function HealthPage() {
                       <ConditionChips ids={p.conditions} />
                     </span>
                     <ArrowRight aria-hidden="true" className="mt-1 h-4 w-4 shrink-0 text-ink-subtle" />
+                  </Link>
+                  <Link to={`/health/${p.personId}/emergency`} className="mt-1 inline-flex min-h-11 items-center gap-1.5 px-1 text-[0.8125rem] font-semibold text-primary-700 hover:underline">
+                    <IdCard aria-hidden="true" className="h-4 w-4" /> Emergency card
                   </Link>
                 </li>
               ))}

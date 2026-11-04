@@ -5,6 +5,7 @@ import { useFamily } from '@/app/FamilyProvider';
 import { groceryService } from '@/services/care/groceryService';
 import { familyService } from '@/services/family/familyService';
 import { useAsync, useMutation } from '@/hooks/useAsync';
+import { useLiveRefresh } from '@/hooks/useLiveRefresh';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { combineDateTime, toDateInputValue } from '@/lib/dates';
 import { currency, listNames, plural } from '@/lib/format';
@@ -313,6 +314,7 @@ export default function ShoppingListPage() {
   const { toast } = useToast();
   const { family, isLead } = useFamily();
   const data = useAsync(() => groceryService.list(), []);
+  useLiveRefresh(['care'], data.reload);
   const [budgetOpen, setBudgetOpen] = useState(false);
   const [taskOpen, setTaskOpen] = useState(false);
   const update = useMutation(groceryService.updateItem);
