@@ -6,6 +6,7 @@ import { appointmentService } from '@/services/care/appointmentService';
 import { taskService } from '@/services/tasks/taskService';
 import { documentService } from '@/services/care/documentService';
 import { useAsync, useMutation } from '@/hooks/useAsync';
+import { useLiveRefresh } from '@/hooks/useLiveRefresh';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { formatDayTime, formatDuration, formatTime } from '@/lib/dates';
 import { downloadIcs } from '@/lib/ics';
@@ -22,6 +23,7 @@ export default function AppointmentDetailPage() {
     const [appt, tasks, docs] = await Promise.all([appointmentService.get(appointmentId), taskService.listTasks(), documentService.list()]);
     return { appt, tasks: tasks.filter((t) => t.appointmentId === appointmentId), docs: docs.filter((d) => d.appointmentId === appointmentId) };
   }, [appointmentId]);
+  useLiveRefresh(['care', 'tasks'], data.reload);
   useDocumentTitle(data.data?.appt.title ?? 'Appointment');
 
   const [newPrep, setNewPrep] = useState('');
