@@ -4,6 +4,7 @@ import { useFamily } from '@/app/FamilyProvider';
 import { ACCEPTED_TYPES, documentService } from '@/services/care/documentService';
 import { appointmentService } from '@/services/care/appointmentService';
 import { useAsync, useMutation } from '@/hooks/useAsync';
+import { useLiveRefresh } from '@/hooks/useLiveRefresh';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { formatFullDate } from '@/lib/dates';
 import { listNames, plural } from '@/lib/format';
@@ -83,6 +84,7 @@ export default function DocumentsPage() {
   const { me, people, personName } = useFamily();
   const { toast } = useToast();
   const data = useAsync(() => Promise.all([documentService.list(), appointmentService.list()]), []);
+  useLiveRefresh(['care'], data.reload);
   const [view, setView] = useState<View>('all');
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState(ALL);

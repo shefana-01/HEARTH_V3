@@ -4,6 +4,7 @@ import { ArrowRight, Building2, CalendarCheck2, CalendarPlus, CircleCheck, Circl
 import { useFamily } from '@/app/FamilyProvider';
 import { appointmentService } from '@/services/care/appointmentService';
 import { useAsync } from '@/hooks/useAsync';
+import { useLiveRefresh } from '@/hooks/useLiveRefresh';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { dayDiff, formatDayTime, formatDuration, formatTime, formatWeekday } from '@/lib/dates';
 import { downloadIcs } from '@/lib/ics';
@@ -30,6 +31,7 @@ export default function AppointmentsPage() {
   const [view, setView] = useState<'upcoming' | 'past'>('upcoming');
   const [person, setPerson] = useState('all');
   const list = useAsync(() => appointmentService.list(), []);
+  useLiveRefresh(['care'], list.reload);
 
   const all = list.data ?? [];
   const upcoming = all.filter((a) => endOf(a) >= Date.now());

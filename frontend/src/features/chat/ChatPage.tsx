@@ -3,6 +3,7 @@ import { MessagesSquare } from 'lucide-react';
 import { chatService } from '@/services/chat/chatService';
 import { isDemoMode } from '@/services/config';
 import { useAsync, useMutation } from '@/hooks/useAsync';
+import { useLiveRefresh } from '@/hooks/useLiveRefresh';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { Card, EmptyState, ErrorState, ListSkeleton, PageHeader } from '@/components/ui';
 import { Composer } from './Composer';
@@ -55,7 +56,17 @@ export default function ChatPage() {
     if (el && followingRef.current) el.scrollTop = el.scrollHeight;
   }, [count]);
 
-  // With the real backend other people write too, so look for new messages every few seconds.
+  // A live update says someone wrote: fetch only what is new.
+  useLiveRefresh(
+    ['chat'],
+    async () => {
+      const fresh = await chatService.list('family', newestRef.current).catch(() => []);
+      if (fresh.length) append(fresh);
+    },
+    150,
+  );
+
+  // With the real backend other people write too, so look for new messages every few seconds (a fallback for live updates).
   const loaded = Boolean(thread.data);
   useEffect(() => {
     if (isDemoMode || !loaded) return;

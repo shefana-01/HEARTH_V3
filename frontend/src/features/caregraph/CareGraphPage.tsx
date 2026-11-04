@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { ArrowRight, Minus, Network, Plus, RotateCcw, TriangleAlert, X } from 'lucide-react';
 import { careGraphService } from '@/services/care/careGraphService';
 import { useAsync } from '@/hooks/useAsync';
+import { useLiveRefresh } from '@/hooks/useLiveRefresh';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { plural } from '@/lib/format';
 import { cn } from '@/lib/cn';
@@ -26,6 +27,7 @@ export default function CareGraphPage() {
   useDocumentTitle('Family map');
   const [params, setParams] = useSearchParams();
   const graph = useAsync(() => careGraphService.getGraph(), []);
+  useLiveRefresh(['tasks', 'plan', 'care', 'family'], graph.reload);
   const [filter, setFilter] = useState<Filter>('all');
   const [zoom, setZoom] = useState(1);
   const selectedId = params.get('focus');

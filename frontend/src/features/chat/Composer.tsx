@@ -1,8 +1,9 @@
-import { useEffect, type KeyboardEvent, type RefObject } from 'react';
-import { SendHorizontal } from 'lucide-react';
+import { useEffect, useState, type KeyboardEvent, type RefObject } from 'react';
+import { SendHorizontal, Sparkles } from 'lucide-react';
+import { DraftDialog } from '@/features/ai/DraftDialog';
 import { MAX_MESSAGE_LENGTH } from '@/services/chat/chatService';
 import { cn } from '@/lib/cn';
-import { Button, FormError, Textarea } from '@/components/ui';
+import { Button, FormError, IconButton, Textarea } from '@/components/ui';
 
 const COUNTER_FROM = Math.floor(MAX_MESSAGE_LENGTH * 0.8);
 const COUNTER_ID = 'chat-counter';
@@ -26,6 +27,7 @@ export function Composer({
   error: string | null;
   inputRef: RefObject<HTMLTextAreaElement>;
 }) {
+  const [helping, setHelping] = useState(false);
   const tooLong = value.length > MAX_MESSAGE_LENGTH;
   const canSend = value.trim().length > 0 && !tooLong && !pending;
 
@@ -71,6 +73,9 @@ export function Composer({
             className="max-h-[7.5rem] min-h-11 resize-none overflow-y-auto py-2.5"
           />
         </div>
+        <IconButton label="Help me write" variant="secondary" className="h-11 w-11 shrink-0" onClick={() => setHelping(true)}>
+          <Sparkles aria-hidden="true" className="h-4 w-4" />
+        </IconButton>
         <Button type="submit" className="h-11 shrink-0 px-5" disabled={!canSend} loading={pending} rightIcon={<SendHorizontal aria-hidden="true" className="h-4 w-4" />}>
           Send
         </Button>
@@ -80,6 +85,16 @@ export function Composer({
           {value.length} / {MAX_MESSAGE_LENGTH}
         </p>
       )}
+      <DraftDialog
+        open={helping}
+        onClose={() => setHelping(false)}
+        kind="chat-message"
+        initialPoints={value}
+        onUse={(text) => {
+          onChange(text);
+          inputRef.current?.focus();
+        }}
+      />
     </form>
   );
 }
