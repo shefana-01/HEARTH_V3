@@ -535,3 +535,66 @@ export interface CareGraph {
   nodes: GraphNode[];
   edges: GraphEdge[];
 }
+
+/* ───────────────────────── medicines and the emergency card ───────────────────────── */
+
+/** A medicine taken on a schedule: at these local times, on these days (Monday first). */
+export interface Medication {
+  id: ID;
+  personId: ID;
+  name: string;
+  /** e.g. "1 tablet", "5 ml". */
+  dose: string;
+  /** e.g. "after breakfast". */
+  instructions: string;
+  /** "HH:mm", earliest first. */
+  times: string[];
+  /** Monday to Sunday. */
+  days: boolean[];
+  /** yyyy-mm-dd */
+  startDate: string;
+  endDate?: string;
+  /** The member who helps with it; gets the reminders for someone who does not use Hearth. */
+  carerId?: ID;
+  reminders: boolean;
+  active: boolean;
+  createdById: ID;
+  updatedAt: ISODateTime;
+}
+
+export type MedicationInput = Omit<Medication, 'id' | 'createdById' | 'updatedAt'>;
+
+export type DoseStatus = 'upcoming' | 'due' | 'taken' | 'skipped' | 'missed';
+
+export interface Dose {
+  medicationId: ID;
+  personId: ID;
+  name: string;
+  dose: string;
+  instructions: string;
+  scheduledAt: ISODateTime;
+  status: DoseStatus;
+  recordedById?: ID;
+  recordedAt?: ISODateTime;
+}
+
+export interface EmergencyInfo {
+  personId: ID;
+  bloodGroup: string;
+  allergies: string;
+  doctorName: string;
+  doctorPhone: string;
+  hospital: string;
+  notes: string;
+  updatedAt?: ISODateTime;
+}
+
+export type EmergencyInput = Omit<EmergencyInfo, 'personId' | 'updatedAt'>;
+
+export interface RecordedDose {
+  medicationId: ID;
+  scheduledAt: ISODateTime;
+  status: 'taken' | 'skipped' | 'missed';
+  recordedById?: ID;
+  recordedAt: ISODateTime;
+}

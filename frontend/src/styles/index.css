@@ -236,3 +236,23 @@
     scroll-behavior: auto !important;
   }
 }
+
+/* Printing an emergency card: only the card, on white, full width. */
+@media print {
+  @page {
+    margin: 12mm;
+  }
+  body:has(.emergency-card) * {
+    visibility: hidden;
+  }
+  body:has(.emergency-card) .emergency-card,
+  body:has(.emergency-card) .emergency-card * {
+    visibility: visible;
+  }
+  body:has(.emergency-card) .emergency-card {
+    position: absolute;
+    inset: 0 0 auto 0;
+    background: #fff;
+    color: #111;
+  }
+}
