@@ -65,6 +65,13 @@ function weekly(
   return { id, memberId, title, kind, start: at(-28, time), durationMin, repeat: 'weekly', days, location, visibility, createdAt: at(-30, '09:00') };
 }
 
+/** yyyy-mm-dd of the day `offset` days from today (local time). */
+function localDay(offset: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() + offset);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 export function buildSampleWorkspace(): Workspace {
   const me = 'm-afsara';
   const mother = 'm-nazmun';
@@ -480,5 +487,54 @@ export function buildSampleWorkspace(): Workspace {
     ],
     chatReadAt: { family: at(-1, '22:00') },
     reminded: [],
+    medications: [
+      {
+        id: 'med-amlodipine',
+        personId: grandma,
+        name: 'Amlodipine',
+        dose: '5 mg tablet',
+        instructions: 'After breakfast and after dinner',
+        times: ['08:30', '21:00'],
+        days: [true, true, true, true, true, true, true],
+        startDate: localDay(-30),
+        carerId: me,
+        reminders: true,
+        active: true,
+        createdById: me,
+        updatedAt: at(-30, '10:00'),
+      },
+      {
+        id: 'med-iron',
+        personId: me,
+        name: 'Iron supplement',
+        dose: '1 tablet',
+        instructions: 'With orange juice',
+        times: ['13:00'],
+        days: [true, true, true, true, true, false, false],
+        startDate: localDay(-14),
+        endDate: localDay(60),
+        reminders: true,
+        active: true,
+        createdById: me,
+        updatedAt: at(-14, '09:00'),
+      },
+    ],
+    doses: [
+      { medicationId: 'med-amlodipine', scheduledAt: at(-1, '08:30'), status: 'taken', recordedById: me, recordedAt: at(-1, '08:40') },
+      { medicationId: 'med-amlodipine', scheduledAt: at(-1, '21:00'), status: 'taken', recordedById: mother, recordedAt: at(-1, '21:15') },
+      { medicationId: 'med-amlodipine', scheduledAt: at(-2, '21:00'), status: 'missed', recordedAt: at(-2, '22:00') },
+    ],
+    emergency: [
+      {
+        personId: grandma,
+        bloodGroup: 'B+',
+        allergies: 'Penicillin',
+        doctorName: 'Dr. Karim Ahmed',
+        doctorPhone: '+880 1711-000000',
+        hospital: 'Square Hospital, Panthapath',
+        notes: 'Uses a walker. Hard of hearing in the left ear — speak on her right.',
+        updatedAt: at(-7, '18:00'),
+      },
+    ],
   };
 }

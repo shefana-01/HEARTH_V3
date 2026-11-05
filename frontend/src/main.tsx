@@ -6,10 +6,13 @@ import { FamilyProvider } from '@/app/FamilyProvider';
 import { router } from '@/app/router';
 import { ToastProvider } from '@/components/ui';
 import { startDisplayPrefs } from '@/lib/prefs';
+import { startServiceWorker } from '@/services/pwa/serviceWorker';
+import { UpdatePrompt } from '@/components/layout/UpdatePrompt';
 import { I18nProvider } from '@/i18n';
 import '@/styles/index.css';
 
 startDisplayPrefs();
+startServiceWorker();
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
@@ -18,6 +21,7 @@ createRoot(document.getElementById('root')!).render(
         <FamilyProvider>
           <ToastProvider>
             <RouterProvider router={router} />
+            <UpdatePrompt />
           </ToastProvider>
         </FamilyProvider>
       </AuthProvider>
