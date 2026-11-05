@@ -16,6 +16,9 @@ import type {
   Account,
   Appointment,
   AuditEvent,
+  EmergencyInfo,
+  Medication,
+  RecordedDose,
   Family,
   FamilyDocument,
   FamilyMember,
@@ -52,6 +55,11 @@ export interface Workspace {
   chatReadAt: Record<string, string>;
   /** Tasks and appointments a reminder was already raised for. */
   reminded: string[];
+  /** The signed-in person turned on AI help (demo: the offline assistant). */
+  aiConsent?: boolean;
+  medications: Medication[];
+  doses: RecordedDose[];
+  emergency: EmergencyInfo[];
 }
 
 const STORE_KEY = 'hearth.workspace.v3';
@@ -76,6 +84,9 @@ export function emptyWorkspace(): Workspace {
     messages: [],
     chatReadAt: {},
     reminded: [],
+    medications: [],
+    doses: [],
+    emergency: [],
   };
 }
 
@@ -91,6 +102,11 @@ export const db: Workspace = load();
 
 export function persist(): void {
   writeJSON(STORE_KEY, db);
+}
+
+/** Another tab saved the workspace: take its version (without writing it back). */
+export function reloadWorkspace(): void {
+  Object.assign(db, load());
 }
 
 export function replaceWorkspace(next: Workspace): void {
