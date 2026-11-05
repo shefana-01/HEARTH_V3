@@ -8,6 +8,7 @@
 import { config } from '../config';
 import { actorId, db, notify, persist } from '../mockStore';
 import { formatTime } from '@/lib/dates';
+import { slotsOf } from '../care/medicationService';
 
 export interface DueReminder {
   id: string;
@@ -45,6 +46,18 @@ export const reminderService = {
       if ((appt.forId !== me && appt.escortId !== me) || db.reminded.includes(key) || !within(appt.start, APPOINTMENT_LEAD_MIN)) continue;
       db.reminded.push(key);
       due.push({ id: key, title: appt.title, message: `Appointment at ${formatTime(appt.start)}${appt.location ? `, ${appt.location}` : ''}.`, href: `/appointments/${appt.id}` });
+    }
+
+    // Medicines: the person (if it's me) or the carer (me) is reminded at each dose time.
+    for (const med of db.medications) {
+      if (!med.active || !med.reminders || (med.personId !== me && med.carerId !== me)) continue;
+      for (const slot of slotsOf(med, new Date(now - 10 * MIN), new Date(now))) {
+        const iso = slot.toISOString();
+        const key = `med:${med.id}:${iso}`;
+        if (db.reminded.includes(key) || db.doses.some((d) => d.medicationId === med.id && d.scheduledAt === iso)) continue;
+        db.reminded.push(key);
+        due.push({ id: key, title: med.name, message: `Time for ${med.name}${med.dose ? ` (${med.dose})` : ''}${med.instructions ? ` — ${med.instructions}` : ''}.`, href: '/health/medicines' });
+      }
     }
 
     if (due.length) {
