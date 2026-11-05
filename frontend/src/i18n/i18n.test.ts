@@ -1,36 +1,23 @@
+import { describe, expect, it } from 'vitest';
 import { en } from './en';
 import { bn } from './bn';
 
-/**
- * Validates that all translation keys in the English dictionary
- * have a corresponding non-empty translation in the Bengali dictionary.
- */
-export function validateTranslations(): { valid: boolean; missingKeys: string[] } {
-  const missingKeys: string[] = [];
+/** Every key in a section: "section.key". */
+const keys = (dict: Record<string, Record<string, string>>) => Object.entries(dict).flatMap(([section, entries]) => Object.keys(entries).map((key) => `${section}.${key}`));
 
-  for (const [section, keys] of Object.entries(en)) {
-    const bnSection = (bn as Record<string, Record<string, string>>)[section];
-    if (!bnSection) {
-      missingKeys.push(section);
-      continue;
-    }
-    for (const key of Object.keys(keys as Record<string, string>)) {
-      if (!bnSection[key] || bnSection[key].trim() === '') {
-        missingKeys.push(`${section}.${key}`);
+describe('translations', () => {
+  it('Bengali has exactly the same keys as English', () => {
+    expect(keys(bn as Record<string, Record<string, string>>).sort()).toEqual(keys(en).sort());
+  });
+
+  it('no Bengali text is empty or left in English by mistake', () => {
+    const allowedSame = new Set(['common.appName', 'common.bengali', 'common.english']);
+    for (const [section, entries] of Object.entries(en)) {
+      for (const [key, english] of Object.entries(entries)) {
+        const bengali = (bn as Record<string, Record<string, string>>)[section][key];
+        expect(bengali.trim(), `${section}.${key}`).not.toBe('');
+        if (!allowedSame.has(`${section}.${key}`)) expect(bengali, `${section}.${key} is still English`).not.toBe(english);
       }
     }
-  }
-
-  return {
-    valid: missingKeys.length === 0,
-    missingKeys,
-  };
-}
-
-// Self-executing verification
-const result = validateTranslations();
-if (!result.valid) {
-  console.warn('Missing translation keys in Bengali dictionary:', result.missingKeys);
-} else {
-  // All translation keys match 1:1
-}
+  });
+});

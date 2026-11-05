@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { useToast } from '@/components/ui';
 import { reminderService } from '@/services/notifications/reminderService';
 import { notificationService } from '@/services/notifications/notificationService';
+import { pushService } from '@/services/notifications/pushService';
 
 const CHECK_EVERY_MS = 30_000;
 
@@ -18,6 +19,8 @@ export function useReminders(): void {
       const due = reminderService.collectDue();
       for (const reminder of due) {
         toast({ tone: 'info', title: `Reminder: ${reminder.title}`, description: reminder.message });
+        // Also as a system notification if the person turned those on (seen even in another tab or app).
+        void pushService.showLocal(`Reminder: ${reminder.title}`, reminder.message, reminder.href);
       }
       if (due.length) notificationService.refresh();
     };
