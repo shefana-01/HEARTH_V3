@@ -1,14 +1,16 @@
 import { useMemo, useState } from 'react';
-import { CircleCheckBig, Clock, ListChecks, Plus, Search } from 'lucide-react';
+import { CircleCheckBig, Clock, ListChecks, Plus, Search, Sparkles } from 'lucide-react';
+import { QuickAddDialog } from '@/features/ai/QuickAddDialog';
 import { useFamily } from '@/app/FamilyProvider';
 import { useTranslation } from '@/i18n';
 import { taskService } from '@/services/tasks/taskService';
 import { decisionService } from '@/services/decision/decisionService';
 import { useAsync, useMutation } from '@/hooks/useAsync';
+import { useLiveRefresh } from '@/hooks/useLiveRefresh';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { dayDiff, formatRelativeDay } from '@/lib/dates';
 import { plural } from '@/lib/format';
-import { ButtonLink, Callout, FabLink, EmptyState, ErrorState, Input, ListSkeleton, PageHeader, SectionHeader, SegmentedControl, Select, Tabs, TabPanel, useToast } from '@/components/ui';
+import { Button, ButtonLink, Callout, FabLink, EmptyState, ErrorState, Input, ListSkeleton, PageHeader, SectionHeader, SegmentedControl, Select, Tabs, TabPanel, useToast } from '@/components/ui';
 import { TaskRow } from '@/components/domain/TaskRow';
 import type { Task } from '@/types/domain';
 
@@ -28,8 +30,11 @@ export default function TasksPage() {
   const [scope, setScope] = useState<Scope>('mine');
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState<Sort>('time');
+  const [quickAdd, setQuickAdd] = useState(false);
 
   const data = useAsync(() => Promise.all([taskService.listTasks(), decisionService.listAttention(), decisionService.getMyDay()]), []);
+
+  useLiveRefresh(['tasks', 'plan'], data.reload);
   const toggle = useMutation((t: Task) => (t.status === 'completed' ? taskService.reopenTask(t.id) : taskService.completeTask(t.id)));
 
   const [tasks = [], attention = [], myDay = []] = data.data ?? [];
@@ -91,11 +96,17 @@ export default function TasksPage() {
         title={scope === 'mine' ? t.tasks.myTasks : t.tasks.familyTasks}
         description={data.data ? `${plural(buckets.today.length, 'task')} today${scope === 'mine' ? ' for you' : ' across the family'}.` : undefined}
         actions={
-          <ButtonLink to="/tasks/new" className="hidden lg:inline-flex" leftIcon={<Plus aria-hidden="true" className="h-4 w-4" />}>
-            {t.tasks.newTask}
-          </ButtonLink>
+          <>
+            <Button variant="secondary" onClick={() => setQuickAdd(true)} leftIcon={<Sparkles aria-hidden="true" className="h-4 w-4" />}>
+              {t.ai.quickAdd}
+            </Button>
+            <ButtonLink to="/tasks/new" className="hidden lg:inline-flex" leftIcon={<Plus aria-hidden="true" className="h-4 w-4" />}>
+              {t.tasks.newTask}
+            </ButtonLink>
+          </>
         }
       />
+      <QuickAddDialog open={quickAdd} onClose={() => setQuickAdd(false)} onSaved={() => void data.reload()} />
 
       <div className="mb-5 flex flex-col gap-3 lg:flex-row lg:items-center">
         <div className="flex-1">

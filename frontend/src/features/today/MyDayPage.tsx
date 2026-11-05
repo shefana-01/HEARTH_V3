@@ -1,19 +1,23 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { CalendarPlus, CalendarX2, ListChecks, Plus, Sun } from 'lucide-react';
+import { CalendarPlus, CalendarX2, ListChecks, Plus, Sparkles, Sun, Wand2 } from 'lucide-react';
+import { QuickAddDialog } from '@/features/ai/QuickAddDialog';
 import { useFamily } from '@/app/FamilyProvider';
 import { useTranslation } from '@/i18n';
 import { taskService } from '@/services/tasks/taskService';
 import { decisionService } from '@/services/decision/decisionService';
 import { useAsync, useMutation } from '@/hooks/useAsync';
+import { useLiveRefresh } from '@/hooks/useLiveRefresh';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { dayDiff, formatLongDate, formatTime, greeting } from '@/lib/dates';
 import { plural } from '@/lib/format';
-import { ButtonLink, EmptyState, ErrorState, ListSkeleton, PageHeader, ProgressBar, useToast } from '@/components/ui';
+import { Button, ButtonLink, EmptyState, ErrorState, ListSkeleton, PageHeader, ProgressBar, useToast } from '@/components/ui';
 import type { RankedTask, Task } from '@/types/domain';
 import { DoFirstCard } from './DoFirstCard';
 import { RankedTaskList } from './RankedTaskList';
 import { FamilyCard, FoodCard, ScheduleCard } from './SideCards';
 import { StatusLine } from './StatusLine';
+import { MedicinesCard } from './MedicinesCard';
 
 /** "3 things left today. Next: Submit lab report at 4:00 PM." */
 function summarise(ranked: RankedTask[] | undefined): string | undefined {
@@ -30,8 +34,11 @@ export default function MyDayPage() {
   const { me } = useFamily();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const [quickAdd, setQuickAdd] = useState(false);
 
   const day = useAsync(() => Promise.all([decisionService.getMyDay(), taskService.listTasks({ assigneeId: me?.id })]), [me?.id]);
+
+  useLiveRefresh(['tasks', 'plan', 'family'], day.reload);
   const complete = useMutation(taskService.completeTask);
   const ask = useMutation(decisionService.requestReassignment);
 
@@ -73,6 +80,12 @@ export default function MyDayPage() {
             <ButtonLink to="/tasks/new" className="min-h-11" leftIcon={<Plus aria-hidden="true" className="h-4 w-4" />}>
               {t.tasks.newTask}
             </ButtonLink>
+            <Button variant="secondary" className="min-h-11" onClick={() => setQuickAdd(true)} leftIcon={<Wand2 aria-hidden="true" className="h-4 w-4" />}>
+              Quick add
+            </Button>
+            <ButtonLink to="/plan" variant="soft" className="min-h-11" leftIcon={<Sparkles aria-hidden="true" className="h-4 w-4" />}>
+              Plan my week
+            </ButtonLink>
             <ButtonLink to="/schedule/events/new" variant="secondary" className="min-h-11" leftIcon={<CalendarPlus aria-hidden="true" className="h-4 w-4" />}>
               {t.common.addToSchedule}
             </ButtonLink>
@@ -82,6 +95,8 @@ export default function MyDayPage() {
           </>
         }
       />
+
+      <QuickAddDialog open={quickAdd} onClose={() => setQuickAdd(false)} onSaved={() => void day.reload()} />
 
       <StatusLine />
 
@@ -120,6 +135,7 @@ export default function MyDayPage() {
         </div>
 
         <aside className="min-w-0 space-y-6" aria-label="Today at a glance">
+          <MedicinesCard />
           <ScheduleCard />
           <FoodCard />
           <FamilyCard />

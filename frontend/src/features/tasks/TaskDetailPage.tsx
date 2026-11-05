@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { AlarmClock, ArrowRightLeft, CalendarClock, CircleCheck, HandHelping, History, Lock, Pencil, RotateCcw, ShieldCheck, Trash2, TriangleAlert, Users } from 'lucide-react';
+import { AlarmClock, ArrowRightLeft, MessageSquareText, CalendarClock, CircleCheck, HandHelping, History, Lock, Pencil, RotateCcw, ShieldCheck, Trash2, TriangleAlert, Users } from 'lucide-react';
 import { useFamily } from '@/app/FamilyProvider';
 import { taskService } from '@/services/tasks/taskService';
 import { decisionService } from '@/services/decision/decisionService';
 import { appointmentService } from '@/services/care/appointmentService';
 import { auditService } from '@/services/audit/auditService';
 import { useAsync, useMutation } from '@/hooks/useAsync';
+import { useLiveRefresh } from '@/hooks/useLiveRefresh';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { dayDiff, formatDayTime, formatDuration, formatTime, timeAgo } from '@/lib/dates';
 import { cn } from '@/lib/cn';
@@ -16,6 +17,7 @@ import { CategoryIcon } from '@/components/domain/TaskRow';
 import { PrivateBadge } from '@/components/domain/People';
 import { PriorityBreakdownView, ScorePill } from '@/components/domain/Scores';
 import { TaskComments } from './TaskComments';
+import { DraftDialog } from '@/features/ai/DraftDialog';
 
 export default function TaskDetailPage() {
   const { taskId = '' } = useParams();
@@ -23,6 +25,7 @@ export default function TaskDetailPage() {
   const { toast } = useToast();
   const { nameOf, firstNameOf, memberById, personName, people, me } = useFamily();
   const [confirmCancel, setConfirmCancel] = useState(false);
+  const [draft, setDraft] = useState<'handover-request' | 'reminder' | null>(null);
 
   const data = useAsync(async () => {
     const task = await taskService.getTask(taskId);
@@ -33,6 +36,8 @@ export default function TaskDetailPage() {
     ]);
     return { task, insight, appointment, history: audit.filter((e) => e.subject === task.title).slice(0, 6) };
   }, [taskId]);
+
+  useLiveRefresh(['tasks', 'plan', 'chat'], data.reload);
   useDocumentTitle(data.data?.task.title ?? 'Task');
 
   const complete = useMutation(taskService.completeTask);
@@ -134,12 +139,24 @@ export default function TaskDetailPage() {
         }
         actions={
           !cancelled && (
-            <ButtonLink to={`/tasks/${task.id}/edit`} variant="secondary" leftIcon={<Pencil aria-hidden="true" className="h-4 w-4" />}>
-              Edit
-            </ButtonLink>
+            <>
+              <Button
+                variant="soft"
+                onClick={() => setDraft(task.visibility === 'family' && task.assigneeId === me?.id ? 'handover-request' : 'reminder')}
+                leftIcon={<MessageSquareText aria-hidden="true" className="h-4 w-4" />}
+              >
+                {task.visibility === 'family' && task.assigneeId === me?.id ? 'Draft a handover message' : 'Draft a reminder'}
+              </Button>
+              <ButtonLink to={`/tasks/${task.id}/edit`} variant="secondary" leftIcon={<Pencil aria-hidden="true" className="h-4 w-4" />}>
+                Edit
+              </ButtonLink>
+            </>
           )
         }
       />
+      {draft && (
+        <DraftDialog open onClose={() => setDraft(null)} kind={draft} taskId={task.id} toMemberId={draft === 'reminder' && task.assigneeId !== me?.id ? (task.assigneeId ?? undefined) : undefined} />
+      )}
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_20rem]">
         <div className="space-y-6">
