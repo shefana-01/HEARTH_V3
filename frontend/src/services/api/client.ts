@@ -84,6 +84,24 @@ function refreshTokens(): Promise<boolean> {
   return refreshing;
 }
 
+/**
+ * Opens a long-lived authorised stream (live updates). Renews the access token once on a 401, like
+ * `apiRequest`. Returns the response; the caller reads its body.
+ */
+export async function openStream(path: string, signal: AbortSignal): Promise<Response> {
+  const headers = () => {
+    const token = tokenStore.get()?.token;
+    return { Accept: 'text/event-stream', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
+  };
+  const used = tokenStore.get();
+  let response = await fetch(`${config.apiBaseUrl}${path}`, { headers: headers(), signal, cache: 'no-store' });
+  if (response.status === 401 && used) {
+    const renewed = (await refreshTokens()) || tokenStore.get()?.token !== used.token;
+    if (renewed) response = await fetch(`${config.apiBaseUrl}${path}`, { headers: headers(), signal, cache: 'no-store' });
+  }
+  return response;
+}
+
 const FALLBACK_MESSAGES: Record<number, string> = {
   401: 'Your session has ended. Sign in again.',
   403: 'You don’t have permission to do that.',
