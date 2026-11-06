@@ -5,9 +5,12 @@ import com.hearth.ai.application.DraftService;
 import com.hearth.ai.application.PlanService;
 import com.hearth.ai.application.QuickAddService;
 import com.hearth.ai.dto.AiDtos.AiStatus;
+import com.hearth.ai.dto.AiDtos.ChatRequest;
+import com.hearth.ai.dto.AiDtos.ChatResult;
 import com.hearth.ai.dto.AiDtos.ConsentRequest;
 import com.hearth.ai.dto.AiDtos.DraftRequest;
 import com.hearth.ai.dto.AiDtos.DraftResult;
+import com.hearth.ai.dto.AiDtos.PlanRequest;
 import com.hearth.ai.dto.AiDtos.PlanResult;
 import com.hearth.ai.dto.AiDtos.QuickAddRequest;
 import com.hearth.ai.dto.AiDtos.QuickAddResult;
@@ -60,8 +63,14 @@ public class AiController {
 
     /** Suggested changes to the next seven days, each already checked by the decision engine. Nothing is changed. */
     @PostMapping("/plan")
-    public PlanResult plan() {
-        return plan.plan();
+    public PlanResult plan(@Valid @RequestBody(required = false) PlanRequest request) {
+        return plan.plan(request == null ? null : request.instructions());
+    }
+
+    /** Interactive AI assistant chat grounded in the family's schedule and suitability engine. */
+    @PostMapping("/chat")
+    public ChatResult chat(@Valid @RequestBody ChatRequest request) {
+        return plan.chat(request.message());
     }
 
     /** A message draft for the person to edit and send. */

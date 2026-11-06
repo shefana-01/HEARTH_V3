@@ -79,6 +79,7 @@ public class QuickAddService {
                 - visibility is "private" only for something purely personal to m1 that the family does not need to see; otherwise "family".
                 - priority: "urgent" only when the note says so or it is medical and today; "important" for health, medicine and fixed appointments; otherwise "routine".
                 - reminder is true for medicine, appointments and anything with a fixed time.
+                - reason: one plain sentence explaining why this assignee, category, priority and time were chosen.
                 - Keep the writer's language for title and notes (Bengali stays Bengali).
                 - Never give medical advice in notes.
                 """;
@@ -119,12 +120,14 @@ public class QuickAddService {
 
             UUID assignee = context.memberId();
             String assigneeAlias = text(item, "assignee");
+            boolean namedAssignee = false;
             if (assigneeAlias != null) {
                 Roster.Person person = roster.alias(assigneeAlias).filter(p -> "member".equals(p.kind()) && p.takesTasks()).orElse(null);
                 if (person == null) {
                     assumptions.add("“" + title + "” is given to you: the person named can’t take tasks in Hearth.");
                 } else {
                     assignee = person.id();
+                    namedAssignee = true;
                 }
             }
             if ("private".equals(visibility)) {
@@ -133,9 +136,20 @@ public class QuickAddService {
             }
             UUID forId = roster.alias(text(item, "forPerson")).map(Roster.Person::id).orElse(null);
             String notes = Formats.clip(Formats.trim(item.path("notes").asText("")), 2000);
-            drafts.add(new TaskDraft(title, notes == null ? "" : notes, category, priority, start, duration, assignee, forId, visibility, item.path("reminder").asBoolean(false)));
+            String rawReason = Formats.clip(Formats.trim(item.path("reason").asText("")), 240);
+            String reason = (rawReason != null && !rawReason.isBlank())
+                    ? rawReason
+                    : defaultReason(category, priority, duration, assignee, namedAssignee, forId, roster);
+            drafts.add(new TaskDraft(title, notes == null ? "" : notes, category, priority, start, duration, assignee, forId, visibility, item.path("reminder").asBoolean(false), reason));
         }
         return new QuickAddResult(drafts, assumptions.stream().distinct().limit(6).toList());
+    }
+
+    private static String defaultReason(String category, String priority, int duration, UUID assignee, boolean namedAssignee, UUID forId, Roster roster) {
+        String who = roster.id(assignee).map(Roster.Person::firstName).orElse("you");
+        String assigneePart = namedAssignee ? "Assigned to " + who + " as named in your note" : "Assigned to " + who;
+        String forPart = forId != null ? roster.id(forId).map(p -> " for " + p.firstName()).orElse("") : "";
+        return assigneePart + forPart + " · Categorised under " + category + " (" + priority + " priority, " + duration + " min).";
     }
 
     private static Instant startOf(JsonNode item, ZonedDateTime now, String title, List<String> assumptions) {
