@@ -8,7 +8,8 @@ const outDir = process.env.OUT_DIR ?? 'screenshots/flows';
 fs.mkdirSync(outDir, { recursive: true });
 const only = process.env.ONLY?.split(',');
 
-const b = await chromium.launch();
+// The full Chromium (not the headless shell): it supports notifications and service workers like a real browser.
+const b = await chromium.launch({ channel: 'chromium' });
 const ctx = await b.newContext({ viewport: { width: 1280, height: 900 }, reducedMotion: 'reduce', acceptDownloads: true });
 const p = await ctx.newPage();
 const errs = [];
@@ -194,7 +195,13 @@ await flow('I can’t make it: shared task gets a handover request, private one 
   must(mine.length === 1, 'time away stored');
   const open = w.reassignments.filter((r) => r.status === 'open' && r.fromMemberId === ME);
   const sharedToday = w.tasks.filter(
-    (t) => t.assigneeId === ME && t.status === 'scheduled' && t.visibility === 'family' && new Date(t.start) > new Date() && new Date(t.start).toDateString() === new Date().toDateString(),
+    // Still to come or still going on today (a task that has started but not finished needs someone too).
+    (t) =>
+      t.assigneeId === ME &&
+      t.status === 'scheduled' &&
+      t.visibility === 'family' &&
+      new Date(t.start).getTime() + t.durationMin * 60_000 > Date.now() &&
+      new Date(t.start).toDateString() === new Date().toDateString(),
   );
   must(open.length === sharedToday.length, `a request per shared task left today (${open.length} vs ${sharedToday.length})`);
   must(!w.reassignments.some((r) => w.tasks.find((t) => t.id === r.taskId)?.visibility === 'private'), 'no request for a private task');
@@ -352,6 +359,147 @@ await flow('what-if planner still works and never offers a private task to other
   await expectText(/What-if planner/);
   await go('/what-if?task=t9');
   await expectText(/private|Only you|stay with you/i, 'a note that the private task cannot be given away');
+});
+
+await flow('quick add: a note becomes editable drafts and saving creates the tasks', async () => {
+  await go('/tasks');
+  const before = (await ws()).tasks.length;
+  await click(btn('Quick add'));
+  const dialog = p.getByRole('dialog');
+  await dialog.getByRole('textbox').first().fill('Buy rice and lentils tomorrow 6pm\nRafid takes Rahima to the dentist on Saturday at 4:30');
+  await click(dialog.getByRole('button', { name: /Make drafts/ }));
+  await expectText(/Check before saving/, 'the drafts step');
+  must((await dialog.getByLabel('Task', { exact: true }).count()) === 2, 'two drafts');
+  must((await dialog.getByLabel('Task', { exact: true }).first().inputValue()) === 'Buy rice and lentils', 'first draft title');
+  await shot('f-ai-1-drafts');
+  await click(dialog.getByRole('button', { name: /Save tasks/ }));
+  await expectText(/2 tasks added/, 'a confirmation');
+  const after = (await ws()).tasks;
+  must(after.length === before + 2, 'two new tasks');
+  const dentist = after.find((t) => t.title === 'Take Rahima to the dentist');
+  const rafid = (await ws()).members.find((m) => m.name.startsWith('Rafid'));
+  must(dentist && dentist.category === 'health' && dentist.durationMin === 90, 'the dentist task with its category and duration');
+  must(dentist.assigneeId === rafid.id && Boolean(dentist.forId), 'Rafid does it, for Grandma');
+});
+
+await flow('plan my week: suggestions checked by the engine, applying one changes the plan', async () => {
+  await go('/plan');
+  await click(btn('Suggest a plan').first());
+  await expectText(/Do first|Hand over|Nothing to change/, 'suggestions');
+  await shot('f-ai-2-plan');
+  const apply = btn('Apply');
+  if (await apply.count()) {
+    await click(apply);
+    await expectText(/Plan updated|Applied/, 'the change applied');
+  }
+});
+
+await flow('drafts: chat message from a few words, in Bengali', async () => {
+  await go('/chat');
+  await click(btn('Help me write'));
+  const dialog = p.getByRole('dialog');
+  await dialog.getByRole('textbox').first().fill('আমি আজ দেরিতে ফিরব');
+  await click(dialog.getByRole('radio', { name: 'বাংলা' }).or(dialog.getByRole('button', { name: 'বাংলা' })));
+  await click(dialog.getByRole('button', { name: /Write it/ }));
+  await dialog.getByLabel('Draft').waitFor();
+  must((await dialog.getByLabel('Draft').inputValue()).startsWith('সবাইকে বলছি'), 'a Bengali draft');
+  await click(dialog.getByRole('button', { name: /Use this text/ }));
+  must((await p.getByLabel('Message to your family').inputValue()).includes('দেরিতে'), 'the draft in the chat box');
+});
+
+await flow('pwa: installable manifest, service worker, and the app opens offline', async () => {
+  const manifest = await (await p.request.get(base + '/manifest.webmanifest')).json();
+  must(manifest.short_name === 'Hearth' && manifest.icons.some((i) => i.purpose === 'maskable') && manifest.start_url === '/today', 'a complete manifest');
+  await go('/today');
+  const controlled = await p.evaluate(async () => {
+    const reg = await navigator.serviceWorker.ready;
+    return Boolean(reg.active);
+  });
+  must(controlled, 'an active service worker');
+  await p.reload();
+  await settle();
+  await ctx.setOffline(true);
+  await p.reload();
+  await expectText(/My day|Do first|Good (morning|afternoon|evening)/i, 'My day while offline');
+  await ctx.setOffline(false);
+});
+
+await flow('device notifications: turn on in settings and send a test', async () => {
+  await ctx.grantPermissions(['notifications']);
+  await go('/settings');
+  await click(p.getByRole('tab', { name: 'Alerts & reminders' }));
+  await click(p.getByRole('switch', { name: /Notifications on this device/ }));
+  await expectText(/Notifications are on for this device/, 'a confirmation');
+  await click(btn('Send a test notification'));
+  must(errs.length === 0, 'no errors while showing the notification');
+});
+
+await flow('live updates: a change in another tab shows up without reloading', async () => {
+  await go('/tasks');
+  const other = await ctx.newPage();
+  await other.goto(base + '/tasks/new');
+  await other.waitForLoadState('networkidle');
+  await other.getByLabel(/^Task title/).fill('Fix the leaking tap');
+  await other.getByRole('button', { name: 'Add task' }).click();
+  await other.waitForURL(/\/tasks\/(?!new)/);
+  await other.close();
+  await expectText(/Fix the leaking tap/, 'the new task on the first tab', 8000);
+});
+
+await flow('medicines: add a schedule for Grandma, mark a dose, see it on My day', async () => {
+  await go('/health/medicines');
+  await expectText(/Amlodipine/, 'the sample medicine');
+  await click(btn('Add a medicine').first());
+  const dialog = p.getByRole('dialog');
+  await dialog.getByLabel('Who takes it').selectOption({ label: 'Rahima Khatun · Grandmother' });
+  await dialog.getByLabel(/^Medicine\*?$/).fill('Vitamin D');
+  await dialog.getByLabel('Dose', { exact: true }).fill('1 capsule');
+  await click(dialog.getByRole('button', { name: 'Add medicine' }));
+  await expectText(/Choose who helps with it/, 'a carer is required for reminders about Grandma');
+  await dialog.getByLabel('Who helps with it').selectOption({ label: 'Afsara Mannan (me)' });
+  await click(dialog.getByRole('button', { name: 'Add medicine' }));
+  await expectText(/Medicine added/, 'a confirmation');
+  must(
+    (await ws()).medications.some((m) => m.name === 'Vitamin D' && m.carerId === ME),
+    'the new schedule with its carer',
+  );
+  await shot('f-med-1-medicines');
+  const taken = btn('Taken');
+  if (await taken.count()) {
+    await click(taken.first());
+    await expectText(/Marked as taken/, 'the dose marked');
+    must(
+      (await ws()).doses.some((d) => d.status === 'taken' && d.recordedById === ME && new Date(d.recordedAt).getTime() > Date.now() - 60000),
+      'a dose recorded now',
+    );
+  }
+});
+
+await flow('emergency card: edit details and print view', async () => {
+  const grandma = (await ws()).family.dependants.find((d) => d.name.startsWith('Rahima')).id;
+  await go(`/health/${grandma}/emergency`);
+  await expectText(/Penicillin/, 'the allergies');
+  await expectText(/Amlodipine/, 'the medicines');
+  await click(btn('Edit'));
+  const dialog = p.getByRole('dialog');
+  await dialog.getByLabel('Allergies').fill('Penicillin, peanuts');
+  await click(dialog.getByRole('button', { name: 'Save' }));
+  await expectText(/Penicillin, peanuts/, 'the new allergies');
+  await p.emulateMedia({ media: 'print' });
+  await shot('f-med-2-emergency-print');
+  await p.emulateMedia({ media: 'screen' });
+});
+
+await flow('calendar: download my plan as an .ics file in the demo', async () => {
+  await go('/settings?section=calendar');
+  const [download] = await Promise.all([p.waitForEvent('download'), btn('Download my plan (.ics)').click()]);
+  const path = await download.path();
+  const body = fs.readFileSync(path, 'utf8');
+  must(body.startsWith('BEGIN:VCALENDAR\r\n') && body.includes('BEGIN:VEVENT') && body.trimEnd().endsWith('END:VCALENDAR'), 'a valid calendar file');
+  must(
+    body.split('\r\n').every((line) => new TextEncoder().encode(line).length <= 75),
+    'lines folded at 75 octets',
+  );
 });
 
 await flow('sign out → protected deep link → sign-in with next', async () => {
