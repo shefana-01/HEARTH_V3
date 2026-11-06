@@ -1,5 +1,6 @@
 import {
   Bell,
+  Bot,
   CalendarDays,
   CircleCheckBig,
   FlaskConical,
@@ -33,7 +34,7 @@ export function getNavSections(t: TranslationKeys): { title: string; items: NavI
       title: t.nav.meSection,
       items: [
         { to: '/today', label: t.nav.today, icon: Sun },
-        { to: '/assistant', label: t.nav.assistant, icon: Sparkles },
+        { to: '/assistant', label: t.nav.assistant, icon: Bot },
         { to: '/tasks', label: t.nav.tasks, icon: CircleCheckBig },
         { to: '/plan', label: t.nav.plan, icon: Sparkles },
         { to: '/schedule', label: t.nav.schedule, icon: CalendarDays },
@@ -73,7 +74,7 @@ export const NAV_SECTIONS: { title: string; items: NavItem[] }[] = [
     title: 'Me',
     items: [
       { to: '/today', label: 'My day', icon: Sun },
-      { to: '/assistant', label: 'AI Assistant', icon: Sparkles },
+      { to: '/assistant', label: 'AI Assistant', icon: Bot },
       { to: '/tasks', label: 'Tasks', icon: CircleCheckBig },
       { to: '/plan', label: 'Plan my week', icon: Sparkles },
       { to: '/schedule', label: 'Schedule', icon: CalendarDays },

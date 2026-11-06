@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRightLeft, CalendarClock, CheckCircle2, ListStart, RefreshCw, ShieldCheck, Sparkles } from 'lucide-react';
+import { ArrowRightLeft, Bot, CalendarClock, CheckCircle2, ListStart, RefreshCw, ShieldCheck, Sparkles } from 'lucide-react';
 import { useFamily } from '@/app/FamilyProvider';
 import { aiService, type PlanResult, type PlanSuggestion } from '@/services/ai/aiService';
 import { decisionService } from '@/services/decision/decisionService';
@@ -10,7 +10,6 @@ import { useTranslation } from '@/i18n';
 import { Badge, Button, Card, EmptyState, ErrorState, FormField, ListSkeleton, PageHeader, Textarea, useToast } from '@/components/ui';
 import { AiBadge } from './AiBadge';
 import { AiConsentCallout } from './AiConsentCallout';
-import { GeminiChatStudio } from './GeminiChatStudio';
 import { useAiStatus } from './useAiStatus';
 
 const ICONS = { 'do-first': ListStart, move: CalendarClock, 'hand-over': ArrowRightLeft };
@@ -18,9 +17,9 @@ const ICONS = { 'do-first': ListStart, move: CalendarClock, 'hand-over': ArrowRi
 const INSTRUCTION_CHIPS = ['Hand over my clashing tasks to the most suitable member', 'Move flexible routine tasks to tomorrow morning', 'I am busy tomorrow afternoon — reassign shared tasks'];
 
 /**
- * "Plan my week" & AI Assistant Studio:
- * 1. Chat interactively with the Gemini / ChatGPT-style Hearth AI Studio (build routines, organize studies, check suitability).
- * 2. Generate a 7-day automated family conflict & priority plan with custom instructions.
+ * "Plan my week" — Dedicated 7-Day Automated Clash & Priority Planner:
+ * Scans the next 7 days for schedule overlaps, honors custom weekly constraints,
+ * and suggests verified 1-click task handovers, time shifts, and #1 priority focus items.
  */
 export default function PlanPage() {
   useDocumentTitle('Plan my week');
@@ -29,7 +28,6 @@ export default function PlanPage() {
   const { t } = useTranslation();
   const { toast } = useToast();
 
-  // Plan my week state
   const [instructions, setInstructions] = useState('');
   const [plan, setPlan] = useState<PlanResult | null>(null);
   const [state, setState] = useState<'idle' | 'loading' | 'error'>('idle');
@@ -85,32 +83,24 @@ export default function PlanPage() {
         title={t.ai.planTitle}
         description={t.ai.planDescription}
         actions={
-          <Button
-            onClick={() => void suggest()}
-            loading={state === 'loading'}
-            leftIcon={plan ? <RefreshCw aria-hidden="true" className="h-4 w-4" /> : <Sparkles aria-hidden="true" className="h-4 w-4" />}
-          >
-            {plan ? 'Suggest again' : t.ai.suggestPlan}
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <Link to="/assistant">
+              <Button variant="secondary" leftIcon={<Bot aria-hidden="true" className="h-4 w-4" />}>
+                Open AI Chat
+              </Button>
+            </Link>
+            <Button
+              onClick={() => void suggest()}
+              loading={state === 'loading'}
+              leftIcon={plan ? <RefreshCw aria-hidden="true" className="h-4 w-4" /> : <Sparkles aria-hidden="true" className="h-4 w-4" />}
+            >
+              {plan ? 'Suggest again' : t.ai.suggestPlan}
+            </Button>
+          </div>
         }
       />
 
-      {/* Full Gemini / ChatGPT-style Conversational AI Studio */}
-      <section aria-label="Hearth AI Chat Studio" className="mb-8">
-        <GeminiChatStudio />
-      </section>
-
-      {/* 7-Day Automated Conflict & Priority Planner */}
-      <section aria-labelledby="weekly-auto-planner" className="space-y-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 id="weekly-auto-planner" className="font-display text-lg font-semibold text-ink">
-              7-Day Automated Clash &amp; Priority Audit
-            </h2>
-            <p className="text-xs text-ink-muted">Scan the next 7 days for family schedule overlaps and generate 1-click handover or reschedule recommendations.</p>
-          </div>
-        </div>
-
+      <section aria-label="7-Day Weekly Planner" className="space-y-4">
         <AiConsentCallout />
         {mode === 'ai' && status && (
           <p className="text-sm text-ink-muted">
