@@ -29,6 +29,7 @@ public class AiGuard {
     public static final String QUICK_ADD = "quick-add";
     public static final String PLAN = "plan";
     public static final String DRAFT = "draft";
+    public static final String CHAT = "chat";
 
     private final AiProperties properties;
     private final AiConsentRepository consents;

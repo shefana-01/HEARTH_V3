@@ -13,7 +13,7 @@ create table ai_usage (
     id            uuid primary key,
     family_id     uuid        not null,
     member_id     uuid        not null,
-    feature       varchar(30) not null check (feature in ('quick-add', 'plan', 'draft')),
+    feature       varchar(30) not null check (feature in ('quick-add', 'plan', 'draft', 'chat')),
     input_tokens  integer     not null check (input_tokens >= 0),
     output_tokens integer     not null check (output_tokens >= 0),
     created_at    timestamptz not null

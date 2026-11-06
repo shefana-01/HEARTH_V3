@@ -35,7 +35,7 @@ public final class AiDtos {
             @NotBlank(message = "Write or say what needs doing.") @Size(max = 600, message = "Keep it to 600 characters or fewer.") String text) {
     }
 
-    /** A task ready to be saved through task-service; the same fields as {@code TaskInput}. */
+    /** A task ready to be saved through task-service; the same fields as {@code TaskInput} plus {@code reason}. */
     public record TaskDraft(
             String title,
             String notes,
@@ -46,7 +46,12 @@ public final class AiDtos {
             UUID assigneeId,
             @JsonInclude(Include.NON_NULL) UUID forId,
             String visibility,
-            boolean reminder) {
+            boolean reminder,
+            @JsonInclude(Include.NON_NULL) String reason) {
+
+        public TaskDraft(String title, String notes, String category, String priority, Instant start, int durationMin, UUID assigneeId, UUID forId, String visibility, boolean reminder) {
+            this(title, notes, category, priority, start, durationMin, assigneeId, forId, visibility, reminder, null);
+        }
     }
 
     /** @param assumptions what was guessed (a missing time, a name that did not match), shown under the drafts */
@@ -54,6 +59,10 @@ public final class AiDtos {
     }
 
     /* ───────── plan ───────── */
+
+    public record PlanRequest(
+            @Size(max = 500, message = "Keep instructions to 500 characters or fewer.") String instructions) {
+    }
 
     /**
      * One suggested change. {@code move} and {@code hand-over} were run through the decision engine's
@@ -74,6 +83,20 @@ public final class AiDtos {
     }
 
     public record PlanResult(String summary, List<PlanSuggestion> suggestions, Instant generatedAt) {
+    }
+
+    /* ───────── chat ───────── */
+
+    public record ChatRequest(
+            @NotBlank(message = "Write a question or instruction for the assistant.")
+            @Size(max = 600, message = "Keep your message to 600 characters or fewer.") String message) {
+    }
+
+    public record ChatResult(
+            String reply,
+            @JsonInclude(Include.NON_EMPTY) List<String> reasoning,
+            @JsonInclude(Include.NON_EMPTY) List<TaskDraft> drafts,
+            @JsonInclude(Include.NON_EMPTY) List<PlanSuggestion> suggestions) {
     }
 
     /* ───────── drafts ───────── */

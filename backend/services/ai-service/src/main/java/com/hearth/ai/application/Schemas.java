@@ -29,7 +29,8 @@ final class Schemas {
                       "assignee": {"type": "string", "description": "Alias of the member who will do it (m1, m2, ...), or empty string if none"},
                       "forPerson": {"type": "string", "description": "Alias of the person it is for (m1.., d1..), or empty string if none"},
                       "visibility": {"type": "string", "enum": ["family", "private"]},
-                      "reminder": {"type": "boolean"}
+                      "reminder": {"type": "boolean"},
+                      "reason": {"type": "string", "description": "One plain sentence explaining why this category, priority, time and assignee were chosen"}
                     },
                     "required": ["title", "category", "priority", "date", "time", "durationMin", "visibility"]
                   }
@@ -56,7 +57,7 @@ final class Schemas {
                       "newDate": {"type": "string", "description": "For move: YYYY-MM-DD"},
                       "newTime": {"type": "string", "description": "For move: HH:mm, 24-hour"},
                       "to": {"type": "string", "description": "For hand_over: member alias"},
-                      "reason": {"type": "string", "description": "One plain sentence the family will read"}
+                      "reason": {"type": "string", "description": "One or two plain sentences explaining why this task and person or time were chosen, including priority or suitability factors"}
                     },
                     "required": ["task", "action", "reason"]
                   }
