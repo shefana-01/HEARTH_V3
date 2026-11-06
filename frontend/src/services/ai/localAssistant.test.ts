@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { aiService } from './aiService';
 import { readNote, splitNote, type RosterPerson } from './localAssistant';
 
 const roster: RosterPerson[] = [
@@ -50,5 +51,20 @@ describe('the offline assistant', () => {
     expect(local(readNote('Gym at 7 am', roster, roster[0], now).drafts[0].start)).toBe('6/11 07:00');
     expect(local(readNote('Call aunt on 12 Nov at 11am for 20 min', roster, roster[0], now).drafts[0].start)).toBe('12/11 11:00');
     expect(readNote('Call aunt on 12 Nov at 11am for 20 min', roster, roster[0], now).drafts[0].durationMin).toBe(20);
+  });
+
+  it('builds a personalized hour-by-hour routine from live Hearth schedule and conversation history', async () => {
+    const mePerson: RosterPerson = { id: 'member-afsara', name: 'Afsara Saima Mannan', kind: 'member', takesTasks: true };
+    const familyRoster: RosterPerson[] = [mePerson, { id: 'member-rafid', name: 'Rafid Mannan', kind: 'member', takesTasks: true, skills: ['driving', 'errands'] }];
+    const reply = await aiService.chat('make me a routine', 'basic', familyRoster, mePerson, [
+      { role: 'user', text: 'I have my OptiSystem paper submission & microcontroller project submission. tied with other studies how can i organize' },
+    ]);
+    expect(reply.reply).toMatch(/Personalized Routine/i);
+    expect(reply.reply).toMatch(/OptiSystem/i);
+    expect(reply.reply).toMatch(/Microcontroller/i);
+    expect(reply.drafts).toBeDefined();
+    expect(reply.drafts!.length).toBeGreaterThanOrEqual(2);
+    expect(reply.reasoning).toBeDefined();
+    expect(reply.reasoning!.length).toBeGreaterThan(0);
   });
 });

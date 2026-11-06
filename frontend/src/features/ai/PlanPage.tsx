@@ -20,6 +20,7 @@ const ICONS = { 'do-first': ListStart, move: CalendarClock, 'hand-over': ArrowRi
 const INSTRUCTION_CHIPS = ['Hand over my clashing tasks to the most suitable member', 'Move flexible routine tasks to tomorrow morning', 'I am busy tomorrow afternoon — reassign shared tasks'];
 
 const CHAT_PROMPTS = [
+  'Make me a routine around my classes and tasks',
   'I have my OptiSystem paper submission & microcontroller project submission. Tied with other studies how can I organize?',
   'Who is best suited to take Dadu to the dentist tomorrow at 4pm?',
   'What should I focus on first today and why?',

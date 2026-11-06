@@ -1,8 +1,9 @@
 import { useMemo, useState } from 'react';
 import { Bot, Key, PlusCircle, RotateCcw, Send, Sparkles, UserCheck } from 'lucide-react';
 import { useFamily } from '@/app/FamilyProvider';
-import { aiService, type ChatReply, type TaskDraft } from '@/services/ai/aiService';
+import { aiService, type ChatReply, type PlanSuggestion, type TaskDraft } from '@/services/ai/aiService';
 import type { RosterPerson } from '@/services/ai/localAssistant';
+import { decisionService } from '@/services/decision/decisionService';
 import { taskService } from '@/services/tasks/taskService';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { formatDayTime } from '@/lib/dates';
@@ -12,6 +13,7 @@ import { MarkdownView } from './MarkdownView';
 import { useAiStatus } from './useAiStatus';
 
 const SUGGESTED_PROMPTS = [
+  'Make me a routine around my classes and tasks',
   'I have my OptiSystem paper submission & microcontroller project submission. Tied with other studies how can I organize?',
   'Who is best suited to take Dadu to the dentist tomorrow at 4pm?',
   'What should I focus on first today and why?',
@@ -25,6 +27,7 @@ interface ChatTurn {
   text: string;
   reasoning?: string[];
   drafts?: TaskDraft[];
+  suggestions?: PlanSuggestion[];
   timestamp: string;
 }
 
@@ -43,6 +46,8 @@ export default function AssistantPage() {
   const [keyModalOpen, setKeyModalOpen] = useState(false);
   const [keyInput, setKeyInput] = useState(geminiKey ?? '');
   const [savedDraftKeys, setSavedDraftKeys] = useState<Record<string, boolean>>({});
+  const [appliedSuggestions, setAppliedSuggestions] = useState<Record<string, boolean>>({});
+  const [applyingId, setApplyingId] = useState<string | null>(null);
 
   const [turns, setTurns] = useState<ChatTurn[]>([
     {
@@ -103,6 +108,7 @@ Try one of the suggested prompts above or type any question below!`,
         text: reply.reply,
         reasoning: reply.reasoning,
         drafts: reply.drafts,
+        suggestions: reply.suggestions,
         timestamp: new Date().toISOString(),
       };
       setTurns((prev) => [...prev, assistantTurn]);
@@ -142,6 +148,27 @@ Try one of the suggested prompts above or type any question below!`,
       toast({ title: 'Task added', description: `“${draft.title}” saved to schedule for ${firstNameOf(draft.assigneeId)}.` });
     } catch (e) {
       toast({ tone: 'error', title: 'Couldn’t save task', description: e instanceof Error ? e.message : undefined });
+    }
+  };
+
+  const applySuggestion = async (s: PlanSuggestion) => {
+    if (!me || appliedSuggestions[s.id]) return;
+    if (s.action === 'do-first') {
+      setAppliedSuggestions((prev) => ({ ...prev, [s.id]: true }));
+      return;
+    }
+    setApplyingId(s.id);
+    try {
+      await decisionService.applySimulation(s.action === 'move' ? { taskId: s.taskId, start: s.start } : { taskId: s.taskId, assigneeId: s.assigneeId });
+      setAppliedSuggestions((prev) => ({ ...prev, [s.id]: true }));
+      toast({
+        title: 'Schedule updated',
+        description: s.action === 'move' && s.start ? `Moved “${s.taskTitle}” to ${formatDayTime(s.start)}.` : `Handed over “${s.taskTitle}” to ${firstNameOf(s.assigneeId)}.`,
+      });
+    } catch (e) {
+      toast({ tone: 'error', title: 'Couldn’t apply change', description: e instanceof Error ? e.message : undefined });
+    } finally {
+      setApplyingId(null);
     }
   };
 
@@ -261,6 +288,29 @@ Try one of the suggested prompts above or type any question below!`,
                               onClick={() => void saveDraft(turn.id, idx, d)}
                             >
                               {saved ? 'Saved' : 'Save task'}
+                            </Button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {turn.suggestions && turn.suggestions.length > 0 && (
+                    <div className="mt-3 space-y-2">
+                      <p className="text-xs font-semibold text-primary-900">Schedule Optimization Suggestions:</p>
+                      {turn.suggestions.map((s) => {
+                        const applied = Boolean(appliedSuggestions[s.id]);
+                        return (
+                          <div key={s.id} className="flex flex-col justify-between gap-3 rounded-xl border border-line bg-surface p-3.5 sm:flex-row sm:items-center shadow-2xs">
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-2">
+                                <Badge tone="primary">{s.action === 'move' ? 'Move time' : s.action === 'hand-over' ? 'Hand over' : 'Do first'}</Badge>
+                                <span className="font-semibold text-ink">{s.taskTitle}</span>
+                              </div>
+                              <p className="mt-1 text-xs text-ink-muted">{s.reason}</p>
+                            </div>
+                            <Button size="sm" variant={applied ? 'secondary' : 'primary'} disabled={applied} loading={applyingId === s.id} onClick={() => void applySuggestion(s)}>
+                              {applied ? 'Applied' : 'Apply'}
                             </Button>
                           </div>
                         );

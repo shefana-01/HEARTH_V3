@@ -4,7 +4,7 @@
  * Four capabilities:
  * 1. Task drafts from a sentence ("quick add") with per-task & assignee suitability reasoning,
  * 2. A suggested plan for the next seven days (with optional custom user instructions) verified by the decision engine,
- * 3. Interactive conversational AI assistant grounded in Google Gemini 2.5 Flash + Hearth's live decision engine,
+ * 3. Interactive conversational AI assistant grounded in Google Gemini 2.5 Flash + Hearth's live schedule & decision engine,
  * 4. Message drafts.
  *
  * Nothing is ever saved automatically: the person reviews every result and applies or saves it through the
@@ -12,16 +12,16 @@
  *
  * Two modes:
  * - `ai`: Google Gemini (direct via Google AI Studio API or server ai-service).
- * - `basic`: the offline assistant in `localAssistant.ts` + decision engine, used in demo mode and when
- *   an external key is not provided.
+ * - `basic`: the schedule-aware conversational engine in `aiService.ts` + `localAssistant.ts` + decision engine.
  */
 import { apiRequest } from '../api/client';
 import { config } from '../config';
 import { db, fail, persist, respond } from '../mockStore';
-import { decisionService } from '../decision/decisionService';
+import { decisionService, type AttentionItem } from '../decision/decisionService';
 import { taskService } from '../tasks/taskService';
 import { formatDayTime } from '@/lib/dates';
-import type { CandidateScore, ID, ISODateTime, Task, TaskCategory, TaskPriority, Visibility } from '@/types/domain';
+import { expandEvents } from '@/lib/recurrence';
+import type { CandidateScore, ID, ISODateTime, RankedTask, Task, TaskCategory, TaskPriority, Visibility } from '@/types/domain';
 import { readNote, type RosterPerson } from './localAssistant';
 
 export type AiMode = 'ai' | 'basic';
@@ -65,7 +65,7 @@ export interface AiStatus {
   monthlyBudgetUsedPercent: number;
 }
 
-/** Which assistant answers: Gemini when configured, otherwise the offline intelligent assistant. */
+/** Which assistant answers: Gemini when configured, otherwise the schedule-aware assistant. */
 export const modeOf = (status: AiStatus | undefined): AiMode => {
   if (hasGeminiApiKey()) return 'ai';
   return status?.enabled && status.consented ? 'ai' : 'basic';
@@ -150,6 +150,170 @@ const DEMO_STATUS = (): AiStatus => ({
 const firstName = (name: string | undefined) => (name ?? 'there').split(' ')[0];
 
 const WEEKDAY_NAMES = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+
+function formatClock(d: Date): string {
+  const h = d.getHours();
+  const m = d.getMinutes();
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  const h12 = h % 12 || 12;
+  return `${h12}:${String(m).padStart(2, '0')} ${ampm}`;
+}
+
+function formatRange(startMs: number, endMs: number): string {
+  return `${formatClock(new Date(startMs))} – ${formatClock(new Date(endMs))}`;
+}
+
+interface ScheduleSlot {
+  startMs: number;
+  endMs: number;
+  label: string;
+  kind: 'class-event' | 'task' | 'appointment';
+  priority?: string;
+  category?: string;
+  taskId?: string;
+}
+
+interface FreeWindow {
+  startMs: number;
+  endMs: number;
+  durationMin: number;
+}
+
+interface DayScheduleSummary {
+  date: Date;
+  dayLabel: string;
+  busy: ScheduleSlot[];
+  free: FreeWindow[];
+}
+
+/**
+ * Computes the user's real day-by-day schedule (classes/personal events, assigned tasks, appointments)
+ * and exact open free windows between 08:30 and 22:30 for the next `daysCount` days.
+ */
+function buildMemberSchedule(meId: string, allTasks: Task[], daysCount = 3): DayScheduleSummary[] {
+  const now = new Date();
+  const todayStart = new Date(now);
+  todayStart.setHours(0, 0, 0, 0);
+  const horizonEnd = todayStart.getTime() + daysCount * 86_400_000;
+
+  const myEvents = (db.events ?? []).filter((e) => e.memberId === meId);
+  const expandedBusy = expandEvents(myEvents, todayStart.getTime(), horizonEnd);
+  const myTasks = allTasks.filter((t) => t.assigneeId === meId && t.status === 'scheduled');
+  const myAppts = (db.appointments ?? []).filter((a) => a.forId === meId || a.escortId === meId);
+
+  const days: DayScheduleSummary[] = [];
+  for (let d = 0; d < daysCount; d++) {
+    const dayDate = new Date(todayStart.getTime() + d * 86_400_000);
+    const dayStartMs = dayDate.getTime();
+    const dayEndMs = dayStartMs + 86_400_000;
+    const dayName = dayDate.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
+    const dayLabel = d === 0 ? `Today (${dayName})` : d === 1 ? `Tomorrow (${dayName})` : dayName;
+
+    const busy: ScheduleSlot[] = [];
+
+    for (const ev of expandedBusy) {
+      const s = new Date(ev.start).getTime();
+      const e = new Date(ev.end).getTime();
+      if (s < dayEndMs && e > dayStartMs) {
+        busy.push({ startMs: s, endMs: e, label: ev.label, kind: 'class-event' });
+      }
+    }
+
+    for (const t of myTasks) {
+      const s = new Date(t.start).getTime();
+      const e = s + t.durationMin * 60_000;
+      if (s < dayEndMs && e > dayStartMs) {
+        busy.push({
+          startMs: s,
+          endMs: e,
+          label: t.title,
+          kind: 'task',
+          priority: t.priority,
+          category: t.category,
+          taskId: t.id,
+        });
+      }
+    }
+
+    for (const a of myAppts) {
+      const s = new Date(a.start).getTime();
+      const e = s + a.durationMin * 60_000;
+      if (s < dayEndMs && e > dayStartMs) {
+        busy.push({ startMs: s, endMs: e, label: a.title, kind: 'appointment' });
+      }
+    }
+
+    busy.sort((a, b) => a.startMs - b.startMs);
+
+    // Compute free windows between 08:30 and 22:30 (for today, start from max(08:30, next 15-min mark after now))
+    const awakeStart = new Date(dayDate);
+    awakeStart.setHours(8, 30, 0, 0);
+    const awakeEnd = new Date(dayDate);
+    awakeEnd.setHours(22, 30, 0, 0);
+
+    let cursor = awakeStart.getTime();
+    if (d === 0 && now.getTime() > cursor) {
+      const rounded = Math.ceil(now.getTime() / (15 * 60_000)) * (15 * 60_000);
+      cursor = Math.min(awakeEnd.getTime(), rounded);
+    }
+
+    const free: FreeWindow[] = [];
+    for (const slot of busy) {
+      if (slot.endMs <= cursor) continue;
+      if (slot.startMs > cursor) {
+        const gapEnd = Math.min(slot.startMs, awakeEnd.getTime());
+        const dur = Math.round((gapEnd - cursor) / 60_000);
+        if (dur >= 30) {
+          free.push({ startMs: cursor, endMs: gapEnd, durationMin: dur });
+        }
+      }
+      cursor = Math.max(cursor, slot.endMs);
+      if (cursor >= awakeEnd.getTime()) break;
+    }
+    if (cursor < awakeEnd.getTime()) {
+      const dur = Math.round((awakeEnd.getTime() - cursor) / 60_000);
+      if (dur >= 30) {
+        free.push({ startMs: cursor, endMs: awakeEnd.getTime(), durationMin: dur });
+      }
+    }
+
+    days.push({ date: dayDate, dayLabel, busy, free });
+  }
+
+  return days;
+}
+
+function formatScheduleForPrompt(days: DayScheduleSummary[], myDay: RankedTask[], attention: AttentionItem[], roster: RosterPerson[]): string {
+  const lines: string[] = [];
+  for (const day of days) {
+    lines.push(`${day.dayLabel}:`);
+    if (day.busy.length === 0) {
+      lines.push(`  - Fixed commitments: None`);
+    } else {
+      for (const b of day.busy) {
+        const tag = b.kind === 'class-event' ? '[Class/Personal Event]' : b.kind === 'appointment' ? '[Appointment]' : `[Task: ${b.category}, ${b.priority}]`;
+        lines.push(`  - ${formatRange(b.startMs, b.endMs)}: ${b.label} ${tag}`);
+      }
+    }
+    if (day.free.length > 0) {
+      lines.push(`  - Open Free Windows: ${day.free.map((f) => `${formatRange(f.startMs, f.endMs)} (${f.durationMin} min)`).join(', ')}`);
+    }
+  }
+  if (myDay.length > 0) {
+    lines.push(`\nPriority-Ranked Tasks for User:`);
+    myDay.slice(0, 6).forEach((r) => {
+      lines.push(`  - #${r.rank} "${r.task.title}" (${formatDayTime(r.task.start)}, ${r.task.durationMin}m) — Priority Score ${r.priority.score}/100: ${r.priority.explanation}`);
+    });
+  }
+  if (attention.length > 0) {
+    lines.push(`\nDetected Schedule Clashes / Unassigned Tasks:`);
+    attention.slice(0, 5).forEach((a) => {
+      const best = a.topCandidate ? `${firstName(roster.find((p) => p.id === a.topCandidate?.memberId)?.name)} (Suitability ${a.topCandidate.score}%)` : 'none';
+      lines.push(`  - "${a.task.title}" (${formatDayTime(a.task.start)}): ${a.conflict.reason} | Best handover candidate: ${best}`);
+    });
+  }
+  return lines.join('\n');
+}
 
 function formatCandidateReason(candidate: CandidateScore, roster: RosterPerson[]): string {
   const person = roster.find((p) => p.id === candidate.memberId);
@@ -368,7 +532,42 @@ async function basicPlan(instructions?: string): Promise<PlanResult> {
     }
   }
 
-  // 4. Second high-priority focus item if the week has multiple important/urgent tasks and room for suggestions.
+  // 4. Also check personal clashes in `myDay` (e.g. a private study task overlapping with a class!)
+  for (const r of myDay) {
+    if (suggestions.length >= 6 || !r.conflict || seenTasks.has(r.task.id)) continue;
+    const currentStart = new Date(r.task.start);
+    const trySlots: Date[] = [];
+    const plus2h = new Date(currentStart.getTime() + 2 * 3_600_000);
+    if (plus2h.getHours() >= 7 && plus2h.getHours() <= 21) trySlots.push(plus2h);
+    const earlier = new Date(currentStart);
+    earlier.setHours(10, 30, 0, 0);
+    if (earlier.getTime() > now) trySlots.push(earlier);
+    const nextMorning = new Date(currentStart);
+    nextMorning.setDate(nextMorning.getDate() + 1);
+    nextMorning.setHours(10, 0, 0, 0);
+    trySlots.push(nextMorning);
+
+    for (const slot of trySlots) {
+      const slotIso = slot.toISOString();
+      const sim = await decisionService.simulate({ taskId: r.task.id, start: slotIso }).catch(() => null);
+      if (sim && sim.resolved.length > sim.introduced.length) {
+        suggestions.push({
+          id: `b${suggestions.length + 1}`,
+          taskId: r.task.id,
+          taskTitle: r.task.title,
+          action: 'move',
+          start: slotIso,
+          reason: `${r.conflict.reason} Shifting “${r.task.title}” to ${formatDayTime(slotIso)} places it in an open window with 0 clashes.`,
+          resolves: sim.resolved.length,
+          introduces: sim.introduced.length,
+        });
+        seenTasks.add(r.task.id);
+        break;
+      }
+    }
+  }
+
+  // 5. Second high-priority focus item if the week has multiple important/urgent tasks and room for suggestions.
   const second = myDay.find((r) => !r.conflict && !seenTasks.has(r.task.id) && new Date(r.task.start).getTime() < horizon && (r.priority.score >= 55 || r.task.priority !== 'routine'));
   if (second && second.task.status === 'scheduled' && suggestions.length < 6) {
     suggestions.push({
@@ -395,21 +594,30 @@ async function basicPlan(instructions?: string): Promise<PlanResult> {
 }
 
 /**
- * Direct call to Google Gemini (OpenAI-compatible chat completions format).
+ * Direct call to Google Gemini (OpenAI-compatible chat completions format) with full live Hearth schedule injected.
  */
 async function callGeminiDirect(apiKey: string, message: string, roster: RosterPerson[], me: RosterPerson, history: ChatHistoryMessage[] = []): Promise<ChatReply> {
+  const [myDay, attention, allTasks] = await Promise.all([
+    decisionService.getMyDay().catch(() => [] as RankedTask[]),
+    decisionService.listAttention().catch(() => [] as AttentionItem[]),
+    typeof taskService?.listTasks === 'function' ? taskService.listTasks({ includeCancelled: false }).catch(() => [] as Task[]) : Promise.resolve([] as Task[]),
+  ]);
+  const scheduleDays = buildMemberSchedule(me.id, allTasks, 4);
+  const scheduleContext = formatScheduleForPrompt(scheduleDays, myDay, attention, roster);
+
   const systemPrompt = `You are Hearth AI Assistant, powered by Google Gemini 2.5 Flash for Hearth (a personal and family life coordination platform).
 The user speaking with you is ${me.name}.
 Family roster: ${roster.map((p) => `${p.name} (${p.kind}${p.takesTasks ? ', takes tasks' : ''})`).join(', ')}.
 
-Your communication style:
-- You communicate like Google Gemini: warm, highly intelligent, analytical, empathetic, concise, and structured.
+LIVE HEARTH SCHEDULE FOR ${me.name.toUpperCase()} (Classes, Events, Tasks, Free Windows, and Family Clashes):
+${scheduleContext}
+
+Your communication style and rules:
+- You communicate like Google Gemini: warm, highly intelligent, analytical, empathetic, and structured.
 - Format your responses with clean Markdown: headings (###), bold text (**bold**), bullet points (- ), and numbered steps (1. ).
-- When the user asks for guidance on organizing studies, projects, papers, submissions, exams, or busy days (such as "I have my optisystem paper submission & microcontroller project submission. tied with other studies how can i organize"):
-  1. Provide a clear, prioritized timeline and cognitive-load breakdown.
-  2. Provide a practical time-blocking strategy with realistic buffer intervals.
-  3. Offer supportive, realistic pacing tips.
-- When you recommend concrete actionable tasks the user should add, attach a JSON block at the very end of your message in this format so Hearth can automatically provide 1-click "Save task" buttons:
+- ALWAYS use the user's ACTUAL Hearth schedule above (their real lecture/lab times, existing tasks like "Submit SE lab report" or "Grandma's evening tablets", and exact open free windows) when building a routine, answering questions, or suggesting study/work blocks!
+- When the user asks to "make me a routine" or asks how to organize studies/projects/tasks, build a concrete hour-by-hour timetable that shows their existing classes & tasks and slots their new study/project blocks into their actual open free windows.
+- Whenever you recommend concrete tasks/blocks the user should add to their schedule, attach a JSON block at the very end of your message in this format so Hearth can provide 1-click "Save task" buttons:
 \`\`\`json
 {
   "tasks": [
@@ -417,15 +625,16 @@ Your communication style:
       "title": "Task title (concise, max 70 chars)",
       "category": "study",
       "priority": "urgent",
+      "startIso": "ISO-8601 timestamp in one of the user's free windows",
       "durationMin": 90,
-      "reason": "Why this milestone is recommended"
+      "reason": "Why this slot and milestone were chosen around their existing schedule"
     }
   ]
 }
 \`\`\`
 `;
 
-  const messages = [{ role: 'system', content: systemPrompt }, ...history.slice(-6).map((h) => ({ role: h.role, content: h.text })), { role: 'user', content: message }];
+  const messages = [{ role: 'system', content: systemPrompt }, ...history.slice(-8).map((h) => ({ role: h.role, content: h.text })), { role: 'user', content: message }];
 
   const response = await fetch('https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', {
     method: 'POST',
@@ -451,27 +660,30 @@ Your communication style:
   };
   const rawContent = data.choices?.[0]?.message?.content ?? 'I could not generate a response. Please try again.';
 
-  // Extract embedded JSON tasks block if present
   let cleanedText = rawContent;
   const drafts: TaskDraft[] = [];
   const jsonMatch = rawContent.match(/```json\s*(\{[\s\S]*?\})\s*```/);
   if (jsonMatch) {
     try {
-      const parsed = JSON.parse(jsonMatch[1]) as { tasks?: Array<{ title?: string; category?: TaskCategory; priority?: TaskPriority; durationMin?: number; reason?: string }> };
+      const parsed = JSON.parse(jsonMatch[1]) as {
+        tasks?: Array<{ title?: string; category?: TaskCategory; priority?: TaskPriority; startIso?: string; durationMin?: number; reason?: string }>;
+      };
       if (Array.isArray(parsed.tasks)) {
-        parsed.tasks.forEach((item) => {
+        parsed.tasks.forEach((item, idx) => {
           if (item.title) {
+            const fallbackSlot = scheduleDays[0]?.free[idx]?.startMs ?? Date.now() + (idx + 1) * 3_600_000;
+            const parsedStart = item.startIso && !Number.isNaN(new Date(item.startIso).getTime()) ? new Date(item.startIso).toISOString() : new Date(fallbackSlot).toISOString();
             drafts.push({
               title: item.title,
               notes: '',
               category: item.category ?? 'study',
               priority: item.priority ?? 'important',
-              start: new Date(Date.now() + 3_600_000).toISOString(),
+              start: parsedStart,
               durationMin: item.durationMin ?? 60,
               assigneeId: me.id,
               visibility: 'family',
               reminder: true,
-              reason: item.reason ?? 'Recommended milestone by Gemini Assistant.',
+              reason: item.reason ?? 'Scheduled in an open window around your classes and tasks.',
             });
           }
         });
@@ -489,105 +701,223 @@ Your communication style:
 }
 
 /**
- * Intelligent, empathetic conversational AI assistant fallback (used when no Gemini API key is configured).
- * Understands academic study questions, project submissions, time management, who is free, and family coordination.
+ * Extracts study/project/work focus items mentioned by the user in the current message or earlier conversation turns.
  */
-async function basicChat(message: string, roster: RosterPerson[], me: RosterPerson): Promise<ChatReply> {
-  const clean = message.trim();
-
-  // 1. Academic & study workload organizer (e.g. OptiSystem paper, Microcontroller project, exams, etc.)
-  const isStudyOrWorkload =
-    /\b(optisystem|microcontroller|paper|project|submission|submit|exam|study|studies|assignment|organize|schedule my day|how can i|help me plan|workload|thesis|lab report)\b/i.test(clean);
-
-  if (isStudyOrWorkload) {
-    const hasOpti = /optisystem/i.test(clean);
-    const hasMicro = /microcontroller/i.test(clean);
-
-    const now = new Date();
-    const slot1 = new Date(now.getTime() + 2 * 3_600_000);
-    const slot2 = new Date(now.getTime() + 24 * 3_600_000);
-    slot2.setHours(10, 0, 0, 0);
-    const slot3 = new Date(now.getTime() + 28 * 3_600_000);
-    slot3.setHours(15, 0, 0, 0);
-
-    const drafts: TaskDraft[] = [
+function extractFocusTopics(combinedUserText: string): Array<{ title: string; category: TaskCategory; priority: TaskPriority; durationMin: number; notes: string }> {
+  const topics: Array<{ title: string; category: TaskCategory; priority: TaskPriority; durationMin: number; notes: string }> = [];
+  if (/optisystem/i.test(combinedUserText)) {
+    topics.push({
+      title: 'OptiSystem Paper Simulation & Results Draft',
+      category: 'study',
+      priority: 'urgent',
+      durationMin: 90,
+      notes: 'Finalize optical link simulation parameters, BER/Eye diagrams, and results section.',
+    });
+  }
+  if (/microcontroller/i.test(combinedUserText)) {
+    topics.push({
+      title: 'Microcontroller Project Hardware & Firmware Test',
+      category: 'study',
+      priority: 'urgent',
+      durationMin: 90,
+      notes: 'Verify circuit wiring, sensor I/O, and embedded firmware test cases.',
+    });
+  }
+  if (/\b(other studies|coursework|exam|revision|lecture|slides|os|operating systems|database)\b/i.test(combinedUserText) || topics.length > 0) {
+    topics.push({
+      title: 'Coursework Revision & Submission Final Check',
+      category: 'study',
+      priority: 'important',
+      durationMin: 60,
+      notes: 'Review lecture notes, proofread submission files, and keep a safety buffer before deadlines.',
+    });
+  }
+  if (topics.length === 0) {
+    topics.push(
       {
-        title: hasOpti ? 'OptiSystem Paper Simulation & Results Write-up' : 'Major Paper Submission Draft & Analysis',
-        notes: 'Run optical simulation tests, export BER/Eye diagrams, and draft methodology.',
-        category: 'study',
-        priority: 'urgent',
-        start: slot1.toISOString(),
-        durationMin: 120,
-        assigneeId: me.id,
-        visibility: 'family',
-        reminder: true,
-        reason: 'High cognitive-load deep work milestone. Scheduled first to prevent deadline rush.',
-      },
-      {
-        title: hasMicro ? 'Microcontroller Circuit Debugging & Code Test' : 'Project Prototype & Firmware Verification',
-        notes: 'Test sensor readouts, inspect peripheral wiring, and verify embedded code stability.',
+        title: 'Deep Focus Block: Priority Academic / Project Work',
         category: 'study',
         priority: 'important',
-        start: slot2.toISOString(),
         durationMin: 90,
-        assigneeId: me.id,
-        visibility: 'family',
-        reminder: true,
-        reason: 'Hands-on hardware/lab session scheduled in the morning when focus is highest.',
+        notes: 'Uninterrupted deep work session slotted into your widest free window.',
       },
       {
-        title: 'Coursework Maintenance & Final Submission Review',
-        notes: 'Proofread report formatting, verify citations, and assemble submission files.',
+        title: 'Afternoon Review & Practice Session',
         category: 'study',
         priority: 'routine',
-        start: slot3.toISOString(),
-        durationMin: 45,
-        assigneeId: me.id,
-        visibility: 'family',
-        reminder: true,
-        reason: 'Submission safety buffer 24h before due date to avoid compile or upload panics.',
+        durationMin: 60,
+        notes: 'Review notes, complete pending exercises, and prep for tomorrow’s classes.',
       },
-    ];
+    );
+  }
+  return topics;
+}
 
-    const reply = `### 🎯 Strategic Academic Organization Plan
+/**
+ * Builds a complete, personalized Hour-by-Hour Routine grounded in the user's actual Hearth schedule
+ * (their real classes, tasks, appointments, and free windows) + any topics from the conversation!
+ */
+async function buildPersonalizedRoutine(clean: string, history: ChatHistoryMessage[], roster: RosterPerson[], me: RosterPerson): Promise<ChatReply> {
+  const [myDay, attention, allTasks, planResult] = await Promise.all([
+    decisionService.getMyDay().catch(() => [] as RankedTask[]),
+    decisionService.listAttention().catch(() => [] as AttentionItem[]),
+    typeof taskService?.listTasks === 'function' ? taskService.listTasks({ includeCancelled: false }).catch(() => [] as Task[]) : Promise.resolve([] as Task[]),
+    basicPlan(clean),
+  ]);
 
-Balancing an **OptiSystem paper submission** with a **microcontroller hardware project** and regular coursework is demanding because each requires a completely different mindset. Here is a high-yield strategy to conquer all three without burning out:
+  const userHistoryText = [...history.filter((h) => h.role === 'user').map((h) => h.text), clean].join(' ');
+  const focusTopics = extractFocusTopics(userHistoryText);
+  const days = buildMemberSchedule(me.id, allTasks, 2); // Today & Tomorrow
+  const today = days[0];
+  const tomorrow = days[1];
 
----
-
-### 1. 🧠 High-Impact Priority Triage
-- **Priority 1: OptiSystem Paper Submission (Deep Concentration Block)**
-  - *Why:* Simulation parameters, optical power budgets, and numerical convergence take unexpected time. Focus on getting simulation curves and figures finalized first so your text can be drafted around solid data.
-- **Priority 2: Microcontroller Project (Physical Debugging & Firmware)**
-  - *Why:* Hardware bugs (wiring, clock configs, pin mismatches) require trial and error. Do not leave circuit assembly to the final evening.
-- **Priority 3: Other Coursework & Studies (Consistent Baseline)**
-  - Keep maintenance blocks to 40–45 minutes each day so you stay on track without derailing your main deliverables.
-
----
-
-### 2. ⏱️ Recommended Daily Time-Blocking (Interleaving Strategy)
-1. **Morning Focus (90–120 min):** *OptiSystem Simulations & Manuscript Drafting* — Tackle this when your mental energy is fresh.
-2. **Afternoon Lab (60–90 min):** *Microcontroller Code & Hardware Test* — Shift into hands-on testing when cognitive fatigue sets in.
-3. **Evening Review (45 min):** *General Coursework Maintenance* — Low-friction reading or problem sets.
-
----
-
-### 3. 🚀 Ready-to-Save Milestones
-I’ve prepared 3 structured task drafts based on your available study windows. Click **Save task** on any milestone below to add it directly to your Hearth schedule:`;
-
-    return {
-      reply,
-      reasoning: [
-        'Separated optical simulation deep work from hardware debugging to reduce task-switching friction.',
-        'Scheduled OptiSystem paper first due to high analytical requirements.',
-        'Added a 45-minute buffer task to prevent deadline submission panics.',
-      ],
-      drafts,
-    };
+  // Slot the focus topics into the user's ACTUAL open free windows across Today & Tomorrow!
+  const allFreeWindows: Array<{ dayLabel: string; startMs: number; endMs: number; durationMin: number }> = [];
+  for (const d of days) {
+    for (const f of d.free) {
+      if (f.durationMin >= 45) {
+        allFreeWindows.push({ dayLabel: d.dayLabel, startMs: f.startMs, endMs: f.endMs, durationMin: f.durationMin });
+      }
+    }
   }
 
-  // 2. Who is free / Candidate question
-  const isWhoQuestion = /\b(who is|who's|who should|who can|best person|best suited|most free|available to|assign|কে ফ্রি|কে করবে)\b/i.test(clean);
+  const drafts: TaskDraft[] = [];
+  const slottedByDay = new Map<string, ScheduleSlot[]>();
+  days.forEach((d) => slottedByDay.set(d.dayLabel, [...d.busy]));
+
+  let winIdx = 0;
+  for (const topic of focusTopics) {
+    const win = allFreeWindows[winIdx];
+    const startMs = win ? win.startMs + 15 * 60_000 : Date.now() + (winIdx + 1) * 7_200_000;
+    const dur = win ? Math.min(topic.durationMin, Math.max(45, win.durationMin - 15)) : topic.durationMin;
+    const endMs = startMs + dur * 60_000;
+    const dayLabel = win ? win.dayLabel : today.dayLabel;
+
+    drafts.push({
+      title: topic.title,
+      notes: topic.notes,
+      category: topic.category,
+      priority: topic.priority,
+      start: new Date(startMs).toISOString(),
+      durationMin: dur,
+      assigneeId: me.id,
+      visibility: 'family',
+      reminder: true,
+      reason: win
+        ? `Slotted into your ${win.durationMin}-min open window on ${dayLabel} (${formatRange(win.startMs, win.endMs)}) so it never clashes with your classes or family tasks.`
+        : `Scheduled as a high-focus milestone for your workload.`,
+    });
+
+    slottedByDay.get(dayLabel)?.push({
+      startMs,
+      endMs,
+      label: `✨ NEW: ${topic.title}`,
+      kind: 'task',
+      priority: topic.priority,
+      category: topic.category,
+    });
+
+    // If the window still has >= 90 min left after this block + 15m break, reuse the remainder of the window!
+    if (win && win.endMs - (endMs + 15 * 60_000) >= 60 * 60_000) {
+      allFreeWindows[winIdx] = {
+        ...win,
+        startMs: endMs + 15 * 60_000,
+        durationMin: Math.round((win.endMs - (endMs + 15 * 60_000)) / 60_000),
+      };
+    } else {
+      winIdx++;
+    }
+  }
+
+  const formatDayTimeline = (d: DayScheduleSummary) => {
+    const items = (slottedByDay.get(d.dayLabel) ?? d.busy).sort((a, b) => a.startMs - b.startMs);
+    if (items.length === 0) return `- *No fixed commitments yet — wide open for deep focus.*`;
+    return items
+      .map((item) => {
+        const badge = item.label.startsWith('✨ NEW:')
+          ? '**[Suggested Routine Block]**'
+          : item.kind === 'class-event'
+            ? '*(Class / Personal Schedule)*'
+            : item.kind === 'appointment'
+              ? '*(Appointment)*'
+              : `*(Scheduled Task — ${item.priority ?? 'routine'})*`;
+        return `- **${formatRange(item.startMs, item.endMs)}** — ${item.label} ${badge}`;
+      })
+      .join('\n');
+  };
+
+  // Check if any existing task has a conflict (e.g. tomorrow's OS chapter reading overlapping with Database lab, or an errand that can be handed over)
+  const conflictNotes: string[] = [];
+  for (const r of myDay) {
+    if (r.conflict) {
+      conflictNotes.push(`**Clash detected on “${r.task.title}”** (${formatDayTime(r.task.start)}): ${r.conflict.reason}`);
+    }
+  }
+  for (const a of attention) {
+    if (a.topCandidate) {
+      const candidateName = firstName(roster.find((p) => p.id === a.topCandidate?.memberId)?.name);
+      conflictNotes.push(
+        `**Handover opportunity on “${a.task.title}”** (${formatDayTime(a.task.start)}): ${candidateName} has a **${a.topCandidate.score}/100 Suitability Score** (${a.topCandidate.reasons.join(' ')}) and can take this over so you have more study time.`,
+      );
+    }
+  }
+
+  const reply = `### 🗓️ Your Personalized Routine (Built Around Your Live Hearth Schedule)
+
+I analyzed your **classes, personal events, and family tasks** in Hearth and slotted your focus blocks directly into your real open time windows so nothing overlaps:
+
+### 📌 ${today.dayLabel}
+${formatDayTimeline(today)}
+
+### 📌 ${tomorrow.dayLabel}
+${formatDayTimeline(tomorrow)}
+
+${
+  conflictNotes.length > 0
+    ? `### ⚡ Smart Schedule Optimizations Found\n${conflictNotes.map((c) => `- ${c}`).join('\n')}`
+    : `### ✅ Schedule Check\n- All proposed study blocks sit inside your open windows with **0 schedule overlaps**.`
+}
+
+Click **Save task** on any routine block below to add it to your calendar, or click **Apply** on the schedule adjustments to free up your time:`;
+
+  const reasoning = [
+    `Checked ${today.busy.length + tomorrow.busy.length} existing classes & tasks across Today and Tomorrow.`,
+    `Found ${allFreeWindows.length} open time windows (>= 45 min) between 8:30 AM and 10:30 PM.`,
+    ...drafts.map((d) => `${d.title}: ${d.reason}`),
+  ];
+
+  return {
+    reply,
+    reasoning,
+    drafts,
+    suggestions: planResult.suggestions.length > 0 ? planResult.suggestions : undefined,
+  };
+}
+
+/**
+ * Intelligent, schedule-aware conversational AI assistant for Hearth.
+ * Uses the user's live classes, tasks, appointments, free time windows, and multi-turn conversation history.
+ */
+async function basicChat(message: string, roster: RosterPerson[], me: RosterPerson, history: ChatHistoryMessage[] = []): Promise<ChatReply> {
+  const clean = message.trim();
+  const combinedHistory = [...history.filter((h) => h.role === 'user').map((h) => h.text), clean].join(' ');
+
+  // 1. Check if the user is asking for a routine, timetable, study/project organization, or how to organize their day/week:
+  const isRoutineOrStudyRequest =
+    /\b(routine|timetable|time ?table|organize|organise|optisystem|microcontroller|paper|project|submission|submit|exam|study|studies|assignment|schedule my|how can i|help me plan|workload|thesis|lab report|free time|free slots|when can i|break ?down)\b/i.test(
+      clean,
+    ) ||
+    (/\b(make|build|create|give|show|plan|adjust|change)\b/i.test(clean) && /\b(optisystem|microcontroller|paper|project|submission|study|studies|routine|day|tomorrow|week)\b/i.test(combinedHistory));
+
+  // 2. Check if the user is asking "Who is free / best suited / should do..."
+  const isWhoQuestion = /\b(who is|who's|who should|who can|best person|best suited|most free|available to|কে ফ্রি|কে করবে)\b/i.test(clean);
+
+  // 3. Check if the user is explicitly asking to create a single quick task (e.g. "Add a task: Buy medicine tomorrow at 6pm"):
+  const isExplicitTaskAdd = /\b(add a task|create a task|new task|remind me to|buy|take .* to the|pick up|drop)\b/i.test(clean) && !/\b(routine|timetable|organize|how can i)\b/i.test(clean);
+
+  // 4. Check if the user is asking about clashes, handovers, or what to do first:
+  const isPlanOrClashQuestion = /\b(clash|clashes|conflict|conflicts|overlap|hand ?over|reassign|what should i focus|do first|urgent|priority|why)\b/i.test(clean);
+
   if (isWhoQuestion) {
     const parsed = readNote(clean, roster, me);
     const sample = parsed.drafts[0] ?? {
@@ -625,29 +955,39 @@ I’ve prepared 3 structured task drafts based on your available study windows. 
         reason: `Recommended ${firstName(topPerson.name)} (Suitability ${top.score}/100: ${top.reasons.join(' ')}) for ${formatDayTime(sample.start)}.`,
       };
       return {
-        reply: `### 👥 Member Availability & Suitability Analysis
-
-Based on the family schedule, workload capacity, and skills for **${formatDayTime(sample.start)}**, **${topPerson.name}** is the best fit with a **${top.score}/100 Suitability Score** (${top.reasons.join(' ')}).
-
-You can save this task directly to their schedule below:`,
+        reply: `### 👥 Member Availability & Suitability Analysis\n\nBased on the family schedule, workload capacity, and skills for **${formatDayTime(sample.start)}**, **${topPerson.name}** is the best fit with a **${top.score}/100 Suitability Score** (${top.reasons.join(' ')}).\n\nYou can save this task directly to their schedule below:`,
         reasoning,
         drafts: [recommendedDraft],
       };
     }
   }
 
-  // 3. Plan / conflict / schedule questions
-  const isPlanOrWhyQuestion = /\b(plan|week|clash|conflict|overlap|busy|exam|hand ?over|move|reschedule|postpone|what should i|first|urgent|priority|why)\b/i.test(clean);
-  if (isPlanOrWhyQuestion && !/\b(add|create|make a task)\b/i.test(clean)) {
+  if (isExplicitTaskAdd) {
+    const quick = await enrichDraftsWithSuitability(readNote(clean, roster, me), clean, roster, me);
+    if (quick.drafts.length > 0) {
+      const reasoning = quick.drafts.map((d) => `“${d.title}” (${formatDayTime(d.start)}): ${d.reason ?? 'Prepared from your instruction.'}`);
+      return {
+        reply: `### ✨ Task Drafts Ready\n\nI prepared ${quick.drafts.length === 1 ? 'a task draft' : `${quick.drafts.length} task drafts`} from your instruction, complete with assignee suitability and priority reasoning. Review and click **Save task** below:`,
+        reasoning: [...reasoning, ...quick.assumptions],
+        drafts: quick.drafts,
+      };
+    }
+  }
+
+  if (isRoutineOrStudyRequest) {
+    return buildPersonalizedRoutine(clean, history, roster, me);
+  }
+
+  if (isPlanOrClashQuestion) {
     const [myDay, attention, planResult] = await Promise.all([decisionService.getMyDay(), decisionService.listAttention(), basicPlan(clean)]);
     const reasoning: string[] = [];
     if (myDay.length > 0) {
-      myDay.slice(0, 3).forEach((r) => {
+      myDay.slice(0, 4).forEach((r) => {
         reasoning.push(`Priority #${r.rank} “${r.task.title}” (${formatDayTime(r.task.start)}) — Score ${r.priority.score}/100: ${r.priority.explanation}`);
       });
     }
     if (attention.length > 0) {
-      attention.slice(0, 3).forEach((a) => {
+      attention.slice(0, 4).forEach((a) => {
         const best = a.topCandidate
           ? `Best handover candidate: ${firstName(roster.find((p) => p.id === a.topCandidate?.memberId)?.name)} (Suitability ${a.topCandidate.score}/100 — ${a.topCandidate.reasons.join(' ')})`
           : 'No alternative candidate free at that exact hour';
@@ -657,52 +997,15 @@ You can save this task directly to their schedule below:`,
     return {
       reply:
         planResult.suggestions.length > 0
-          ? `### 📅 7-Day Plan Overview\n\n${planResult.summary}\n\nHere is the decision engine breakdown and actionable adjustments you can apply with one click:`
-          : `### 📅 7-Day Plan Overview\n\n${planResult.summary}\n\nI checked your priority queue and family availability—everything is currently on track.`,
+          ? `### 📅 Schedule & Priority Analysis\n\n${planResult.summary}\n\nHere is the full reasoning and the recommended actions you can apply with one click:`
+          : `### 📅 Schedule & Priority Analysis\n\n${planResult.summary}\n\nI checked your priority queue and family availability—everything is currently on track.`,
       reasoning: reasoning.length > 0 ? reasoning : ['No schedule conflicts or overdue tasks detected in the next 7 days.'],
       suggestions: planResult.suggestions,
     };
   }
 
-  // 4. Task instruction
-  const isAddInstruction = /\b(add|create|schedule|remind|new task|draft|make a task|need to|have to|buy|take|cook|call|pick up|drop)\b/i.test(clean);
-  if (isAddInstruction) {
-    const quick = await enrichDraftsWithSuitability(readNote(clean, roster, me), clean, roster, me);
-    if (quick.drafts.length > 0) {
-      const reasoning = quick.drafts.map((d) => `“${d.title}” (${formatDayTime(d.start)}): ${d.reason ?? 'Prepared from your instruction.'}`);
-      return {
-        reply: `### ✨ Task Drafts Ready\n\nI have extracted ${quick.drafts.length === 1 ? 'a task draft' : `${quick.drafts.length} task drafts`} from your instruction, complete with assignee suitability and priority reasoning. Review and click **Save task** below:`,
-        reasoning: [...reasoning, ...quick.assumptions],
-        drafts: quick.drafts,
-      };
-    }
-  }
-
-  // 5. Friendly general conversation & guidance
-  const [myDay, attention] = await Promise.all([decisionService.getMyDay(), decisionService.listAttention()]);
-  const topTask = myDay[0];
-  const reasoning: string[] = [];
-  if (topTask) {
-    reasoning.push(`Top priority today: “${topTask.task.title}” (Score ${topTask.priority.score}/100 — ${topTask.priority.explanation})`);
-  }
-  if (attention.length > 0) {
-    reasoning.push(`${attention.length} family ${attention.length === 1 ? 'clash needs' : 'clashes need'} attention.`);
-  }
-
-  const greeting = /^(hi|hello|hey|salam|assalamu alaikum|good morning|good evening)/i.test(clean) ? `### 👋 Hello ${firstName(me.name)}!\n\n` : `### 💡 Hearth AI Assistant\n\n`;
-
-  return {
-    reply: `${greeting}I'm here to help you organize your academic deadlines, project submissions, family schedule, and tasks.
-
-Here are a few things you can ask me:
-- **Organize studies & projects:** *“I have an OptiSystem paper submission and microcontroller project, how can I organize?”*
-- **Check who is free:** *“Who is free to take Dadu to the doctor tomorrow at 4pm?”*
-- **Create tasks on the fly:** *“Add a task: Buy medicine tomorrow at 6pm”*
-- **Resolve clashes:** *“I have an exam on Wednesday, hand over my morning tasks to Rafid”*
-
-${topTask ? `Currently, your #1 focus is **“${topTask.task.title}”** (${formatDayTime(topTask.task.start)}, Priority Score **${topTask.priority.score}/100**).` : 'Your schedule is currently clear!'}`,
-    reasoning,
-  };
+  // Default: build a live, schedule-aware response showing their actual commitments & open windows today and answering their prompt!
+  return buildPersonalizedRoutine(clean, history, roster, me);
 }
 
 const TEMPLATES: Record<DraftLanguage, Record<DraftKind, (v: { to: string; from: string; title: string; when: string; points: string }) => string>> = {
@@ -798,7 +1101,7 @@ export const aiService = {
       try {
         return await callGeminiDirect(geminiKey, clean, roster, me, history);
       } catch {
-        // Fall back to server or offline if Gemini call encounters an issue.
+        // Fall back to server or local schedule-aware assistant if Gemini call fails.
       }
     }
 
@@ -807,12 +1110,12 @@ export const aiService = {
       try {
         return await apiRequest<ChatReply>('/ai/chat', { method: 'POST', body: { message: clean } });
       } catch {
-        // Fall back to local assistant
+        // Fall back to local schedule-aware assistant
       }
     }
 
-    // 3. Smart local assistant fallback:
-    return respond(await basicChat(clean, roster, me));
+    // 3. Schedule-aware conversational engine:
+    return respond(await basicChat(clean, roster, me, history));
   },
 
   async draft(request: DraftRequest, mode: AiMode, names: { me: string; nameOf: (id?: string | null) => string }): Promise<string> {
