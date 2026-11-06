@@ -1,0 +1,135 @@
+# The API gateway and the web app, and the Ingress that serves both on one address (ingress-nginx).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gateway
+  namespace: hearth
+  labels: { app: gateway, part-of: hearth }
+spec:
+  replicas: 2
+  selector:
+    matchLabels: { app: gateway }
+  template:
+    metadata:
+      labels: { app: gateway, part-of: hearth }
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+        prometheus.io/path: /actuator/prometheus
+    spec:
+      securityContext: { runAsNonRoot: true }
+      containers:
+        - name: gateway
+          image: hearth/api-gateway:latest
+          ports: [{ containerPort: 8080, name: http }]
+          envFrom:
+            - configMapRef: { name: hearth-config }
+          env:
+            - { name: PORT, value: "8080" }
+            - { name: CORS_ALLOWED_ORIGINS, value: "https://hearth.example.com" }
+            - { name: JAVA_OPTS, value: "-XX:MaxRAMPercentage=75 -XX:+UseSerialGC -Xss512k" }
+          startupProbe:
+            httpGet: { path: /actuator/health/liveness, port: http }
+            periodSeconds: 5
+            failureThreshold: 60
+          livenessProbe:
+            httpGet: { path: /actuator/health/liveness, port: http }
+            periodSeconds: 15
+          readinessProbe:
+            httpGet: { path: /actuator/health/readiness, port: http }
+            periodSeconds: 10
+          resources:
+            requests: { cpu: 150m, memory: 320Mi }
+            limits: { memory: 512Mi }
+          securityContext: { allowPrivilegeEscalation: false, capabilities: { drop: ["ALL"] } }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: gateway
+  namespace: hearth
+spec:
+  selector: { app: gateway }
+  ports: [{ port: 8080, targetPort: http, name: http }]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web
+  namespace: hearth
+  labels: { app: web, part-of: hearth }
+spec:
+  replicas: 2
+  selector:
+    matchLabels: { app: web }
+  template:
+    metadata:
+      labels: { app: web, part-of: hearth }
+    spec:
+      containers:
+        - name: web
+          image: hearth/web:latest
+          ports: [{ containerPort: 80, name: http }]
+          readinessProbe:
+            httpGet: { path: /, port: http }
+            periodSeconds: 10
+          resources:
+            requests: { cpu: 50m, memory: 32Mi }
+            limits: { memory: 64Mi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: web
+  namespace: hearth
+spec:
+  selector: { app: web }
+  ports: [{ port: 80, targetPort: http, name: http }]
+---
+# Live updates are a long-lived stream: no buffering and a long read timeout on that path only.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: hearth-stream
+  namespace: hearth
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-buffering: "off"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+    cert-manager.io/cluster-issuer: letsencrypt
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts: [hearth.example.com]
+      secretName: hearth-tls
+  rules:
+    - host: hearth.example.com
+      http:
+        paths:
+          - path: /api/v1/notifications/stream
+            pathType: Exact
+            backend: { service: { name: gateway, port: { number: 8080 } } }
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: hearth
+  namespace: hearth
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: 21m
+    cert-manager.io/cluster-issuer: letsencrypt
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts: [hearth.example.com]
+      secretName: hearth-tls
+  rules:
+    - host: hearth.example.com
+      http:
+        paths:
+          - path: /api
+            pathType: Prefix
+            backend: { service: { name: gateway, port: { number: 8080 } } }
+          - path: /
+            pathType: Prefix
+            backend: { service: { name: web, port: { number: 80 } } }

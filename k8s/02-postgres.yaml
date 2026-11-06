@@ -1,3 +1,17 @@
+# PostgreSQL 16: one database per service. For production prefer a managed PostgreSQL with backups and
+# point DB_HOST at it; this StatefulSet is for a single-node cluster.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-ensure-databases
+  namespace: hearth
+data:
+  ensure-databases.sql: |
+    SELECT format('CREATE DATABASE %I', name)
+    FROM unnest(ARRAY['hearth_family','hearth_task','hearth_decision','hearth_care','hearth_notification','hearth_audit','hearth_ai']) AS name
+    WHERE NOT EXISTS (SELECT 1 FROM pg_database WHERE datname = name)
+    \gexec
+---
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
@@ -7,48 +21,39 @@ spec:
   serviceName: postgres
   replicas: 1
   selector:
-    matchLabels:
-      app: postgres
+    matchLabels: { app: postgres }
   template:
     metadata:
-      labels:
-        app: postgres
+      labels: { app: postgres }
     spec:
+      securityContext: { fsGroup: 70 }
       containers:
         - name: postgres
           image: postgres:16-alpine
-          ports:
-            - containerPort: 5432
-              name: postgres
+          ports: [{ containerPort: 5432, name: postgres }]
           env:
-            - name: POSTGRES_USER
-              valueFrom:
-                secretKeyRef:
-                  name: hearth-secrets
-                  key: POSTGRES_USER
+            - { name: POSTGRES_USER, value: hearth }
+            - { name: POSTGRES_DB, value: hearth }
             - name: POSTGRES_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: hearth-secrets
-                  key: POSTGRES_PASSWORD
+              valueFrom: { secretKeyRef: { name: hearth-secrets, key: POSTGRES_PASSWORD } }
+            - { name: PGDATA, value: /var/lib/postgresql/data/pgdata }
+          readinessProbe:
+            exec: { command: ["pg_isready", "-U", "hearth", "-d", "hearth"] }
+            periodSeconds: 5
+          livenessProbe:
+            exec: { command: ["pg_isready", "-U", "hearth", "-d", "hearth"] }
+            periodSeconds: 20
+            failureThreshold: 6
           resources:
-            requests:
-              cpu: 250m
-              memory: 512Mi
-            limits:
-              cpu: 1000m
-              memory: 1Gi
+            requests: { cpu: 250m, memory: 512Mi }
+            limits: { memory: 1Gi }
           volumeMounts:
-            - name: postgres-data
-              mountPath: /var/lib/postgresql/data
+            - { name: data, mountPath: /var/lib/postgresql/data }
   volumeClaimTemplates:
-    - metadata:
-        name: postgres-data
+    - metadata: { name: data }
       spec:
         accessModes: ["ReadWriteOnce"]
-        resources:
-          requests:
-            storage: 10Gi
+        resources: { requests: { storage: 10Gi } }
 ---
 apiVersion: v1
 kind: Service
@@ -56,8 +61,32 @@ metadata:
   name: postgres
   namespace: hearth
 spec:
-  ports:
-    - port: 5432
-      targetPort: 5432
-  selector:
-    app: postgres
+  selector: { app: postgres }
+  ports: [{ port: 5432, targetPort: 5432 }]
+---
+# Creates any missing service database (safe to re-run: kubectl delete job db-setup, then apply again).
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: db-setup
+  namespace: hearth
+spec:
+  backoffLimit: 20
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: db-setup
+          image: postgres:16-alpine
+          command: ["psql", "-v", "ON_ERROR_STOP=1", "-f", "/scripts/ensure-databases.sql"]
+          env:
+            - { name: PGHOST, value: postgres }
+            - { name: PGUSER, value: hearth }
+            - { name: PGDATABASE, value: hearth }
+            - name: PGPASSWORD
+              valueFrom: { secretKeyRef: { name: hearth-secrets, key: POSTGRES_PASSWORD } }
+          volumeMounts:
+            - { name: scripts, mountPath: /scripts }
+      volumes:
+        - name: scripts
+          configMap: { name: postgres-ensure-databases }

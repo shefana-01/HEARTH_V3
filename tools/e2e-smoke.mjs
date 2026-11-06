@@ -228,6 +228,71 @@ const graph = await eventually('the family map (Neo4j) shows the people and plan
 });
 check(graph.edges.some((e) => e.label === 'goes along'), `${graph.nodes.length} nodes, ${graph.edges.length} relationships`);
 
+/* ───────── medicines, emergency card, calendar sync ───────── */
+console.log('\nMedicines, emergency card and calendar sync');
+{
+  const today = new Date().toISOString().slice(0, 10);
+  const med = await call('POST', '/medications', {
+    token: A,
+    expect: 201,
+    body: { personId: rahima, name: 'Amlodipine', dose: '5 mg', instructions: 'after breakfast', times: ['08:00', '20:00'], days: [true, true, true, true, true, true, true], startDate: today, carerId: afsaraId, reminders: true },
+  });
+  check(med.times.join(',') === '08:00,20:00', 'a medicine schedule for Grandma, with Afsara helping');
+  const doses = await call('GET', `/medications/doses?from=${encodeURIComponent(new Date(Date.now() - 86400000).toISOString())}&to=${encodeURIComponent(new Date(Date.now() + 86400000).toISOString())}`, { token: A });
+  check(doses.length >= 2 && doses.every((d) => ['upcoming', 'due', 'missed', 'taken', 'skipped'].includes(d.status)), `${doses.length} doses with their status`);
+  check((await call('GET', '/medications', { token: R })).length === 0, 'Rafid (no medical access) does not see Grandma’s medicines');
+  await call('PUT', `/health/emergency/${rahima}`, { token: A, body: { bloodGroup: 'B+', allergies: 'Penicillin', doctorName: 'Dr. Karim', doctorPhone: '+880 1711-000000', hospital: 'Square Hospital', notes: '' } });
+  check((await call('GET', `/health/emergency/${rahima}`, { token: A })).allergies === 'Penicillin', 'the emergency card is saved');
+
+  const feed = await call('POST', '/calendar/feed', { token: A, expect: 201 });
+  const ics = await fetch(`${API}/calendar/feeds/${feed.token}.ics`);
+  const body = await ics.text();
+  check(ics.ok && (ics.headers.get('content-type') ?? '').startsWith('text/calendar') && body.startsWith('BEGIN:VCALENDAR'), 'a calendar app can fetch the private calendar address without signing in');
+  await call('DELETE', '/calendar/feed', { token: A, expect: 204 });
+  check((await fetch(`${API}/calendar/feeds/${feed.token}.ics`)).status === 404, 'after turning it off the address stops working');
+}
+
+/* ───────── live updates and push ───────── */
+console.log('\nLive updates and push');
+{
+  const controller = new AbortController();
+  const stream = await fetch(`${API}/notifications/stream`, { headers: { Authorization: `Bearer ${A}`, Accept: 'text/event-stream' }, signal: controller.signal });
+  check(stream.ok && (stream.headers.get('content-type') ?? '').startsWith('text/event-stream'), 'the live-update stream opens through the web app and the gateway');
+  const reader = stream.body.pipeThrough(new TextDecoderStream()).getReader();
+  let seen = '';
+  const until = Date.now() + 20000;
+  // Rafid changes something: Afsara's open page is told that tasks changed (not what changed).
+  await call('POST', '/tasks', {
+    token: R,
+    expect: 201,
+    body: { title: 'Water the plants', notes: '', category: 'household', priority: 'routine', start: new Date(Date.now() + 86400000).toISOString(), durationMin: 15, assigneeId: rafidId, visibility: 'family', reminder: false },
+  });
+  while (Date.now() < until && !/event:change\ndata:\{"scopes":\[[^\]]*"tasks"/.test(seen)) {
+    const { value, done } = await Promise.race([reader.read(), sleep(until - Date.now()).then(() => ({ done: true }))]);
+    if (done) break;
+    seen += value;
+  }
+  controller.abort();
+  check(/"tasks"/.test(seen) && !/Water the plants/.test(seen), 'a change by Rafid reaches Afsara’s open page within seconds, without its details');
+}
+const pushState = await call('GET', '/notifications/push', { token: A });
+check(typeof pushState.enabled === 'boolean' && pushState.devices === 0, `push notifications ${pushState.enabled ? 'configured' : 'off (no VAPID keys)'}; no devices yet`);
+await call('POST', '/notifications/push/subscriptions', {
+  token: A,
+  expect: pushState.enabled ? 422 : 409,
+  body: { endpoint: 'http://169.254.169.254/latest', keys: { p256dh: 'x', auth: 'y' } },
+});
+ok('a subscription pointing at an internal address is refused');
+
+/* ───────── AI help ───────── */
+console.log('\nAI help');
+const ai = await call('GET', '/ai/status', { token: A });
+check(typeof ai.enabled === 'boolean' && ai.consented === false, `ai-service answers (AI help ${ai.enabled ? 'configured' : 'off: no key'})`);
+await call('POST', '/ai/quick-add', { token: A, body: { text: 'Buy rice tomorrow 6pm' }, expect: ai.enabled ? 403 : 503 });
+ok(ai.enabled ? 'nothing is sent before the person turns AI help on' : 'without a key, AI requests get a clear 503 and the app uses basic mode');
+check((await call('PUT', '/ai/consent', { token: A, body: { granted: true } })).consented === true, 'AI help can be turned on');
+await call('PUT', '/ai/consent', { token: A, body: { granted: false } });
+
 /* ───────── security ───────── */
 console.log('\nSecurity');
 const noToken = await fetch(`${API}/tasks`);

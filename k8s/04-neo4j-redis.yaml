@@ -1,0 +1,83 @@
+# Neo4j 5 (the family map read model, rebuilt from the services' data, so losing it loses nothing) and
+# Redis 7 (the shared sign-in rate limit; nothing persistent).
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: neo4j
+  namespace: hearth
+spec:
+  serviceName: neo4j
+  replicas: 1
+  selector:
+    matchLabels: { app: neo4j }
+  template:
+    metadata:
+      labels: { app: neo4j }
+    spec:
+      containers:
+        - name: neo4j
+          image: neo4j:5-community
+          ports:
+            - { containerPort: 7687, name: bolt }
+            - { containerPort: 7474, name: http }
+          env:
+            - name: NEO4J_AUTH
+              valueFrom: { secretKeyRef: { name: hearth-secrets, key: NEO4J_AUTH } }
+            - { name: NEO4J_server_memory_heap_max__size, value: 512m }
+            - { name: NEO4J_server_memory_pagecache_size, value: 128m }
+          readinessProbe:
+            tcpSocket: { port: 7687 }
+            periodSeconds: 10
+          resources:
+            requests: { cpu: 200m, memory: 768Mi }
+            limits: { memory: 1Gi }
+          volumeMounts:
+            - { name: data, mountPath: /data }
+  volumeClaimTemplates:
+    - metadata: { name: data }
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources: { requests: { storage: 5Gi } }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: neo4j
+  namespace: hearth
+spec:
+  selector: { app: neo4j }
+  ports: [{ port: 7687, targetPort: 7687, name: bolt }]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis
+  namespace: hearth
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: redis }
+  template:
+    metadata:
+      labels: { app: redis }
+    spec:
+      containers:
+        - name: redis
+          image: redis:7-alpine
+          args: ["--save", "", "--appendonly", "no", "--maxmemory", "64mb", "--maxmemory-policy", "allkeys-lru"]
+          ports: [{ containerPort: 6379 }]
+          readinessProbe:
+            exec: { command: ["redis-cli", "ping"] }
+            periodSeconds: 5
+          resources:
+            requests: { cpu: 50m, memory: 64Mi }
+            limits: { memory: 128Mi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis
+  namespace: hearth
+spec:
+  selector: { app: redis }
+  ports: [{ port: 6379, targetPort: 6379 }]

@@ -1,32 +1,35 @@
 #!/usr/bin/env bash
-# Hearth Production PostgreSQL Restore Script
-set -eo pipefail
+# Restore a backup made by backup.sh. Replaces the current data, so stop the Hearth services first:
+#
+#   docker compose stop gateway family-service task-service decision-service care-service \
+#       notification-service audit-service ai-service
+#   infrastructure/scripts/restore.sh backups/20261105T020000Z
+#   docker compose up -d
+#
+# The Neo4j family map is rebuilt from these databases, so it is not part of the backup.
+set -euo pipefail
 
-if [ -z "$1" ]; then
-    echo "Usage: $0 <path_to_backup_directory>"
-    echo "Example: $0 /backups/20261026_040000"
-    exit 1
+COMPOSE="${COMPOSE:-docker compose}"
+SOURCE="${1:?Usage: restore.sh <backup folder>}"
+DATABASES=(hearth_family hearth_task hearth_decision hearth_care hearth_notification hearth_audit hearth_ai)
+
+[ -d "${SOURCE}" ] || { echo "No such folder: ${SOURCE}" >&2; exit 1; }
+if [ -f "${SOURCE}/SHA256SUMS" ]; then
+  ( cd "${SOURCE}" && sha256sum --quiet -c SHA256SUMS ) || { echo "Checksums do not match: the backup is damaged." >&2; exit 1; }
 fi
 
-BACKUP_DIR="$1"
-POSTGRES_CONTAINER="${POSTGRES_CONTAINER:-hearth-postgres-prod}"
-POSTGRES_USER="${POSTGRES_USER:-hearth}"
+read -r -p "This replaces all Hearth data with ${SOURCE}. Type RESTORE to go on: " answer
+[ "${answer}" = "RESTORE" ] || { echo "Stopped."; exit 1; }
 
-DATABASES=("hearth_family" "hearth_task" "hearth_decision" "hearth_care" "hearth_notification" "hearth_audit")
-
-echo "=== Starting Hearth Database Restore from ${BACKUP_DIR} ==="
-
-for DB in "${DATABASES[@]}"; do
-    DUMP_FILE="${BACKUP_DIR}/${DB}.dump"
-    if [ ! -f "${DUMP_FILE}" ]; then
-        echo "[WARN] Dump file not found: ${DUMP_FILE}, skipping..."
-        continue
-    fi
-    echo "[Restore] Restoring ${DB}..."
-    docker cp "${DUMP_FILE}" "${POSTGRES_CONTAINER}:/tmp/${DB}.dump"
-    docker exec "${POSTGRES_CONTAINER}" pg_restore -U "${POSTGRES_USER}" -d "${DB}" --clean --if-exists -v "/tmp/${DB}.dump" || true
-    docker exec "${POSTGRES_CONTAINER}" rm "/tmp/${DB}.dump"
-    echo "[OK] Restored ${DB}"
+for db in "${DATABASES[@]}"; do
+  file="${SOURCE}/${db}.dump"
+  if [ ! -f "${file}" ]; then echo "  ${db}: not in this backup, skipped"; continue; fi
+  ${COMPOSE} exec -T postgres pg_restore -U hearth -d "${db}" --clean --if-exists --no-owner --exit-on-error < "${file}"
+  echo "  ${db}: restored"
 done
 
-echo "=== Hearth Restore Completed Successfully ==="
+if [ -f "${SOURCE}/documents.tar.gz" ]; then
+  ${COMPOSE} run --rm --no-deps -T --entrypoint sh care-service -c 'rm -rf /data/documents && tar -C /data -xzf -' < "${SOURCE}/documents.tar.gz"
+  echo "  documents: restored"
+fi
+echo "Done. Start the services again: ${COMPOSE} up -d"

@@ -1,18 +1,31 @@
 {
-    # Global options
-    email admin@hearth.local
+    # Certificates come from Let's Encrypt for HEARTH_DOMAIN; this address gets expiry notices.
+    email {$ACME_EMAIL:admin@example.com}
     admin off
 }
 
-hearth.local, localhost {
+{$HEARTH_DOMAIN:localhost} {
     # Security Headers
     header {
         Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
         X-Content-Type-Options "nosniff"
         X-Frame-Options "DENY"
         Referrer-Policy "strict-origin-when-cross-origin"
-        Permissions-Policy "camera=(), microphone=(), geolocation=()"
+        # Voice typing needs the microphone on Hearth's own pages.
+        Permissions-Policy "microphone=(self), camera=(), geolocation=()"
+        # Same policy as frontend/security-headers.conf, plus upgrading any http:// request to https://.
+        Content-Security-Policy "default-src 'self'; script-src 'self' 'sha256-kSq/isJiCrnqXP781eiikdnLUNiVzShZaaMQkHL5CZc='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests"
         -Server
+    }
+
+    # Live updates (server-sent events): flush every message immediately.
+    handle /api/v1/notifications/stream {
+        reverse_proxy gateway:8080 {
+            flush_interval -1
+            header_up Host {host}
+            header_up X-Forwarded-For {remote_host}
+            header_up X-Forwarded-Proto {scheme}
+        }
     }
 
     # API Gateway reverse proxy
@@ -25,9 +38,12 @@ hearth.local, localhost {
         }
     }
 
-    # Actuator health endpoint
-    handle /actuator/* {
+    # Only the health check is public; metrics (/actuator/prometheus) stay on the internal network.
+    handle /actuator/health {
         reverse_proxy gateway:8080
+    }
+    handle /actuator/* {
+        respond 404
     }
 
     # Frontend Single Page Application (SPA)

@@ -1,0 +1,30 @@
+# Settings shared by every Hearth service. Secrets (passwords, keys) are in 01-secrets.example.yaml.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: hearth-config
+  namespace: hearth
+data:
+  DB_HOST: postgres
+  DB_USER: hearth
+  KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+  JWKS_URI: http://family-service:8081/.well-known/jwks.json
+  FAMILY_SERVICE_URL: http://family-service:8081
+  TASK_SERVICE_URL: http://task-service:8082
+  DECISION_SERVICE_URL: http://decision-service:8083
+  CARE_SERVICE_URL: http://care-service:8084
+  NOTIFICATION_SERVICE_URL: http://notification-service:8085
+  AUDIT_SERVICE_URL: http://audit-service:8086
+  AI_SERVICE_URL: http://ai-service:8087
+  NEO4J_URI: bolt://neo4j:7687
+  REDIS_HOST: redis
+  RATE_LIMIT_STORE: redis
+  # Change to your address and mail server.
+  APP_URL: https://hearth.example.com
+  MAIL_HOST: smtp.example.com
+  MAIL_PORT: "587"
+  VAPID_SUBJECT: mailto:admin@hearth.example.com
+  AI_MODEL: gemini-2.5-flash
+  AI_DAILY_REQUESTS: "40"
+  AI_MONTHLY_TOKENS: "500000"
+  TZ: UTC

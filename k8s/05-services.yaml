@@ -1,0 +1,420 @@
+# The seven Hearth services. Each reads its database name from DB_NAME and everything else from
+# hearth-config / hearth-secrets. Probes use Spring Boot's liveness and readiness groups; Prometheus scrapes
+# /actuator/prometheus (see the annotations).
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: family-service
+  namespace: hearth
+  labels: { app: family-service, part-of: hearth }
+spec:
+  replicas: 2
+  selector:
+    matchLabels: { app: family-service }
+  template:
+    metadata:
+      labels: { app: family-service, part-of: hearth }
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8081"
+        prometheus.io/path: /actuator/prometheus
+    spec:
+      securityContext: { runAsNonRoot: true, fsGroup: 101 }
+      terminationGracePeriodSeconds: 40
+      containers:
+        - name: family-service
+          image: hearth/family-service:latest
+          ports: [{ containerPort: 8081, name: http }]
+          envFrom:
+            - configMapRef: { name: hearth-config }
+          env:
+            - { name: DB_NAME, value: hearth_family }
+            - { name: PORT, value: "8081" }
+            - name: DB_PASSWORD
+              valueFrom: { secretKeyRef: { name: hearth-secrets, key: DB_PASSWORD } }
+            - { name: JAVA_OPTS, value: "-XX:MaxRAMPercentage=75 -XX:+UseSerialGC -Xss512k" }
+          startupProbe:
+            httpGet: { path: /actuator/health/liveness, port: http }
+            periodSeconds: 5
+            failureThreshold: 60
+          livenessProbe:
+            httpGet: { path: /actuator/health/liveness, port: http }
+            periodSeconds: 15
+          readinessProbe:
+            httpGet: { path: /actuator/health/readiness, port: http }
+            periodSeconds: 10
+          resources:
+            requests: { cpu: 150m, memory: 384Mi }
+            limits: { memory: 512Mi }
+          securityContext: { allowPrivilegeEscalation: false, readOnlyRootFilesystem: false, capabilities: { drop: ["ALL"] } }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: family-service
+  namespace: hearth
+spec:
+  selector: { app: family-service }
+  ports: [{ port: 8081, targetPort: http, name: http }]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: task-service
+  namespace: hearth
+  labels: { app: task-service, part-of: hearth }
+spec:
+  replicas: 2
+  selector:
+    matchLabels: { app: task-service }
+  template:
+    metadata:
+      labels: { app: task-service, part-of: hearth }
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8082"
+        prometheus.io/path: /actuator/prometheus
+    spec:
+      securityContext: { runAsNonRoot: true, fsGroup: 101 }
+      terminationGracePeriodSeconds: 40
+      containers:
+        - name: task-service
+          image: hearth/task-service:latest
+          ports: [{ containerPort: 8082, name: http }]
+          envFrom:
+            - configMapRef: { name: hearth-config }
+          env:
+            - { name: DB_NAME, value: hearth_task }
+            - { name: PORT, value: "8082" }
+            - name: DB_PASSWORD
+              valueFrom: { secretKeyRef: { name: hearth-secrets, key: DB_PASSWORD } }
+            - { name: JAVA_OPTS, value: "-XX:MaxRAMPercentage=75 -XX:+UseSerialGC -Xss512k" }
+          startupProbe:
+            httpGet: { path: /actuator/health/liveness, port: http }
+            periodSeconds: 5
+            failureThreshold: 60
+          livenessProbe:
+            httpGet: { path: /actuator/health/liveness, port: http }
+            periodSeconds: 15
+          readinessProbe:
+            httpGet: { path: /actuator/health/readiness, port: http }
+            periodSeconds: 10
+          resources:
+            requests: { cpu: 150m, memory: 384Mi }
+            limits: { memory: 512Mi }
+          securityContext: { allowPrivilegeEscalation: false, readOnlyRootFilesystem: false, capabilities: { drop: ["ALL"] } }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: task-service
+  namespace: hearth
+spec:
+  selector: { app: task-service }
+  ports: [{ port: 8082, targetPort: http, name: http }]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: decision-service
+  namespace: hearth
+  labels: { app: decision-service, part-of: hearth }
+spec:
+  replicas: 2
+  selector:
+    matchLabels: { app: decision-service }
+  template:
+    metadata:
+      labels: { app: decision-service, part-of: hearth }
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8083"
+        prometheus.io/path: /actuator/prometheus
+    spec:
+      securityContext: { runAsNonRoot: true, fsGroup: 101 }
+      terminationGracePeriodSeconds: 40
+      containers:
+        - name: decision-service
+          image: hearth/decision-service:latest
+          ports: [{ containerPort: 8083, name: http }]
+          envFrom:
+            - configMapRef: { name: hearth-config }
+          env:
+            - { name: DB_NAME, value: hearth_decision }
+            - { name: PORT, value: "8083" }
+            - name: DB_PASSWORD
+              valueFrom: { secretKeyRef: { name: hearth-secrets, key: DB_PASSWORD } }
+            - { name: JAVA_OPTS, value: "-XX:MaxRAMPercentage=75 -XX:+UseSerialGC -Xss512k" }
+          startupProbe:
+            httpGet: { path: /actuator/health/liveness, port: http }
+            periodSeconds: 5
+            failureThreshold: 60
+          livenessProbe:
+            httpGet: { path: /actuator/health/liveness, port: http }
+            periodSeconds: 15
+          readinessProbe:
+            httpGet: { path: /actuator/health/readiness, port: http }
+            periodSeconds: 10
+          resources:
+            requests: { cpu: 150m, memory: 384Mi }
+            limits: { memory: 512Mi }
+          securityContext: { allowPrivilegeEscalation: false, readOnlyRootFilesystem: false, capabilities: { drop: ["ALL"] } }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: decision-service
+  namespace: hearth
+spec:
+  selector: { app: decision-service }
+  ports: [{ port: 8083, targetPort: http, name: http }]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: care-service
+  namespace: hearth
+  labels: { app: care-service, part-of: hearth }
+spec:
+  replicas: 1
+  # One pod owns the document volume (ReadWriteOnce): replace it rather than run two side by side.
+  strategy: { type: Recreate }
+  selector:
+    matchLabels: { app: care-service }
+  template:
+    metadata:
+      labels: { app: care-service, part-of: hearth }
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8084"
+        prometheus.io/path: /actuator/prometheus
+    spec:
+      securityContext: { runAsNonRoot: true, fsGroup: 101 }
+      terminationGracePeriodSeconds: 40
+      containers:
+        - name: care-service
+          image: hearth/care-service:latest
+          ports: [{ containerPort: 8084, name: http }]
+          envFrom:
+            - configMapRef: { name: hearth-config }
+          env:
+            - { name: DB_NAME, value: hearth_care }
+            - { name: PORT, value: "8084" }
+            - name: DB_PASSWORD
+              valueFrom: { secretKeyRef: { name: hearth-secrets, key: DB_PASSWORD } }
+            - name: NEO4J_PASSWORD
+              valueFrom: { secretKeyRef: { name: hearth-secrets, key: NEO4J_PASSWORD } }
+            - { name: JAVA_OPTS, value: "-XX:MaxRAMPercentage=75 -XX:+UseSerialGC -Xss512k" }
+            - { name: STORAGE_DIR, value: /data/documents }
+          startupProbe:
+            httpGet: { path: /actuator/health/liveness, port: http }
+            periodSeconds: 5
+            failureThreshold: 60
+          livenessProbe:
+            httpGet: { path: /actuator/health/liveness, port: http }
+            periodSeconds: 15
+          readinessProbe:
+            httpGet: { path: /actuator/health/readiness, port: http }
+            periodSeconds: 10
+          resources:
+            requests: { cpu: 150m, memory: 384Mi }
+            limits: { memory: 512Mi }
+          securityContext: { allowPrivilegeEscalation: false, readOnlyRootFilesystem: false, capabilities: { drop: ["ALL"] } }
+          volumeMounts:
+            - { name: documents, mountPath: /data }
+      volumes:
+        - name: documents
+          persistentVolumeClaim: { claimName: care-documents }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: care-service
+  namespace: hearth
+spec:
+  selector: { app: care-service }
+  ports: [{ port: 8084, targetPort: http, name: http }]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: notification-service
+  namespace: hearth
+  labels: { app: notification-service, part-of: hearth }
+spec:
+  replicas: 2
+  selector:
+    matchLabels: { app: notification-service }
+  template:
+    metadata:
+      labels: { app: notification-service, part-of: hearth }
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8085"
+        prometheus.io/path: /actuator/prometheus
+    spec:
+      securityContext: { runAsNonRoot: true, fsGroup: 101 }
+      terminationGracePeriodSeconds: 40
+      containers:
+        - name: notification-service
+          image: hearth/notification-service:latest
+          ports: [{ containerPort: 8085, name: http }]
+          envFrom:
+            - configMapRef: { name: hearth-config }
+          env:
+            - { name: DB_NAME, value: hearth_notification }
+            - { name: PORT, value: "8085" }
+            - name: DB_PASSWORD
+              valueFrom: { secretKeyRef: { name: hearth-secrets, key: DB_PASSWORD } }
+            - name: VAPID_PUBLIC_KEY
+              valueFrom: { secretKeyRef: { name: hearth-secrets, key: VAPID_PUBLIC_KEY, optional: true } }
+            - name: VAPID_PRIVATE_KEY
+              valueFrom: { secretKeyRef: { name: hearth-secrets, key: VAPID_PRIVATE_KEY, optional: true } }
+            - { name: JAVA_OPTS, value: "-XX:MaxRAMPercentage=75 -XX:+UseSerialGC -Xss512k" }
+          startupProbe:
+            httpGet: { path: /actuator/health/liveness, port: http }
+            periodSeconds: 5
+            failureThreshold: 60
+          livenessProbe:
+            httpGet: { path: /actuator/health/liveness, port: http }
+            periodSeconds: 15
+          readinessProbe:
+            httpGet: { path: /actuator/health/readiness, port: http }
+            periodSeconds: 10
+          resources:
+            requests: { cpu: 150m, memory: 384Mi }
+            limits: { memory: 512Mi }
+          securityContext: { allowPrivilegeEscalation: false, readOnlyRootFilesystem: false, capabilities: { drop: ["ALL"] } }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: notification-service
+  namespace: hearth
+spec:
+  selector: { app: notification-service }
+  ports: [{ port: 8085, targetPort: http, name: http }]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: audit-service
+  namespace: hearth
+  labels: { app: audit-service, part-of: hearth }
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: audit-service }
+  template:
+    metadata:
+      labels: { app: audit-service, part-of: hearth }
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8086"
+        prometheus.io/path: /actuator/prometheus
+    spec:
+      securityContext: { runAsNonRoot: true, fsGroup: 101 }
+      terminationGracePeriodSeconds: 40
+      containers:
+        - name: audit-service
+          image: hearth/audit-service:latest
+          ports: [{ containerPort: 8086, name: http }]
+          envFrom:
+            - configMapRef: { name: hearth-config }
+          env:
+            - { name: DB_NAME, value: hearth_audit }
+            - { name: PORT, value: "8086" }
+            - name: DB_PASSWORD
+              valueFrom: { secretKeyRef: { name: hearth-secrets, key: DB_PASSWORD } }
+            - { name: JAVA_OPTS, value: "-XX:MaxRAMPercentage=75 -XX:+UseSerialGC -Xss512k" }
+          startupProbe:
+            httpGet: { path: /actuator/health/liveness, port: http }
+            periodSeconds: 5
+            failureThreshold: 60
+          livenessProbe:
+            httpGet: { path: /actuator/health/liveness, port: http }
+            periodSeconds: 15
+          readinessProbe:
+            httpGet: { path: /actuator/health/readiness, port: http }
+            periodSeconds: 10
+          resources:
+            requests: { cpu: 150m, memory: 384Mi }
+            limits: { memory: 512Mi }
+          securityContext: { allowPrivilegeEscalation: false, readOnlyRootFilesystem: false, capabilities: { drop: ["ALL"] } }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: audit-service
+  namespace: hearth
+spec:
+  selector: { app: audit-service }
+  ports: [{ port: 8086, targetPort: http, name: http }]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ai-service
+  namespace: hearth
+  labels: { app: ai-service, part-of: hearth }
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: ai-service }
+  template:
+    metadata:
+      labels: { app: ai-service, part-of: hearth }
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8087"
+        prometheus.io/path: /actuator/prometheus
+    spec:
+      securityContext: { runAsNonRoot: true, fsGroup: 101 }
+      terminationGracePeriodSeconds: 40
+      containers:
+        - name: ai-service
+          image: hearth/ai-service:latest
+          ports: [{ containerPort: 8087, name: http }]
+          envFrom:
+            - configMapRef: { name: hearth-config }
+          env:
+            - { name: DB_NAME, value: hearth_ai }
+            - { name: PORT, value: "8087" }
+            - name: DB_PASSWORD
+              valueFrom: { secretKeyRef: { name: hearth-secrets, key: DB_PASSWORD } }
+            - name: AI_API_KEY
+              valueFrom: { secretKeyRef: { name: hearth-secrets, key: AI_API_KEY, optional: true } }
+            - { name: JAVA_OPTS, value: "-XX:MaxRAMPercentage=75 -XX:+UseSerialGC -Xss512k" }
+          startupProbe:
+            httpGet: { path: /actuator/health/liveness, port: http }
+            periodSeconds: 5
+            failureThreshold: 60
+          livenessProbe:
+            httpGet: { path: /actuator/health/liveness, port: http }
+            periodSeconds: 15
+          readinessProbe:
+            httpGet: { path: /actuator/health/readiness, port: http }
+            periodSeconds: 10
+          resources:
+            requests: { cpu: 150m, memory: 384Mi }
+            limits: { memory: 512Mi }
+          securityContext: { allowPrivilegeEscalation: false, readOnlyRootFilesystem: false, capabilities: { drop: ["ALL"] } }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ai-service
+  namespace: hearth
+spec:
+  selector: { app: ai-service }
+  ports: [{ port: 8087, targetPort: http, name: http }]
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: care-documents
+  namespace: hearth
+spec:
+  accessModes: ["ReadWriteOnce"]
+  resources: { requests: { storage: 20Gi } }

@@ -1,28 +1,34 @@
 #!/usr/bin/env bash
-# Hearth Production PostgreSQL Backup Script
-set -eo pipefail
+# Back up every Hearth database (pg_dump custom format, one file per database) and the care documents.
+#
+#   infrastructure/scripts/backup.sh                    # development stack
+#   COMPOSE="docker compose -f docker-compose.yml -f docker-compose.prod.yml" infrastructure/scripts/backup.sh
+#
+# BACKUP_DIR (default ./backups) gets one folder per run; folders older than RETENTION_DAYS (default 14)
+# are removed. Run it from cron, then copy BACKUP_DIR somewhere off the machine.
+set -euo pipefail
 
-BACKUP_DIR="${BACKUP_DIR:-/backups}"
-TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
-POSTGRES_CONTAINER="${POSTGRES_CONTAINER:-hearth-postgres-prod}"
-POSTGRES_USER="${POSTGRES_USER:-hearth}"
+COMPOSE="${COMPOSE:-docker compose}"
+BACKUP_DIR="${BACKUP_DIR:-./backups}"
+RETENTION_DAYS="${RETENTION_DAYS:-14}"
+DATABASES=(hearth_family hearth_task hearth_decision hearth_care hearth_notification hearth_audit hearth_ai)
+TARGET="${BACKUP_DIR}/$(date -u +%Y%m%dT%H%M%SZ)"
 
-DATABASES=("hearth_family" "hearth_task" "hearth_decision" "hearth_care" "hearth_notification" "hearth_audit")
+mkdir -p "${TARGET}"
+echo "Backing up to ${TARGET}"
 
-mkdir -p "${BACKUP_DIR}/${TIMESTAMP}"
-
-echo "=== Starting Hearth Database Backups: ${TIMESTAMP} ==="
-
-for DB in "${DATABASES[@]}"; do
-    echo "[Backup] Dumping ${DB}..."
-    docker exec "${POSTGRES_CONTAINER}" pg_dump -U "${POSTGRES_USER}" -d "${DB}" -F c -b -v -f "/tmp/${DB}_${TIMESTAMP}.dump"
-    docker cp "${POSTGRES_CONTAINER}:/tmp/${DB}_${TIMESTAMP}.dump" "${BACKUP_DIR}/${TIMESTAMP}/${DB}.dump"
-    docker exec "${POSTGRES_CONTAINER}" rm "/tmp/${DB}_${TIMESTAMP}.dump"
-    echo "[OK] Backed up ${DB} -> ${BACKUP_DIR}/${TIMESTAMP}/${DB}.dump"
+for db in "${DATABASES[@]}"; do
+  # Streams straight out of the container: nothing is left behind inside it.
+  ${COMPOSE} exec -T postgres pg_dump -U hearth -d "${db}" --format=custom --no-owner > "${TARGET}/${db}.dump"
+  echo "  ${db}: $(du -h "${TARGET}/${db}.dump" | cut -f1)"
 done
 
-# Retention policy: delete backups older than 14 days
-echo "Cleaning backups older than 14 days..."
-find "${BACKUP_DIR}" -mindepth 1 -maxdepth 1 -type d -mtime +14 -exec rm -rf {} +
+# Uploaded care documents (files; their details are in hearth_care).
+${COMPOSE} exec -T care-service tar -C /data -czf - documents > "${TARGET}/documents.tar.gz" 2>/dev/null \
+  && echo "  documents: $(du -h "${TARGET}/documents.tar.gz" | cut -f1)" \
+  || { rm -f "${TARGET}/documents.tar.gz"; echo "  documents: none yet"; }
 
-echo "=== Hearth Backup Completed Successfully ==="
+( cd "${TARGET}" && sha256sum -- * > SHA256SUMS )
+
+find "${BACKUP_DIR}" -mindepth 1 -maxdepth 1 -type d -mtime "+${RETENTION_DAYS}" -exec rm -rf {} +
+echo "Done."
