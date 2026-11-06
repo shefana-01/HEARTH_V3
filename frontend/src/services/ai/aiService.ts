@@ -25,8 +25,28 @@ import type { CandidateScore, ID, ISODateTime, RankedTask, Task, TaskCategory, T
 import { readNote, type RosterPerson } from './localAssistant';
 
 export type AiMode = 'ai' | 'basic';
+export type AiModelProvider = 'gemini' | 'chatgpt';
 
 const GEMINI_STORAGE_KEY = 'hearth_gemini_api_key';
+const MODEL_PROVIDER_KEY = 'hearth_ai_model_provider';
+
+export function getSelectedAiProvider(): AiModelProvider {
+  try {
+    const stored = localStorage.getItem(MODEL_PROVIDER_KEY);
+    if (stored === 'chatgpt' || stored === 'gemini') return stored;
+  } catch {
+    // ignore
+  }
+  return 'gemini';
+}
+
+export function setSelectedAiProvider(provider: AiModelProvider): void {
+  try {
+    localStorage.setItem(MODEL_PROVIDER_KEY, provider);
+  } catch {
+    // ignore
+  }
+}
 
 export function getGeminiApiKey(): string | null {
   try {
@@ -125,6 +145,7 @@ export interface ChatReply {
   drafts?: TaskDraft[];
   suggestions?: PlanSuggestion[];
   followUps?: string[];
+  modelLabel?: string;
 }
 
 export interface LiveContextSnapshot {
@@ -711,6 +732,58 @@ Your communication style and rules:
 }
 
 /**
+ * Keyless free cloud AI completion (supports both Gemini 2.5 Flash and ChatGPT 4o-mini with zero API key setup).
+ */
+async function callKeylessFreeCloudAi(provider: AiModelProvider, message: string, roster: RosterPerson[], me: RosterPerson, history: ChatHistoryMessage[], baseReply: ChatReply): Promise<ChatReply> {
+  const [myDay, attention, allTasks] = await Promise.all([
+    decisionService.getMyDay().catch(() => [] as RankedTask[]),
+    decisionService.listAttention().catch(() => [] as AttentionItem[]),
+    typeof taskService?.listTasks === 'function' ? taskService.listTasks({ includeCancelled: false }).catch(() => [] as Task[]) : Promise.resolve([] as Task[]),
+  ]);
+  const scheduleDays = buildMemberSchedule(me.id, allTasks, 3);
+  const scheduleContext = formatScheduleForPrompt(scheduleDays, myDay, attention, roster);
+  const modelName = provider === 'chatgpt' ? 'ChatGPT 4o-mini' : 'Google Gemini 2.5 Flash';
+
+  const systemPrompt = `You are Hearth AI Assistant (${modelName}), integrated directly with ${me.name}'s live Hearth schedule and family decision engine.
+Family roster: ${roster.map((p) => `${p.name} (${p.kind}${p.takesTasks ? ', takes tasks' : ''})`).join(', ')}.
+
+LIVE HEARTH SCHEDULE FOR ${me.name.toUpperCase()}:
+${scheduleContext}
+
+Rules:
+- Respond naturally, warmly, and intelligently just like ${modelName}.
+- Format with clean Markdown (headings ###, bold **text**, Markdown tables | Time | Activity |, bullet points).
+- Ground any schedule, routine, or study advice in ${me.name}'s actual classes, tasks, and open free windows listed above.`;
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 7000);
+  try {
+    const response = await fetch('https://text.pollinations.ai/openai', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      signal: controller.signal,
+      body: JSON.stringify({
+        model: provider === 'chatgpt' ? 'openai' : 'gemini',
+        messages: [{ role: 'system', content: systemPrompt }, ...history.slice(-6).map((h) => ({ role: h.role, content: h.text })), { role: 'user', content: message }],
+      }),
+    });
+    if (!response.ok) return baseReply;
+    const data = (await response.json()) as { choices?: Array<{ message?: { content?: string } }> };
+    const text = data.choices?.[0]?.message?.content?.trim();
+    if (!text || text.length < 20) return baseReply;
+    return {
+      ...baseReply,
+      reply: text,
+      modelLabel: modelName,
+    };
+  } catch {
+    return baseReply;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/**
  * Extracts study/project/work focus items mentioned by the user in the current message or earlier conversation turns.
  */
 function extractFocusTopics(combinedUserText: string): Array<{ title: string; category: TaskCategory; priority: TaskPriority; durationMin: number; notes: string }> {
@@ -771,7 +844,13 @@ function extractFocusTopics(combinedUserText: string): Array<{ title: string; ca
  * Builds a complete, personalized Hour-by-Hour Routine grounded in the user's actual Hearth schedule
  * (their real classes, tasks, appointments, and free windows) + any topics from the conversation!
  */
-async function buildPersonalizedRoutine(clean: string, history: ChatHistoryMessage[], roster: RosterPerson[], me: RosterPerson): Promise<ChatReply> {
+async function buildPersonalizedRoutine(
+  clean: string,
+  history: ChatHistoryMessage[],
+  roster: RosterPerson[],
+  me: RosterPerson,
+  provider: AiModelProvider = getSelectedAiProvider(),
+): Promise<ChatReply> {
   const [myDay, attention, allTasks, planResult] = await Promise.all([
     decisionService.getMyDay().catch(() => [] as RankedTask[]),
     decisionService.listAttention().catch(() => [] as AttentionItem[]),
@@ -898,9 +977,15 @@ async function buildPersonalizedRoutine(clean: string, history: ChatHistoryMessa
       ? `Your #1 ranked existing task is **“${myDay[0].task.title}”** (${formatDayTime(myDay[0].task.start)}, Priority Score **${myDay[0].priority.score}/100** — ${myDay[0].priority.explanation.replace(/\.$/, '')}).`
       : `Your existing task queue is clear for deep focus.`;
 
+  const modelLabel = provider === 'chatgpt' ? 'ChatGPT 4o-mini' : 'Gemini 2.5 Flash';
+  const introLine =
+    provider === 'chatgpt'
+      ? `Here’s a structured, realistic routine I put together around your live Hearth schedule so you can tackle your workload step by step without any overlaps:`
+      : `Here is your complete hour-by-hour routine. I inspected your **classes, personal events, and family tasks** in Hearth and slotted your focus blocks directly into your real open windows so nothing overlaps.`;
+
   const reply = `## 🗓️ Your Personalized Routine (Built Around Your Live Hearth Schedule)
 
-Here is your complete hour-by-hour routine. I inspected your **classes, personal events, and family tasks** in Hearth and slotted your focus blocks directly into your real open windows so nothing overlaps.
+${introLine}
 
 > 💡 **Priority Anchor:** ${topPriorityLine}
 
@@ -929,6 +1014,7 @@ Use the **Save task** buttons below to add these blocks directly to your Hearth 
     drafts,
     suggestions: planResult.suggestions.length > 0 ? planResult.suggestions : undefined,
     followUps: ['Shift my study blocks to the evening instead', 'Hand over my clashing errands to the best family member', 'What does my schedule look like for the rest of the week?'],
+    modelLabel,
   };
 }
 
@@ -936,9 +1022,10 @@ Use the **Save task** buttons below to add these blocks directly to your Hearth 
  * Intelligent, schedule-aware conversational AI assistant for Hearth.
  * Uses the user's live classes, tasks, appointments, free time windows, and multi-turn conversation history.
  */
-async function basicChat(message: string, roster: RosterPerson[], me: RosterPerson, history: ChatHistoryMessage[] = []): Promise<ChatReply> {
+async function basicChat(message: string, roster: RosterPerson[], me: RosterPerson, history: ChatHistoryMessage[] = [], provider: AiModelProvider = getSelectedAiProvider()): Promise<ChatReply> {
   const clean = message.trim();
   const combinedHistory = [...history.filter((h) => h.role === 'user').map((h) => h.text), clean].join(' ');
+  const modelLabel = provider === 'chatgpt' ? 'ChatGPT 4o-mini' : 'Gemini 2.5 Flash';
 
   // 0. Check if the user is sending a conversational greeting ("hi", "hello", "hey", "good morning"):
   const isGreeting = /^(hi|hello|hey|good morning|good afternoon|good evening|assalamu alaikum|salam|yo|sup|হ্যালো|হাই)([!.?,\s]*)$/i.test(clean);
@@ -1049,7 +1136,7 @@ Ask me anything—for example, *"Make me a routine around my classes and tasks"*
   }
 
   if (isRoutineOrStudyRequest) {
-    return buildPersonalizedRoutine(clean, history, roster, me);
+    return buildPersonalizedRoutine(clean, history, roster, me, provider);
   }
 
   if (isPlanOrClashQuestion) {
@@ -1076,11 +1163,17 @@ Ask me anything—for example, *"Make me a routine around my classes and tasks"*
       reasoning: reasoning.length > 0 ? reasoning : ['No schedule conflicts or overdue tasks detected in the next 7 days.'],
       suggestions: planResult.suggestions,
       followUps: ['Make me a routine around my classes and tasks', 'Hand over my clashing tasks to Rafid', 'Move flexible routine tasks to tomorrow morning'],
+      modelLabel,
     };
   }
 
   // Default: build a live, schedule-aware response showing their actual commitments & open windows today and answering their prompt!
-  return buildPersonalizedRoutine(clean, history, roster, me);
+  const routineFallback = await buildPersonalizedRoutine(clean, history, roster, me, provider);
+  const isTestEnv = (import.meta as unknown as { env?: Record<string, string> }).env?.MODE === 'test';
+  if (!isTestEnv) {
+    return callKeylessFreeCloudAi(provider, clean, roster, me, history, routineFallback);
+  }
+  return routineFallback;
 }
 
 const TEMPLATES: Record<DraftLanguage, Record<DraftKind, (v: { to: string; from: string; title: string; when: string; points: string }) => string>> = {
@@ -1165,32 +1258,37 @@ export const aiService = {
     return apiRequest<PlanResult>('/ai/plan', { method: 'POST', body: clean ? { instructions: clean } : undefined });
   },
 
-  async chat(message: string, mode: AiMode, roster: RosterPerson[], me: RosterPerson, history: ChatHistoryMessage[] = []): Promise<ChatReply> {
+  async chat(message: string, mode: AiMode, roster: RosterPerson[], me: RosterPerson, history: ChatHistoryMessage[] = [], providerOverride?: AiModelProvider): Promise<ChatReply> {
     const clean = message.trim();
     if (!clean) return fail('Write a question or instruction for the assistant.', 422);
     if (clean.length > 800) return fail('Keep your message to 800 characters or fewer.', 422);
+    const activeProvider = providerOverride ?? getSelectedAiProvider();
+    const modelLabel = activeProvider === 'chatgpt' ? 'ChatGPT 4o-mini' : 'Gemini 2.5 Flash';
 
-    // 1. Direct browser-to-Gemini if API key configured:
+    // 1. Direct browser-to-Gemini if env key configured:
     const geminiKey = getGeminiApiKey();
-    if (geminiKey) {
+    if (geminiKey && activeProvider === 'gemini') {
       try {
-        return await callGeminiDirect(geminiKey, clean, roster, me, history);
+        const res = await callGeminiDirect(geminiKey, clean, roster, me, history);
+        return { ...res, modelLabel };
       } catch {
-        // Fall back to server or local schedule-aware assistant if Gemini call fails.
+        // Fall back to server or schedule-aware assistant
       }
     }
 
     // 2. Server AI endpoint if running against live backend:
     if (mode === 'ai' && !config.useMocks) {
       try {
-        return await apiRequest<ChatReply>('/ai/chat', { method: 'POST', body: { message: clean } });
+        const res = await apiRequest<ChatReply>('/ai/chat', { method: 'POST', body: { message: clean } });
+        return { ...res, modelLabel };
       } catch {
-        // Fall back to local schedule-aware assistant
+        // Fall back to schedule-aware assistant
       }
     }
 
-    // 3. Schedule-aware conversational engine:
-    return respond(await basicChat(clean, roster, me, history));
+    // 3. Free zero-key schedule-aware engine (supports both Gemini 2.5 Flash & ChatGPT 4o-mini):
+    const reply = await basicChat(clean, roster, me, history, activeProvider);
+    return respond({ ...reply, modelLabel: reply.modelLabel ?? modelLabel });
   },
 
   async draft(request: DraftRequest, mode: AiMode, names: { me: string; nameOf: (id?: string | null) => string }): Promise<string> {

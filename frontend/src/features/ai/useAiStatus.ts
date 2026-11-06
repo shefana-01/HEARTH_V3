@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useSyncExternalStore } from 'react';
-import { aiService, getGeminiApiKey, modeOf, setGeminiApiKey, type AiMode, type AiStatus } from '@/services/ai/aiService';
+import { aiService, getGeminiApiKey, getSelectedAiProvider, modeOf, setGeminiApiKey, setSelectedAiProvider, type AiMode, type AiModelProvider, type AiStatus } from '@/services/ai/aiService';
 
 /**
- * AI help status, shared by every component that shows an AI button. Loaded once per session and kept in
- * step when the person turns AI help on or off anywhere in the app or configures a Gemini API key.
+ * AI help status and active free model provider (Google Gemini 2.5 Flash or ChatGPT 4o-mini),
+ * shared across all components.
  */
 let current: AiStatus | undefined;
 let loading: Promise<void> | null = null;
@@ -21,7 +21,6 @@ function load(force = false): Promise<void> {
       current = s;
     })
     .catch(() => {
-      // Unreachable ai-service: behave as if AI help were off, so everything keeps working in basic mode.
       current = { enabled: false, consented: false, usedToday: 0, dailyLimit: 0, monthlyBudgetUsedPercent: 0 };
     })
     .finally(emit);
@@ -31,6 +30,8 @@ function load(force = false): Promise<void> {
 export function useAiStatus(): {
   status: AiStatus | undefined;
   mode: AiMode;
+  provider: AiModelProvider;
+  setProvider: (provider: AiModelProvider) => void;
   geminiKey: string | null;
   setGeminiKey: (key: string) => void;
   clearGeminiKey: () => void;
@@ -45,6 +46,14 @@ export function useAiStatus(): {
     () => current,
   );
 
+  const provider = useSyncExternalStore(
+    (listener) => {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    },
+    () => getSelectedAiProvider(),
+  );
+
   useEffect(() => {
     if (!current) void load();
   }, []);
@@ -53,6 +62,11 @@ export function useAiStatus(): {
 
   const setConsent = useCallback(async (granted: boolean) => {
     current = await aiService.setConsent(granted);
+    emit();
+  }, []);
+
+  const handleSetProvider = useCallback((next: AiModelProvider) => {
+    setSelectedAiProvider(next);
     emit();
   }, []);
 
@@ -71,6 +85,8 @@ export function useAiStatus(): {
   return {
     status,
     mode: modeOf(status),
+    provider,
+    setProvider: handleSetProvider,
     geminiKey,
     setGeminiKey: handleSetGeminiKey,
     clearGeminiKey: handleClearGeminiKey,

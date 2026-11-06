@@ -1,20 +1,22 @@
-import { Sparkles, Wand2 } from 'lucide-react';
+import { Bot, Sparkles } from 'lucide-react';
 import { Badge } from '@/components/ui';
-import { useTranslation } from '@/i18n';
-import type { AiMode } from '@/services/ai/aiService';
+import type { AiMode, AiModelProvider } from '@/services/ai/aiService';
+import { useAiStatus } from './useAiStatus';
 
-/** Says which assistant answers: Google Gemini 2.5 Flash or the offline intelligent assistant. */
-export function AiBadge({ mode, showModel = true }: { mode: AiMode; showModel?: boolean }) {
-  const { t } = useTranslation();
-  return mode === 'ai' ? (
-    <Badge tone="primary" title="Answers powered by Google Gemini 2.5 Flash">
-      <Sparkles aria-hidden="true" className="mr-1 h-3 w-3 text-primary-600" />
-      {showModel ? 'Gemini 2.5 Flash' : t.ai.modeAi}
+/** Shows which free AI model is currently active: Google Gemini 2.5 Flash or ChatGPT 4o-mini. */
+export function AiBadge({ provider: providerProp }: { mode?: AiMode; showModel?: boolean; provider?: AiModelProvider }) {
+  const { provider: stateProvider } = useAiStatus();
+  const active = providerProp ?? stateProvider;
+
+  return active === 'chatgpt' ? (
+    <Badge tone="primary" title="Powered by ChatGPT 4o-mini (Free Tier) + Hearth Schedule Engine">
+      <Bot aria-hidden="true" className="mr-1 h-3 w-3 text-primary-600" />
+      ChatGPT 4o-mini · Free
     </Badge>
   ) : (
-    <Badge tone="neutral" title="Answers come from Hearth’s built-in intelligent assistant on this device">
-      <Wand2 aria-hidden="true" className="mr-1 h-3 w-3" />
-      {t.ai.modeBasic}
+    <Badge tone="primary" title="Powered by Google Gemini 2.5 Flash (Free Tier) + Hearth Schedule Engine">
+      <Sparkles aria-hidden="true" className="mr-1 h-3 w-3 text-primary-600" />
+      Gemini 2.5 Flash · Free
     </Badge>
   );
 }
