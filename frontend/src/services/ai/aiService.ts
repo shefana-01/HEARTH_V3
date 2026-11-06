@@ -124,6 +124,16 @@ export interface ChatReply {
   reasoning?: string[];
   drafts?: TaskDraft[];
   suggestions?: PlanSuggestion[];
+  followUps?: string[];
+}
+
+export interface LiveContextSnapshot {
+  todayClassesCount: number;
+  todayTasksCount: number;
+  todayFreeWindowsCount: number;
+  todayFreeMinutes: number;
+  clashCount: number;
+  topTaskTitle?: string;
 }
 
 export type DraftKind = 'handover-request' | 'reminder' | 'chat-message' | 'weekly-summary';
@@ -705,50 +715,54 @@ Your communication style and rules:
  */
 function extractFocusTopics(combinedUserText: string): Array<{ title: string; category: TaskCategory; priority: TaskPriority; durationMin: number; notes: string }> {
   const topics: Array<{ title: string; category: TaskCategory; priority: TaskPriority; durationMin: number; notes: string }> = [];
+  const seen = new Set<string>();
+  const addTopic = (title: string, category: TaskCategory, priority: TaskPriority, durationMin: number, notes: string) => {
+    const key = title.toLowerCase();
+    if (!seen.has(key)) {
+      seen.add(key);
+      topics.push({ title, category, priority, durationMin, notes });
+    }
+  };
+
   if (/optisystem/i.test(combinedUserText)) {
-    topics.push({
-      title: 'OptiSystem Paper Simulation & Results Draft',
-      category: 'study',
-      priority: 'urgent',
-      durationMin: 90,
-      notes: 'Finalize optical link simulation parameters, BER/Eye diagrams, and results section.',
-    });
+    addTopic(
+      'OptiSystem Paper: Simulation, BER/Eye Diagrams & Results Draft',
+      'study',
+      'urgent',
+      90,
+      'Finalize optical link simulation parameters, capture BER/Eye diagram figures, and write the results section.',
+    );
   }
   if (/microcontroller/i.test(combinedUserText)) {
-    topics.push({
-      title: 'Microcontroller Project Hardware & Firmware Test',
-      category: 'study',
-      priority: 'urgent',
-      durationMin: 90,
-      notes: 'Verify circuit wiring, sensor I/O, and embedded firmware test cases.',
-    });
+    addTopic('Microcontroller Project: Firmware & Hardware Integration Test', 'study', 'urgent', 90, 'Verify circuit wiring, sensor I/O, and embedded firmware test cases before submission.');
   }
+
+  // Dynamically extract any other named <Subject> paper / project / assignment / exam / lab / report / presentation
+  const customMatches = combinedUserText.matchAll(/\b([A-Za-z][A-Za-z0-9+/ -]{2,28}?)\s+(paper|project|submission|assignment|exam|quiz|lab report|report|presentation|thesis)\b/gi);
+  for (const m of customMatches) {
+    const rawSubject = m[1]
+      .replace(/^(my|the|an|a|and|with|for|have|i have|in|on)\s+/i, '')
+      .replace(/^(my|the|an|a)\s+/i, '')
+      .trim();
+    const kind = m[2].toLowerCase();
+    if (rawSubject.length >= 3 && !/^(optisystem|microcontroller|other|some|this|that|make|build|create|tied|how|can)$/i.test(rawSubject)) {
+      const cleanSubject = rawSubject.charAt(0).toUpperCase() + rawSubject.slice(1);
+      addTopic(
+        `${cleanSubject} ${kind.charAt(0).toUpperCase() + kind.slice(1)} — Deep Focus Session`,
+        'study',
+        'urgent',
+        90,
+        `Dedicated focus block for ${cleanSubject} ${kind} preparation and milestone completion.`,
+      );
+    }
+  }
+
   if (/\b(other studies|coursework|exam|revision|lecture|slides|os|operating systems|database)\b/i.test(combinedUserText) || topics.length > 0) {
-    topics.push({
-      title: 'Coursework Revision & Submission Final Check',
-      category: 'study',
-      priority: 'important',
-      durationMin: 60,
-      notes: 'Review lecture notes, proofread submission files, and keep a safety buffer before deadlines.',
-    });
+    addTopic('Coursework Revision & Submission Final Check', 'study', 'important', 60, 'Review lecture notes, proofread submission files, and keep a safety buffer before deadlines.');
   }
   if (topics.length === 0) {
-    topics.push(
-      {
-        title: 'Deep Focus Block: Priority Academic / Project Work',
-        category: 'study',
-        priority: 'important',
-        durationMin: 90,
-        notes: 'Uninterrupted deep work session slotted into your widest free window.',
-      },
-      {
-        title: 'Afternoon Review & Practice Session',
-        category: 'study',
-        priority: 'routine',
-        durationMin: 60,
-        notes: 'Review notes, complete pending exercises, and prep for tomorrow’s classes.',
-      },
-    );
+    addTopic('Deep Focus Block: Priority Academic & Project Work', 'study', 'important', 90, 'Uninterrupted deep work session slotted into your widest open window.');
+    addTopic('Afternoon Review & Coursework Practice Session', 'study', 'routine', 60, 'Review notes, complete pending exercises, and prep for tomorrow’s classes.');
   }
   return topics;
 }
@@ -771,7 +785,10 @@ async function buildPersonalizedRoutine(clean: string, history: ChatHistoryMessa
   const today = days[0];
   const tomorrow = days[1];
 
-  // Slot the focus topics into the user's ACTUAL open free windows across Today & Tomorrow!
+  const prefersEvening = /\b(evening|night|after 5|after 6|tonight)\b/i.test(clean);
+  const prefersMorning = /\b(morning|early)\b/i.test(clean);
+
+  // Collect open free windows across Today & Tomorrow
   const allFreeWindows: Array<{ dayLabel: string; startMs: number; endMs: number; durationMin: number }> = [];
   for (const d of days) {
     for (const f of d.free) {
@@ -779,6 +796,20 @@ async function buildPersonalizedRoutine(clean: string, history: ChatHistoryMessa
         allFreeWindows.push({ dayLabel: d.dayLabel, startMs: f.startMs, endMs: f.endMs, durationMin: f.durationMin });
       }
     }
+  }
+
+  if (prefersEvening) {
+    allFreeWindows.sort((a, b) => {
+      const aEv = new Date(a.startMs).getHours() >= 17 ? 0 : 1;
+      const bEv = new Date(b.startMs).getHours() >= 17 ? 0 : 1;
+      return aEv - bEv || a.startMs - b.startMs;
+    });
+  } else if (prefersMorning) {
+    allFreeWindows.sort((a, b) => {
+      const aMo = new Date(a.startMs).getHours() < 12 ? 0 : 1;
+      const bMo = new Date(b.startMs).getHours() < 12 ? 0 : 1;
+      return aMo - bMo || a.startMs - b.startMs;
+    });
   }
 
   const drafts: TaskDraft[] = [];
@@ -811,13 +842,13 @@ async function buildPersonalizedRoutine(clean: string, history: ChatHistoryMessa
     slottedByDay.get(dayLabel)?.push({
       startMs,
       endMs,
-      label: `✨ NEW: ${topic.title}`,
+      label: `✨ ${topic.title}`,
       kind: 'task',
       priority: topic.priority,
       category: topic.category,
     });
 
-    // If the window still has >= 90 min left after this block + 15m break, reuse the remainder of the window!
+    // If the window still has >= 75 min left after this block + 15m break, reuse the remainder of the window!
     if (win && win.endMs - (endMs + 15 * 60_000) >= 60 * 60_000) {
       allFreeWindows[winIdx] = {
         ...win,
@@ -829,24 +860,24 @@ async function buildPersonalizedRoutine(clean: string, history: ChatHistoryMessa
     }
   }
 
-  const formatDayTimeline = (d: DayScheduleSummary) => {
+  const formatDayTable = (d: DayScheduleSummary) => {
     const items = (slottedByDay.get(d.dayLabel) ?? d.busy).sort((a, b) => a.startMs - b.startMs);
-    if (items.length === 0) return `- *No fixed commitments yet — wide open for deep focus.*`;
-    return items
-      .map((item) => {
-        const badge = item.label.startsWith('✨ NEW:')
-          ? '**[Suggested Routine Block]**'
-          : item.kind === 'class-event'
-            ? '*(Class / Personal Schedule)*'
-            : item.kind === 'appointment'
-              ? '*(Appointment)*'
-              : `*(Scheduled Task — ${item.priority ?? 'routine'})*`;
-        return `- **${formatRange(item.startMs, item.endMs)}** — ${item.label} ${badge}`;
-      })
-      .join('\n');
+    if (items.length === 0) return `> No fixed commitments yet — this day is wide open for deep focus.`;
+    const rows = items.map((item) => {
+      const isNew = item.label.startsWith('✨ ');
+      const typeLabel = isNew
+        ? '**Suggested Focus Block**'
+        : item.kind === 'class-event'
+          ? 'Class / Lecture'
+          : item.kind === 'appointment'
+            ? 'Appointment'
+            : `Scheduled Task (${item.priority ?? 'routine'})`;
+      const statusLabel = isNew ? '🟢 Ready to save (0 clashes)' : '📌 Existing on calendar';
+      return `| **${formatRange(item.startMs, item.endMs)}** | ${item.label} | ${typeLabel} | ${statusLabel} |`;
+    });
+    return [`| Time Window | Activity / Focus Block | Type | Status |`, `| :--- | :--- | :--- | :--- |`, ...rows].join('\n');
   };
 
-  // Check if any existing task has a conflict (e.g. tomorrow's OS chapter reading overlapping with Database lab, or an errand that can be handed over)
   const conflictNotes: string[] = [];
   for (const r of myDay) {
     if (r.conflict) {
@@ -857,28 +888,34 @@ async function buildPersonalizedRoutine(clean: string, history: ChatHistoryMessa
     if (a.topCandidate) {
       const candidateName = firstName(roster.find((p) => p.id === a.topCandidate?.memberId)?.name);
       conflictNotes.push(
-        `**Handover opportunity on “${a.task.title}”** (${formatDayTime(a.task.start)}): ${candidateName} has a **${a.topCandidate.score}/100 Suitability Score** (${a.topCandidate.reasons.join(' ')}) and can take this over so you have more study time.`,
+        `**Handover opportunity on “${a.task.title}”** (${formatDayTime(a.task.start)}): **${candidateName}** has a **${a.topCandidate.score}/100 Suitability Score** (${a.topCandidate.reasons.join(' ')}) and can take this over so you stay focused.`,
       );
     }
   }
 
-  const reply = `### 🗓️ Your Personalized Routine (Built Around Your Live Hearth Schedule)
+  const topPriorityLine =
+    myDay.length > 0
+      ? `Your #1 ranked existing task is **“${myDay[0].task.title}”** (${formatDayTime(myDay[0].task.start)}, Priority Score **${myDay[0].priority.score}/100** — ${myDay[0].priority.explanation.replace(/\.$/, '')}).`
+      : `Your existing task queue is clear for deep focus.`;
 
-I analyzed your **classes, personal events, and family tasks** in Hearth and slotted your focus blocks directly into your real open time windows so nothing overlaps:
+  const reply = `## 🗓️ Your Personalized Routine (Built Around Your Live Hearth Schedule)
+
+Here is your complete hour-by-hour routine. I inspected your **classes, personal events, and family tasks** in Hearth and slotted your focus blocks directly into your real open windows so nothing overlaps.
+
+> 💡 **Priority Anchor:** ${topPriorityLine}
 
 ### 📌 ${today.dayLabel}
-${formatDayTimeline(today)}
+${formatDayTable(today)}
 
 ### 📌 ${tomorrow.dayLabel}
-${formatDayTimeline(tomorrow)}
+${formatDayTable(tomorrow)}
 
-${
-  conflictNotes.length > 0
-    ? `### ⚡ Smart Schedule Optimizations Found\n${conflictNotes.map((c) => `- ${c}`).join('\n')}`
-    : `### ✅ Schedule Check\n- All proposed study blocks sit inside your open windows with **0 schedule overlaps**.`
-}
+### 🎯 Why This Routine Works Best for You
+1. **Zero Class Overlaps:** Every focus block is placed inside your verified free windows (${today.free.map((f) => formatRange(f.startMs, f.endMs)).join(', ') || 'open afternoon/evening slots'}) with a 15-minute buffer after classes.
+2. **Peak Energy Alignment:** High-complexity work (**${focusTopics[0]?.title ?? 'Deep Focus'}**) goes into your earliest wide gap while your concentration is freshest, followed by hands-on testing and coursework review in the next open window.
+${conflictNotes.length > 0 ? `3. **Smart Workload Relief:** ${conflictNotes.join(' · ')}` : `3. **Conflict-Free Schedule:** All proposed blocks sit cleanly alongside your family commitments.`}
 
-Click **Save task** on any routine block below to add it to your calendar, or click **Apply** on the schedule adjustments to free up your time:`;
+Use the **Save task** buttons below to add these blocks directly to your Hearth calendar, or ask me to adjust the times (e.g., *"Move my focus blocks to the evening"*):`;
 
   const reasoning = [
     `Checked ${today.busy.length + tomorrow.busy.length} existing classes & tasks across Today and Tomorrow.`,
@@ -891,6 +928,7 @@ Click **Save task** on any routine block below to add it to your calendar, or cl
     reasoning,
     drafts,
     suggestions: planResult.suggestions.length > 0 ? planResult.suggestions : undefined,
+    followUps: ['Shift my study blocks to the evening instead', 'Hand over my clashing errands to the best family member', 'What does my schedule look like for the rest of the week?'],
   };
 }
 
@@ -901,6 +939,40 @@ Click **Save task** on any routine block below to add it to your calendar, or cl
 async function basicChat(message: string, roster: RosterPerson[], me: RosterPerson, history: ChatHistoryMessage[] = []): Promise<ChatReply> {
   const clean = message.trim();
   const combinedHistory = [...history.filter((h) => h.role === 'user').map((h) => h.text), clean].join(' ');
+
+  // 0. Check if the user is sending a conversational greeting ("hi", "hello", "hey", "good morning"):
+  const isGreeting = /^(hi|hello|hey|good morning|good afternoon|good evening|assalamu alaikum|salam|yo|sup|হ্যালো|হাই)([!.?,\s]*)$/i.test(clean);
+  if (isGreeting) {
+    const [myDay, attention, allTasks] = await Promise.all([
+      decisionService.getMyDay().catch(() => [] as RankedTask[]),
+      decisionService.listAttention().catch(() => [] as AttentionItem[]),
+      typeof taskService?.listTasks === 'function' ? taskService.listTasks({ includeCancelled: false }).catch(() => [] as Task[]) : Promise.resolve([] as Task[]),
+    ]);
+    const days = buildMemberSchedule(me.id, allTasks, 1);
+    const today = days[0];
+    const freeMin = today.free.reduce((s, f) => s + f.durationMin, 0);
+    const topTask = myDay[0];
+    return {
+      reply: `### 👋 Hello, ${firstName(me.name)}! How can I help you today?
+
+I'm synced with your live **Hearth Schedule & Decision Engine**. Here is your quick snapshot for **${today.dayLabel}**:
+- **Fixed Classes & Tasks:** ${today.busy.length} scheduled commitments (${today.busy.map((b) => `${b.label} at ${formatClock(new Date(b.startMs))}`).join(', ') || 'none'})
+- **Open Free Time:** **${Math.round((freeMin / 60) * 10) / 10} hours** across ${today.free.length} open windows (${today.free.map((f) => formatRange(f.startMs, f.endMs)).join(', ') || 'wide open'})
+- **#1 Priority Focus:** ${topTask ? `**“${topTask.task.title}”** (${formatDayTime(topTask.task.start)}, Priority Score **${topTask.priority.score}/100**)` : 'No urgent tasks pending'}
+- **Family Schedule Clashes:** ${attention.length === 0 ? '0 clashes' : `${attention.length} clash(es) ready to resolve`}
+
+Ask me anything—for example, *"Make me a routine around my classes and tasks"*, *"I have my OptiSystem paper & microcontroller project submission, how can I organize?"*, or *"Who is best suited to take Dadu to the dentist?"*`,
+      reasoning: [
+        `Loaded ${today.busy.length} commitments and ${today.free.length} open windows for ${today.dayLabel}.`,
+        topTask ? `Top ranked task: “${topTask.task.title}” (Score ${topTask.priority.score}/100 — ${topTask.priority.explanation})` : 'Queue is clear.',
+      ],
+      followUps: [
+        'Make me a routine around my classes and tasks',
+        'I have my OptiSystem paper submission & microcontroller project submission. How can I organize?',
+        'Do we have any schedule clashes this week?',
+      ],
+    };
+  }
 
   // 1. Check if the user is asking for a routine, timetable, study/project organization, or how to organize their day/week:
   const isRoutineOrStudyRequest =
@@ -958,6 +1030,7 @@ async function basicChat(message: string, roster: RosterPerson[], me: RosterPers
         reply: `### 👥 Member Availability & Suitability Analysis\n\nBased on the family schedule, workload capacity, and skills for **${formatDayTime(sample.start)}**, **${topPerson.name}** is the best fit with a **${top.score}/100 Suitability Score** (${top.reasons.join(' ')}).\n\nYou can save this task directly to their schedule below:`,
         reasoning,
         drafts: [recommendedDraft],
+        followUps: ['Make me a routine around my classes and tasks', 'Do we have any schedule clashes this week?', 'What should I focus on first today and why?'],
       };
     }
   }
@@ -970,6 +1043,7 @@ async function basicChat(message: string, roster: RosterPerson[], me: RosterPers
         reply: `### ✨ Task Drafts Ready\n\nI prepared ${quick.drafts.length === 1 ? 'a task draft' : `${quick.drafts.length} task drafts`} from your instruction, complete with assignee suitability and priority reasoning. Review and click **Save task** below:`,
         reasoning: [...reasoning, ...quick.assumptions],
         drafts: quick.drafts,
+        followUps: ['Make me a routine around my classes and tasks', 'Who else is free tomorrow afternoon?', 'Do we have any schedule clashes this week?'],
       };
     }
   }
@@ -1001,6 +1075,7 @@ async function basicChat(message: string, roster: RosterPerson[], me: RosterPers
           : `### 📅 Schedule & Priority Analysis\n\n${planResult.summary}\n\nI checked your priority queue and family availability—everything is currently on track.`,
       reasoning: reasoning.length > 0 ? reasoning : ['No schedule conflicts or overdue tasks detected in the next 7 days.'],
       suggestions: planResult.suggestions,
+      followUps: ['Make me a routine around my classes and tasks', 'Hand over my clashing tasks to Rafid', 'Move flexible routine tasks to tomorrow morning'],
     };
   }
 
@@ -1122,5 +1197,26 @@ export const aiService = {
     if (mode === 'basic') return basicDraft(request, names);
     const result = await apiRequest<{ text: string }>('/ai/drafts', { method: 'POST', body: request });
     return result.text;
+  },
+
+  async getLiveContextSnapshot(meId: string): Promise<LiveContextSnapshot> {
+    const [myDay, attention, allTasks] = await Promise.all([
+      decisionService.getMyDay().catch(() => [] as RankedTask[]),
+      decisionService.listAttention().catch(() => [] as AttentionItem[]),
+      typeof taskService?.listTasks === 'function' ? taskService.listTasks({ includeCancelled: false }).catch(() => [] as Task[]) : Promise.resolve([] as Task[]),
+    ]);
+    const today = buildMemberSchedule(meId, allTasks, 1)[0];
+    const todayClassesCount = today.busy.filter((b) => b.kind === 'class-event').length;
+    const todayTasksCount = today.busy.filter((b) => b.kind !== 'class-event').length;
+    const todayFreeWindowsCount = today.free.length;
+    const todayFreeMinutes = today.free.reduce((s, f) => s + f.durationMin, 0);
+    return {
+      todayClassesCount,
+      todayTasksCount,
+      todayFreeWindowsCount,
+      todayFreeMinutes,
+      clashCount: attention.length,
+      topTaskTitle: myDay[0]?.task.title,
+    };
   },
 };
