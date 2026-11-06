@@ -3,7 +3,7 @@
  * switched off on the server. It understands everyday English and common Bengali time words, so
  * "Buy rice tomorrow 6pm; Rafid takes Dadu to the dentist Tue 4:30" still becomes two drafts.
  */
-import type { TaskCategory, TaskPriority } from '@/types/domain';
+import type { Skill, TaskCategory, TaskPriority } from '@/types/domain';
 import type { QuickAddResult, TaskDraft } from './aiService';
 
 export interface RosterPerson {
@@ -12,7 +12,39 @@ export interface RosterPerson {
   kind: 'member' | 'dependant';
   /** Members who are not observers. */
   takesTasks: boolean;
+  /** Optional skills listed on the member profile (e.g. driving, meals, errands, medication, clinical). */
+  skills?: Skill[];
 }
+
+const CATEGORY_SKILLS: Record<TaskCategory, Skill[]> = {
+  medication: ['medication', 'clinical'],
+  health: ['clinical', 'medication'],
+  meals: ['meals'],
+  errands: ['errands', 'driving'],
+  household: ['household'],
+  childcare: ['childcare'],
+  transport: ['driving'],
+  study: [],
+  work: [],
+  exercise: ['mobility'],
+  family: ['companionship'],
+  other: [],
+};
+
+const CATEGORY_LABELS: Record<TaskCategory, string> = {
+  medication: 'Medication',
+  health: 'Health & care',
+  meals: 'Meals',
+  errands: 'Errands & shopping',
+  household: 'Household',
+  childcare: 'Childcare',
+  transport: 'Transport',
+  study: 'Study',
+  work: 'Work',
+  exercise: 'Exercise',
+  family: 'Family',
+  other: 'General',
+};
 
 const CATEGORY_WORDS: [TaskCategory, RegExp][] = [
   ['medication', /\b(medicine|medicines|meds|pill|pills|tablet|tablets|insulin|dose|inhaler)\b|ওষুধ|ঔষধ/i],
@@ -193,6 +225,35 @@ function cleanTitle(text: string, phrases: (string | undefined)[], people: Roste
   return (title.charAt(0).toUpperCase() + title.slice(1)).slice(0, 80);
 }
 
+function buildDraftReason(params: {
+  category: TaskCategory;
+  priority: TaskPriority;
+  urgent: boolean;
+  durationMin: number;
+  assignee: RosterPerson;
+  explicitAssignee: boolean;
+  forPerson?: RosterPerson;
+  observerNamed?: RosterPerson;
+}): string {
+  const { category, priority, urgent, durationMin, assignee, explicitAssignee, forPerson, observerNamed } = params;
+  const first = assignee.name.split(' ')[0];
+  const needed = CATEGORY_SKILLS[category];
+  const matchedSkills = (assignee.skills ?? []).filter((s) => needed.includes(s));
+  const skillNote = matchedSkills.length > 0 ? ` (matches ${matchedSkills.join(' & ')} skill)` : '';
+
+  const whoPart = observerNamed
+    ? `Assigned to you (${first}) because ${observerNamed.name.split(' ')[0]} cannot take tasks`
+    : explicitAssignee
+      ? `Assigned to ${first} as named in your note${skillNote}`
+      : `Assigned to ${first}${skillNote}`;
+
+  const forPart = forPerson && forPerson.id !== assignee.id ? ` for ${forPerson.name.split(' ')[0]}` : '';
+
+  const whyPriority = urgent ? 'marked Urgent from your note' : priority === 'important' ? 'marked Important because health and medication tasks affect family care' : 'marked Routine';
+
+  return `${whoPart}${forPart} · Categorised under ${CATEGORY_LABELS[category]} (${durationMin} min, ${whyPriority}).`;
+}
+
 /** Splits a note into separate things to do: one per line, semicolon or sentence. */
 export function splitNote(note: string): string[] {
   return note
@@ -241,17 +302,30 @@ export function readNote(note: string, roster: RosterPerson[], me: RosterPerson,
     const named = people.mentioned.filter((p) => p.kind === 'member' && !p.takesTasks && p !== people.forPerson);
     for (const p of named) assumptions.push(`${p.name.split(' ')[0]} can’t take tasks in Hearth, so “${title}” is given to you.`);
 
+    const durationMin = duration?.value ?? DURATIONS[category];
+    const reason = buildDraftReason({
+      category,
+      priority,
+      urgent,
+      durationMin,
+      assignee,
+      explicitAssignee: Boolean(people.assignee),
+      forPerson: people.forPerson,
+      observerNamed: named[0],
+    });
+
     drafts.push({
       title,
       notes: '',
       category,
       priority,
       start: start.toISOString(),
-      durationMin: duration?.value ?? DURATIONS[category],
+      durationMin,
       assigneeId: assignee.id,
       forId: people.forPerson && people.forPerson.id !== assignee.id ? people.forPerson.id : undefined,
       visibility: 'family',
       reminder: Boolean(time) || category === 'medication' || category === 'health',
+      reason,
     });
   }
   return { drafts, assumptions: [...new Set(assumptions)].slice(0, 6) };
