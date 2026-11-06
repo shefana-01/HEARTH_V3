@@ -58,7 +58,7 @@ class QuickAddServiceTest {
     }
 
     @Test
-    @DisplayName("aliases become real ids: assignee and the person the task is for")
+    @DisplayName("aliases become real ids: assignee, the person the task is for, and the explanation reason")
     void aliasesResolve() throws Exception {
         QuickAddResult result = read("""
                 {"drafts":[{"title":"Take Dadu to the dentist","notes":"Bring the X-ray","category":"health","priority":"important",
@@ -71,6 +71,7 @@ class QuickAddServiceTest {
         assertThat(draft.start()).isEqualTo(ZonedDateTime.of(2026, 11, 10, 16, 0, 0, 0, DHAKA).toInstant());
         assertThat(draft.durationMin()).isEqualTo(90);
         assertThat(draft.reminder()).isTrue();
+        assertThat(draft.reason()).contains("Assigned to Rafid", "for Dadu", "health");
     }
 
     @Test
@@ -90,7 +91,7 @@ class QuickAddServiceTest {
     @DisplayName("values Hearth would reject are corrected: unknown category, priority, duration and visibility")
     void invalidValuesAreCorrected() throws Exception {
         QuickAddResult result = read("""
-                {"drafts":[{"title":"  Something  ","category":"party","priority":"critical","date":"2026-11-06","time":"10:00","durationMin":9000,"visibility":"secret"}],
+                {"drafts":[{"title":"  Something  ","category":"party","priority":"critical","date":"2026-11-06","time":"10:00","durationMin":9000,"visibility":"secret","reason":"Custom reason"}],
                  "assumptions":[]}
                 """);
         TaskDraft draft = result.drafts().get(0);
@@ -99,6 +100,7 @@ class QuickAddServiceTest {
         assertThat(draft.priority()).isEqualTo("routine");
         assertThat(draft.durationMin()).isEqualTo(1440);
         assertThat(draft.visibility()).isEqualTo("family");
+        assertThat(draft.reason()).isEqualTo("Custom reason");
     }
 
     @Test

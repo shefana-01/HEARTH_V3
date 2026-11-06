@@ -152,6 +152,7 @@ class AiApiIT {
         assertThat(draft.get("assigneeId").asText()).isEqualTo(rafid.toString());
         assertThat(draft.get("forId").asText()).isEqualTo(dadu.toString());
         assertThat(draft.get("start").asText()).isEqualTo(day.atTime(16, 0).atZone(java.time.ZoneId.of("Asia/Dhaka")).toInstant().toString());
+        assertThat(draft.get("reason").asText()).contains("Assigned to Rafid", "for Dadu");
         assertThat(result.get("assumptions").get(0).asText()).isEqualTo("Rafid drives.");
 
         StubAiProvider.Received sent = provider.received().get(0);
@@ -196,7 +197,7 @@ class AiApiIT {
     }
 
     @Test
-    void aPlanIsCheckedByTheEngineBeforeItIsShown() throws Exception {
+    void aPlanAndChatAreCheckedByTheEngineBeforeTheyAreShown() throws Exception {
         consent();
         UUID cook = UUID.randomUUID();
         String start = java.time.Instant.now().plusSeconds(3 * 3600).toString();
@@ -210,10 +211,10 @@ class AiApiIT {
                 """.formatted(cook, start, afsara, rafid)));
         when(services.post(endsWith("/decisions/simulations"), anyMap(), eq(JsonNode.class))).thenReturn(json.readTree("{\"resolved\":[{\"id\":\"c1\"}],\"introduced\":[]}"));
         provider.replyWithTool("propose_plan", """
-                {"summary":"One clash today.","suggestions":[{"task":"t1","action":"hand_over","to":"m2","reason":"Rafid is free this evening."}]}
+                {"summary":"One clash today.","suggestions":[{"task":"t1","action":"hand_over","to":"m2","reason":"Rafid is free this evening (suitability 90)."}]}
                 """);
 
-        JsonNode plan = call(post("/api/v1/ai/plan"), null, 200);
+        JsonNode plan = call(post("/api/v1/ai/plan"), Map.of("instructions", "Hand over evening tasks to Rafid"), 200);
 
         assertThat(plan.get("summary").asText()).isEqualTo("One clash today.");
         JsonNode suggestion = plan.get("suggestions").get(0);
@@ -221,6 +222,13 @@ class AiApiIT {
         assertThat(suggestion.get("taskId").asText()).isEqualTo(cook.toString());
         assertThat(suggestion.get("assigneeId").asText()).isEqualTo(rafid.toString());
         assertThat(suggestion.get("resolves").asInt()).isEqualTo(1);
+
+        provider.replyWithTool("propose_plan", """
+                {"summary":"Rafid is the best fit for Cook dinner (suitability 90).","suggestions":[{"task":"t1","action":"hand_over","to":"m2","reason":"Rafid is free and has 90 suitability."}]}
+                """);
+        JsonNode chat = call(post("/api/v1/ai/chat"), Map.of("message", "Who can take Cook dinner?"), 200);
+        assertThat(chat.get("reply").asText()).contains("Rafid is the best fit");
+        assertThat(chat.get("suggestions")).hasSize(1);
     }
 
     @Test
