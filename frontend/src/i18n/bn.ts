@@ -37,6 +37,7 @@ export const bn: TranslationKeys = {
     familySection: 'পরিবার',
     moreSection: 'আরও',
     today: 'আজকের দিন',
+    assistant: 'এআই সহকারী',
     tasks: 'কাজসমূহ',
     schedule: 'সময়সূচী',
     health: 'স্বাস্থ্য ও যত্ন',

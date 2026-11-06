@@ -44,6 +44,7 @@ export const router = createBrowserRouter([
           { path: '/today', element: page(() => import('@/features/today/MyDayPage')) },
           { path: '/dashboard', element: <Navigate to="/today" replace /> },
 
+          { path: '/assistant', element: page(() => import('@/features/ai/AssistantPage')) },
           { path: '/plan', element: page(() => import('@/features/ai/PlanPage')) },
 
           { path: '/tasks', element: page(() => import('@/features/tasks/TasksPage')) },

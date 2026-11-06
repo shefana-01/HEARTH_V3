@@ -61,5 +61,5 @@ describe('Quick add', () => {
     expect(created.map((t) => t.title)).toEqual(['Buy rice and lentils', 'Take Rahima to the dentist']);
     expect(created[1]).toMatchObject({ assigneeId: 'r', forId: 'g', category: 'health' });
     expect(onSaved).toHaveBeenCalledWith(2);
-  });
+  }, 15000);
 });

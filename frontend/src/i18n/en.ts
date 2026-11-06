@@ -35,6 +35,7 @@ export const en = {
     familySection: 'Family',
     moreSection: 'More',
     today: 'My Day',
+    assistant: 'AI Assistant',
     tasks: 'Tasks',
     schedule: 'Schedule',
     health: 'Health & food',
