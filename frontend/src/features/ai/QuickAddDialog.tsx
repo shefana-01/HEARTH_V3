@@ -41,7 +41,20 @@ export function QuickAddDialog({ open, onClose, onSaved }: { open: boolean; onCl
   const [error, setError] = useState<string | null>(null);
 
   const takers = useMemo(() => members.filter((m) => m.status === 'active' && m.role !== 'observer'), [members]);
-  const roster: RosterPerson[] = useMemo(() => people.map((p) => ({ id: p.id, name: p.name, kind: p.kind, takesTasks: p.kind === 'member' && takers.some((m) => m.id === p.id) })), [people, takers]);
+  const roster: RosterPerson[] = useMemo(
+    () =>
+      people.map((p) => {
+        const member = takers.find((m) => m.id === p.id);
+        return {
+          id: p.id,
+          name: p.name,
+          kind: p.kind,
+          takesTasks: p.kind === 'member' && Boolean(member),
+          skills: member?.skills,
+        };
+      }),
+    [people, takers],
+  );
 
   const reset = () => {
     setNote('');
@@ -60,7 +73,7 @@ export function QuickAddDialog({ open, onClose, onSaved }: { open: boolean; onCl
     setPending('draft');
     setError(null);
     try {
-      const self: RosterPerson = { id: me.id, name: me.name, kind: 'member', takesTasks: me.role !== 'observer' };
+      const self: RosterPerson = { id: me.id, name: me.name, kind: 'member', takesTasks: me.role !== 'observer', skills: me.skills };
       const result: QuickAddResult = await aiService.quickAdd(note, mode, roster, self);
       if (result.drafts.length === 0) {
         setError('No tasks were found in that note. Try one task per line, with a day and time.');
@@ -175,6 +188,15 @@ export function QuickAddDialog({ open, onClose, onSaved }: { open: boolean; onCl
                   <Checkbox checked={row.include} onChange={(e) => update(row.key, { include: e.target.checked })} label={`Save task ${index + 1}`} />
                   {row.forId && <span className="text-xs text-ink-muted">For {people.find((p) => p.id === row.forId)?.name.split(' ')[0] ?? 'someone'}</span>}
                 </div>
+                {row.reason && (
+                  <div className="mb-3 flex items-start gap-2 rounded-xl bg-primary-50/70 px-3 py-2 text-xs text-ink">
+                    <Sparkles aria-hidden="true" className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary-700" />
+                    <div>
+                      <span className="font-semibold text-primary-800">Why this task &amp; assignee were chosen: </span>
+                      <span className="text-ink-muted">{row.reason}</span>
+                    </div>
+                  </div>
+                )}
                 <div className="grid gap-3 sm:grid-cols-2">
                   <FormField label="Task" className="sm:col-span-2">
                     {(field) => <Input {...field} value={row.title} maxLength={120} onChange={(e) => update(row.key, { title: e.target.value })} />}
